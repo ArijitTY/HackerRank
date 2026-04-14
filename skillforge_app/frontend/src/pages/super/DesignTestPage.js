@@ -25,7 +25,7 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
   const [pythonCodingAvailable, setPythonCodingAvailable] = useState(0);
   const [diffLocked, setDiffLocked] = useState(new Set());
   const [typeLocked, setTypeLocked] = useState(new Set());
-  const [deleteConfirm, setDeleteConfirm] = useState(null); // { id, name, submittedCount }
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState({
     name: '', description: '',
@@ -53,6 +53,32 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
       setError('Failed to load data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (testId, testName) => {
+    if (!window.confirm(`Deactivate test "${testName}"? It will no longer be available for new assignments.`)) return;
+    try {
+      await api.delete(`${apiPrefix}/design-test/${testId}`);
+      fetchData();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to deactivate test');
+    }
+  };
+
+  const handleHardDelete = async () => {
+    if (!deleteConfirm) return;
+    setDeleting(true);
+    try {
+      await api.delete(`${apiPrefix}/design-test/${deleteConfirm.id}/hard`);
+      setDeleteConfirm(null);
+      setSuccess(`Test "${deleteConfirm.name}" permanently deleted.`);
+      setTimeout(() => setSuccess(''), 3000);
+      fetchData();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to delete test');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -197,32 +223,6 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
     }
   };
 
-  const handleDelete = async (testId, testName) => {
-    if (!window.confirm(`Deactivate test "${testName}"? It will no longer be available for new assignments.`)) return;
-    try {
-      await api.delete(`${apiPrefix}/design-test/${testId}`);
-      fetchData();
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to deactivate test');
-    }
-  };
-
-  const handleHardDelete = async () => {
-    if (!deleteConfirm) return;
-    setDeleting(true);
-    try {
-      await api.delete(`${apiPrefix}/design-test/${deleteConfirm.id}/hard`);
-      setDeleteConfirm(null);
-      setSuccess(`Test "${deleteConfirm.name}" permanently deleted.`);
-      setTimeout(() => setSuccess(''), 3000);
-      fetchData();
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to delete test');
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   if (loading) return <div style={{ padding: 60, textAlign: 'center', color: 'rgba(255,255,255,0.4)' }}>Loading...</div>;
 
   // Inject CSS to remove number input spinners
@@ -273,85 +273,21 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
 
       {/* ── Delete Confirmation Modal ─────────────────────────────── */}
       {deleteConfirm && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 1000,
-        }} onClick={() => !deleting && setDeleteConfirm(null)}>
-          <div style={{
-            background: '#0d1117', border: '1px solid rgba(239,68,68,0.3)',
-            borderRadius: 16, padding: 32, maxWidth: 440, width: '90%', textAlign: 'center',
-          }} onClick={e => e.stopPropagation()}>
-            {/* Icon */}
-            <div style={{
-              width: 56, height: 56, borderRadius: '50%',
-              background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              margin: '0 auto 16px',
-            }}>
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-              </svg>
-            </div>
-
-            <div style={{ fontSize: 18, fontWeight: 700, color: 'white', marginBottom: 8 }}>
-              Delete "{deleteConfirm.name}"?
-            </div>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => !deleting && setDeleteConfirm(null)}>
+          <div style={{ background: '#0d1117', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 16, padding: 32, maxWidth: 440, width: '90%', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: 'white', marginBottom: 8 }}>Delete "{deleteConfirm.name}"?</div>
             <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', lineHeight: 1.7, marginBottom: 8 }}>
               This will <strong style={{ color: '#f87171' }}>permanently delete</strong> the test and all its data — including questions, candidate sessions, and results.
             </div>
             {deleteConfirm.submittedCount > 0 && (
-              <div style={{
-                padding: '8px 14px', background: 'rgba(245,158,11,0.08)',
-                border: '1px solid rgba(245,158,11,0.25)', borderRadius: 8,
-                fontSize: 12, color: '#fbbf24', marginBottom: 16,
-              }}>
+              <div style={{ padding: '8px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 8, fontSize: 12, color: '#fbbf24', marginBottom: 16 }}>
                 ⚠️ {deleteConfirm.submittedCount} submitted session{deleteConfirm.submittedCount > 1 ? 's' : ''} will also be deleted.
               </div>
             )}
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', marginBottom: 24 }}>
-              This action <strong>cannot be undone</strong>.
-            </div>
-
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', marginBottom: 24 }}>This action <strong>cannot be undone</strong>.</div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-              <button
-                onClick={() => setDeleteConfirm(null)}
-                disabled={deleting}
-                style={{
-                  padding: '10px 24px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                  cursor: 'pointer', fontFamily: 'inherit',
-                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'rgba(255,255,255,0.6)',
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleHardDelete}
-                disabled={deleting}
-                style={{
-                  padding: '10px 24px', borderRadius: 8, fontSize: 13, fontWeight: 700,
-                  cursor: deleting ? 'wait' : 'pointer', fontFamily: 'inherit',
-                  background: deleting ? 'rgba(239,68,68,0.3)' : 'rgba(239,68,68,0.85)',
-                  border: 'none', color: 'white',
-                  display: 'flex', alignItems: 'center', gap: 6, minWidth: 130,
-                  justifyContent: 'center',
-                }}
-              >
-                {deleting ? (
-                  <>
-                    <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.7s linear infinite', display: 'inline-block' }}/>
-                    Deleting...
-                  </>
-                ) : (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                    </svg>
-                    Yes, Delete
-                  </>
-                )}
-              </button>
+              <button onClick={() => setDeleteConfirm(null)} disabled={deleting} style={{ padding: '10px 24px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }}>Cancel</button>
+              <button onClick={handleHardDelete} disabled={deleting} style={{ padding: '10px 24px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: deleting ? 'wait' : 'pointer', fontFamily: 'inherit', background: deleting ? 'rgba(239,68,68,0.3)' : 'rgba(239,68,68,0.85)', border: 'none', color: 'white' }}>{deleting ? 'Deleting...' : 'Yes, Delete'}</button>
             </div>
           </div>
         </div>
@@ -579,15 +515,15 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
       )}
 
       {/* ===== EXISTING TESTS LIST ===== */}
-      {tests.length === 0 && !showCreate && (
+      {!showCreate && tests.length === 0 && (
         <div style={{ textAlign: 'center', padding: 60, color: 'rgba(255,255,255,0.3)' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>&#128221;</div>
-          <p style={{ fontSize: 16 }}>No custom tests yet</p>
-          <p style={{ fontSize: 13, marginTop: 4 }}>Click "Create Test" to design your first assessment</p>
+          <p style={{ fontSize: 16 }}>No tests created yet</p>
+          <p style={{ fontSize: 13, marginTop: 4 }}>Click "+ Create Test" to get started.</p>
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 16 }}>
+      {!showCreate && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 16 }}>
         {tests.map(t => {
           const subjects = t.subjects_json ? JSON.parse(t.subjects_json) : [];
           const difficulty = t.difficulty_json ? JSON.parse(t.difficulty_json) : {};
@@ -600,38 +536,15 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                   {t.is_active === 1 && (
-                    <button
-                      onClick={() => handleDelete(t.id, t.name)}
-                      style={{ background: 'none', border: 'none', color: '#f59e0b', cursor: 'pointer', fontSize: 12, opacity: 0.8, padding: '3px 8px', borderRadius: 6, transition: 'opacity .15s' }}
-                      title="Deactivate test (keeps data)"
-                    >
-                      Deactivate
-                    </button>
+                    <button onClick={() => handleDelete(t.id, t.name)} style={{ background: 'none', border: 'none', color: '#f59e0b', cursor: 'pointer', fontSize: 12, opacity: 0.8, padding: '3px 8px', borderRadius: 6 }} title="Deactivate test (keeps data)">Deactivate</button>
                   )}
                   {!t.is_active && <span style={S.badge('#64748b')}>Inactive</span>}
-                  <button
-                    onClick={() => setDeleteConfirm({ id: t.id, name: t.name, submittedCount: t.submitted_count || 0 })}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 4,
-                      background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)',
-                      color: '#f87171', cursor: 'pointer', fontSize: 12, fontWeight: 600,
-                      padding: '4px 10px', borderRadius: 6, fontFamily: 'inherit',
-                      transition: 'background .15s',
-                    }}
-                    title="Permanently delete test and all its data"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-                    </svg>
-                    Delete
-                  </button>
+                  <button onClick={() => setDeleteConfirm({ id: t.id, name: t.name, submittedCount: t.submitted_count || 0 })} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171', cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 6, fontFamily: 'inherit' }} title="Permanently delete test and all its data">Delete</button>
                 </div>
               </div>
 
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-                {subjects.map(s => (
-                  <span key={s} style={S.badge(SUBJECT_COLORS[s] || '#6366f1')}>{SUBJECT_LABELS[s] || s}</span>
-                ))}
+                {subjects.map(s => (<span key={s} style={S.badge(SUBJECT_COLORS[s] || '#6366f1')}>{SUBJECT_LABELS[s] || s}</span>))}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 12 }}>
@@ -648,7 +561,6 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
                 ))}
               </div>
 
-              {/* Difficulty bars */}
               <div style={{ display: 'flex', gap: 4, height: 4, borderRadius: 2, overflow: 'hidden' }}>
                 <div style={{ width: `${difficulty.Easy || 30}%`, background: '#10b981' }} />
                 <div style={{ width: `${difficulty.Medium || 50}%`, background: '#f59e0b' }} />
@@ -660,7 +572,7 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
                 <span>H: {difficulty.Hard || 20}%</span>
               </div>
 
-              {t.avg_score !== null && (
+              {t.avg_score !== null && t.avg_score !== undefined && (
                 <div style={{ marginTop: 10, fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
                   Avg Score: <span style={{ color: '#10b981', fontFamily: 'monospace' }}>{t.avg_score}%</span> | Submitted: {t.submitted_count || 0}
                 </div>
@@ -672,7 +584,7 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
             </div>
           );
         })}
-      </div>
+      </div>}
     </div>
   );
 }

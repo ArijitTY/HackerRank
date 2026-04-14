@@ -4,8 +4,5 @@ __pycache__/
 *.log
 .env
 .env.local
-skillforge_app/backend/*.db
-skillforge_app/backend/skillforge.db
-skillforge_app/frontend/build/
 .DS_Store
 Thumbs.db

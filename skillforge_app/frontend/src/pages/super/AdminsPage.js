@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { formatIST, formatISTDate, nowLocalIso } from '../../utils/dateUtils';
 import api from '../../api';
 
 export default function AdminsPage() {
@@ -114,7 +115,8 @@ export default function AdminsPage() {
           </div>
         </div>
 
-        <table className="sf-table">
+        <div className="table-scroll-wrapper" style={{ width:'100%', overflowX:'auto', display:'block' }}>
+        <table className="sf-table" style={{ minWidth:'900px', whiteSpace:'nowrap' }}>
           <thead>
             <tr>
               <th>Admin</th>
@@ -138,8 +140,8 @@ export default function AdminsPage() {
                     </div>
                   </div>
                 </td>
-                <td>{a.created_at ? new Date(a.created_at).toLocaleDateString() : '-'}</td>
-                <td>{a.last_login ? new Date(a.last_login).toLocaleString() : 'Never'}</td>
+                <td>{a.created_at ? formatISTDate() : '-'}</td>
+                <td>{a.last_login ? formatIST() : 'Never'}</td>
                 <td>
                   <span className={`badge ${a.status === 'active' ? 'badge-active' : 'badge-revoked'}`}>
                     {a.status || 'active'}
@@ -178,6 +180,7 @@ export default function AdminsPage() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Permanent Delete Confirmation Modal */}

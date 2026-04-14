@@ -4,7 +4,7 @@ function logAudit(db, { actorId, actorRole, action, targetType, targetId, detail
   try {
     db.prepare(`
       INSERT INTO audit_log (id, actor_id, actor_role, action, target_type, target_id, details, timestamp)
-      VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      VALUES (?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%f','now','localtime'))
     `).run(
       uuidv4(),
       actorId || null,

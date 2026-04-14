@@ -1,7 +1,69 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import api from '../../api';
 import { useToast } from '../../context/ToastContext';
+
+// Convert parsed rows (array of arrays or array of objects) to "Name,Email,Password" CSV text.
+function rowsToCsvText(rows) {
+  if (!rows || rows.length === 0) return '';
+  const isObj = !Array.isArray(rows[0]);
+  const pickField = (row, candidates) => {
+    for (const k of candidates) {
+      const found = Object.keys(row).find(rk => rk.toLowerCase().trim() === k);
+      if (found && row[found] != null && String(row[found]).trim() !== '') return String(row[found]).trim();
+    }
+    return '';
+  };
+  return rows.map(r => {
+    if (isObj) {
+      const name = pickField(r, ['name','full name','fullname','candidate']);
+      const email = pickField(r, ['email','email address','e-mail']);
+      const password = pickField(r, ['password','pass','pwd']);
+      return `${name},${email},${password}`;
+    }
+    const cells = r.map(c => String(c == null ? '' : c).trim());
+    return cells.slice(0, 3).join(',');
+  }).filter(line => line.replace(/,/g,'').trim()).join('\n');
+}
+
+async function parseUploadedFile(file) {
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (ext === 'xlsx' || ext === 'xls') {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }).filter(r => r.some(c => String(c).trim()));
+    if (rows.length === 0) return '';
+    const header = rows[0].map(c => String(c).toLowerCase().trim());
+    const hasHeader = header.some(h => h === 'name' || h === 'email' || h === 'password' || h === 'full name');
+    return rowsToCsvText(hasHeader ? rows.slice(1) : rows);
+  }
+  // CSV / TSV
+  const text = await file.text();
+  return new Promise((resolve) => {
+    Papa.parse(text, {
+      skipEmptyLines: true,
+      complete: (result) => {
+        const rows = result.data;
+        if (rows.length === 0) return resolve('');
+        const header = (rows[0] || []).map(c => String(c).toLowerCase().trim());
+        const hasHeader = header.some(h => h === 'name' || h === 'email' || h === 'password' || h === 'full name');
+        resolve(rowsToCsvText(hasHeader ? rows.slice(1) : rows));
+      },
+    });
+  });
+}
+
+function downloadTemplateCsv() {
+  const csv = 'Name,Email,Password\nAlice Smith,alice@company.com,Pass@123\nBob Jones,bob@company.com,Pass@456\n';
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'candidates_template.csv'; document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
 
 function CustomSelect({ value, onChange, options, placeholder, emptyMsg, navigate, navigateTo }) {
   const [open, setOpen] = useState(false);
@@ -22,7 +84,7 @@ function CustomSelect({ value, onChange, options, placeholder, emptyMsg, navigat
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points={open ? "18 15 12 9 6 15" : "6 9 12 15 18 9"}/></svg>
       </div>
       {open && (
-        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: '#1a1f35', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, zIndex: 999, maxHeight: 240, overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
+        <div className="custom-dropdown" style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, zIndex: 999, boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
           {options.length === 0 ? (
             <div style={{ padding: '12px 14px' }}>
               <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginBottom: 8 }}>{emptyMsg || 'No options available'}</div>
@@ -76,6 +138,9 @@ export default function CandidatesPage() {
   const [bulkResult, setBulkResult] = useState(null);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkError, setBulkError] = useState('');
+  const [bulkFileName, setBulkFileName] = useState('');
+  const [bulkDragOver, setBulkDragOver] = useState(false);
+  const bulkFileRef = useRef(null);
 
   const fetchCandidates = () => {
     setLoading(true);
@@ -86,12 +151,26 @@ export default function CandidatesPage() {
   };
 
   const fetchTests = () => {
-    api.get('/super/tests')
-      .then(r => setTests((r.data.tests || []).filter(t => t.is_custom)))
+    api.get('/super/tests/all-for-dropdown')
+      .then(r => {
+        const reg = (r.data.regular || []).map(t => ({ ...t, _group: 'Regular' }));
+        const ivp = (r.data.interviewPrep || []).map(t => ({ ...t, _group: 'Interview Prep' }));
+        setTests([...reg, ...ivp]);
+      })
       .catch(() => {});
   };
 
-  useEffect(() => { fetchCandidates(); fetchTests(); }, []);
+  const [onlineStatus, setOnlineStatus] = useState({});
+  const fetchOnlineStatus = () => {
+    api.get('/super/candidates/online-status')
+      .then(r => setOnlineStatus(r.data || {}))
+      .catch(() => {});
+  };
+  useEffect(() => { fetchCandidates(); fetchTests(); fetchOnlineStatus(); }, []);
+  useEffect(() => {
+    const id = setInterval(fetchOnlineStatus, 30000);
+    return () => clearInterval(id);
+  }, []);
 
   const filtered = candidates.filter(c =>
     (c.name || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -150,6 +229,22 @@ export default function CandidatesPage() {
     setBulkResult(null);
   };
 
+  const handleBulkFile = async (file) => {
+    if (!file) return;
+    setBulkError(''); setBulkResult(null);
+    try {
+      const csvText = await parseUploadedFile(file);
+      if (!csvText.trim()) { setBulkError('No valid rows found in file.'); return; }
+      setBulkFileName(file.name);
+      handleBulkCsvChange(csvText);
+    } catch (err) { setBulkError('Failed to parse file: ' + err.message); }
+  };
+
+  const clearBulkFile = () => {
+    setBulkFileName(''); setBulkCsvText(''); setBulkPreview([]); setBulkError(''); setBulkResult(null);
+    if (bulkFileRef.current) bulkFileRef.current.value = '';
+  };
+
   const submitBulkImport = async () => {
     const candidates = parseBulkCsv(bulkCsvText);
     if (candidates.length === 0) { setBulkError('No valid rows found. Format: Name,Email,Password'); return; }
@@ -157,6 +252,11 @@ export default function CandidatesPage() {
     try {
       const { data } = await api.post('/super/candidates/bulk-import', { candidates });
       setBulkResult(data);
+      const created = data.created?.length || 0;
+      const skipped = data.skipped?.length || 0;
+      const errs = data.errors?.length || 0;
+      if (created > 0) toast.success(`${created} candidate${created!==1?'s':''} imported${skipped?`, ${skipped} skipped (already exist)`:''}${errs?`, ${errs} errors`:''}`);
+      else if (skipped > 0) toast.info(`No new candidates — ${skipped} already exist`);
       fetchCandidates();
     } catch (err) {
       setBulkError(err.response?.data?.error || 'Bulk import failed');
@@ -240,7 +340,8 @@ export default function CandidatesPage() {
           </div>
         </div>
 
-        <table className="sf-table">
+        <div className="table-scroll-wrapper" style={{ width:'100%', overflowX:'auto', display:'block' }}>
+        <table className="sf-table" style={{ minWidth:'900px', whiteSpace:'nowrap' }}>
           <thead>
             <tr>
               <th>Candidate</th>
@@ -267,9 +368,17 @@ export default function CandidatesPage() {
                 <td>{c.created_by_name || c.created_by || '-'}</td>
                 <td><span className="badge badge-count">{c.permissions_count ?? c.test_count ?? 0}</span></td>
                 <td>
-                  <span className={`badge ${c.status === 'active' ? 'badge-active' : 'badge-revoked'}`}>
-                    {c.status || 'active'}
-                  </span>
+                  {(() => {
+                    const s = onlineStatus[c.id] || { status: 'offline', lastSeen: null };
+                    const online = s.status === 'online';
+                    const title = s.lastSeen ? `Last seen: ${s.lastSeen}` : 'Never seen';
+                    return (
+                      <span title={title} className={`badge ${online ? 'badge-active' : 'badge-revoked'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: online ? '#10b981' : '#ef4444', display: 'inline-block' }} />
+                        {online ? 'Online' : 'Offline'}
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td>
                   <div className="btn-group">
@@ -287,6 +396,7 @@ export default function CandidatesPage() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {showCreate && (
@@ -353,7 +463,7 @@ export default function CandidatesPage() {
                 <CustomSelect
                   value={assignForm.testId}
                   onChange={v => setAssignForm({ ...assignForm, testId: v })}
-                  options={tests.map(t => ({ value: t.id, label: t.name + (t.test_type === 'coding' ? ' [Coding]' : t.test_type === 'hybrid' ? ' [Hybrid]' : '') }))}
+                  options={tests.map(t => ({ value: t.id, label: `${t.name}  [${t._group || t.test_type || 'Test'}]` }))}
                   placeholder="-- Select Test --"
                   emptyMsg="No designed tests yet. Create one first."
                   navigate={navigate}
@@ -454,6 +564,35 @@ export default function CandidatesPage() {
               No header row needed. Existing emails will be skipped.
             </div>
             {bulkError && <div className="login-error" style={{ margin: '0 0 12px' }}>{bulkError}</div>}
+
+            {/* File upload dropzone */}
+            <div
+              onDragOver={e => { e.preventDefault(); setBulkDragOver(true); }}
+              onDragLeave={() => setBulkDragOver(false)}
+              onDrop={e => { e.preventDefault(); setBulkDragOver(false); handleBulkFile(e.dataTransfer.files?.[0]); }}
+              onClick={() => bulkFileRef.current?.click()}
+              style={{
+                cursor: 'pointer', textAlign: 'center', padding: '20px 16px', marginBottom: 12,
+                border: `2px dashed ${bulkDragOver ? '#7c3aed' : 'rgba(255,255,255,0.18)'}`,
+                background: bulkDragOver ? 'rgba(124,58,237,0.08)' : 'rgba(255,255,255,0.02)',
+                borderRadius: 10, transition: 'all 0.15s',
+              }}
+            >
+              <input ref={bulkFileRef} type="file" accept=".csv,.xlsx,.xls" style={{ display: 'none' }}
+                onChange={e => handleBulkFile(e.target.files?.[0])} />
+              <div style={{ fontSize: 28, marginBottom: 6 }}>📤</div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 4 }}>
+                {bulkFileName ? <span style={{ color: '#34d399' }}>{bulkFileName} ✓ {bulkPreview.length} candidates found</span> : 'Drag & drop CSV or Excel file here'}
+              </div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
+                {bulkFileName ? 'Click to choose another file' : 'OR click to browse (.csv, .xlsx, .xls)'}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <button type="button" className="btn btn-outline" style={{ fontSize: 12, padding: '6px 12px' }} onClick={downloadTemplateCsv}>⬇ Download Template</button>
+              {(bulkFileName || bulkCsvText) && <button type="button" className="btn btn-outline" style={{ fontSize: 12, padding: '6px 12px' }} onClick={clearBulkFile}>✕ Clear</button>}
+            </div>
+
             <div className="form-group">
               <label className="form-label">Paste CSV Data</label>
               <textarea

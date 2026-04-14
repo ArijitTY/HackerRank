@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import api from '../../api';
+import { parseStamp } from '../../utils/dateUtils';
 
 const SECTION_COLORS = {
   'Core Java': '#8b5cf6', 'Selenium WebDriver': '#3b82f6',
@@ -28,9 +29,8 @@ const STATUS_COLORS = {
 function parseTime(t) {
   if (!t) return Date.now();
   if (typeof t === 'number') return t;
-  const s = String(t);
-  if (!s.includes('Z') && !s.includes('T') && !s.includes('+')) return new Date(s + 'Z').getTime();
-  return new Date(s).getTime();
+  const d = parseStamp(t);
+  return d ? d.getTime() : Date.now();
 }
 
 function TimeBadge({ ms }) {
@@ -428,11 +428,29 @@ export default function CodingTestPage({ user, testId, sessionId, problems, tota
                 {probs.map(p => {
                   const st = getStatus(p.id);
                   const isCurrent = p.idx === currentProblem;
+                  const pSubmit = submitResults[p.id];
                   return (
-                    <button key={p.id} className={`sidebar-problem ${isCurrent ? 'sp-active' : ''}`} onClick={() => setCurrentProblem(p.idx)}>
+                    <button key={p.id}
+                      className={`sidebar-problem ${isCurrent ? 'sp-active' : ''}`}
+                      onClick={() => setCurrentProblem(p.idx)}
+                      style={pSubmit ? {
+                        background: isCurrent
+                          ? 'rgba(124,58,237,0.15)'
+                          : pSubmit.score > 0 ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)',
+                        borderColor: isCurrent
+                          ? 'rgba(124,58,237,0.4)'
+                          : pSubmit.score > 0 ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)',
+                      } : undefined}
+                    >
                       <span className="sp-status">{STATUS_ICONS[st] || '⬜'}</span>
-                      <span className="sp-title">{p.idx + 1}. {p.title}</span>
-                      <span className="sp-pts mono">{p.points}pt</span>
+                      <span className="sp-title" style={pSubmit ? { color: pSubmit.score > 0 ? '#34d399' : '#f87171' } : undefined}>
+                        {p.idx + 1}. {p.title}
+                      </span>
+                      <span className="sp-pts mono" style={pSubmit ? {
+                        color: pSubmit.score > 0 ? '#34d399' : '#f87171', fontWeight: 700
+                      } : undefined}>
+                        {pSubmit ? `${pSubmit.score}/${pSubmit.maxScore}` : `${p.points}pt`}
+                      </span>
                       <span className="sp-diff" style={{ color: DIFF_COLORS[p.difficulty] }}>{p.difficulty[0]}</span>
                     </button>
                   );
@@ -524,12 +542,43 @@ export default function CodingTestPage({ user, testId, sessionId, problems, tota
                 <span className="editor-lang">{isPython ? '🐍 Python 3' : isSql ? '🗄 SQL' : '☕ Java'}</span>
                 <span style={{ fontSize: 11, color: '#475569' }}>Time limit: {timeLimitSec}s &nbsp;|&nbsp; Max code: 50KB</span>
               </div>
+              {submitData && (
+                <div style={{
+                  padding: '12px 18px',
+                  background: submitData.score > 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                  border: `1px solid ${submitData.score > 0 ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                  borderRadius: 10, marginBottom: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 20 }}>{submitData.score > 0 ? '✅' : '❌'}</span>
+                    <div>
+                      <div style={{
+                        fontSize: 14, fontWeight: 700,
+                        color: submitData.score > 0 ? '#34d399' : '#f87171'
+                      }}>
+                        {submitData.score > 0 ? 'Accepted!' : 'Wrong Answer'}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
+                        This problem has been submitted — editor is locked
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{
+                    fontSize: 20, fontWeight: 800,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    color: submitData.score > 0 ? '#34d399' : '#f87171'
+                  }}>
+                    {submitData.score}/{submitData.maxScore} pts
+                  </div>
+                </div>
+              )}
               <Editor
                 height="100%"
                 language={lang}
                 theme="vs-dark"
                 value={code}
-                onChange={(val) => setCodeMap(prev => ({ ...prev, [problem.id]: val || '' }))}
+                onChange={submitData ? undefined : (val) => setCodeMap(prev => ({ ...prev, [problem.id]: val || '' }))}
                 options={{
                   fontFamily: "'JetBrains Mono', monospace",
                   fontSize: 14,
@@ -540,6 +589,7 @@ export default function CodingTestPage({ user, testId, sessionId, problems, tota
                   tabSize: 4,
                   lineNumbers: 'on',
                   renderLineHighlight: 'all',
+                  readOnly: !!submitData,
                 }}
               />
             </div>
@@ -715,11 +765,23 @@ export default function CodingTestPage({ user, testId, sessionId, problems, tota
 
             {/* Action Bar */}
             <div className="action-bar">
-              <button className="btn btn-secondary" onClick={handleRun} disabled={running || submitting}>
+              <button className="btn btn-secondary" onClick={handleRun} disabled={running || submitting || !!submitData}
+                style={submitData ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}>
                 {running ? '⏳ Running...' : '▶ Run Code'}
               </button>
-              <button className="btn btn-primary" onClick={handleSubmitCode} disabled={submitting || running}>
-                {submitting ? '⏳ Submitting...' : '✔ Submit'}
+              <button
+                className={`btn ${submitData ? '' : 'btn-primary'}`}
+                onClick={handleSubmitCode}
+                disabled={!!submitData || submitting || running}
+                style={submitData ? {
+                  background: 'rgba(16,185,129,0.2)',
+                  border: '1px solid rgba(16,185,129,0.4)',
+                  color: '#34d399',
+                  cursor: 'not-allowed',
+                  opacity: 0.8,
+                } : undefined}
+              >
+                {submitData ? '✅ Submitted' : submitting ? '⏳ Submitting...' : '✔ Submit'}
               </button>
             </div>
           </div>

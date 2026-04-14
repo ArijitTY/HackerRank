@@ -7,6 +7,11 @@ export default function NetworkPage() {
   const [tunnelStatus, setTunnelStatus] = useState('stopped');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [polling, setPolling] = useState(false);
+  const [pollAttempt, setPollAttempt] = useState(0);
+  const [authToken, setAuthToken] = useState('');
+  const [tokenSaving, setTokenSaving] = useState(false);
+  const [tokenMsg, setTokenMsg] = useState('');
 
   useEffect(() => {
     api.get('/tunnel/lan')
@@ -14,23 +19,34 @@ export default function NetworkPage() {
       .catch(() => {});
     api.get('/tunnel/status')
       .then(r => {
-        setTunnelUrl(r.data.url || '');
-        setTunnelStatus(r.data.status || 'stopped');
+        const url = r.data.ngrokUrl || r.data.url || '';
+        const running = r.data.ngrokRunning || r.data.status === 'running' || false;
+        setTunnelUrl(url);
+        setTunnelStatus(running ? 'running' : 'stopped');
       })
       .catch(() => {});
   }, []);
 
   const startTunnel = async () => {
-    setLoading(true);
-    setError('');
+    setLoading(true); setError(''); setTunnelStatus('starting'); setPolling(true); setPollAttempt(0);
     try {
-      const { data } = await api.post('/tunnel/ngrok/start');
-      setTunnelUrl(data.url || '');
-      setTunnelStatus('running');
+      await api.post('/tunnel/ngrok/start');
+      for (let i = 1; i <= 20; i++) {
+        setPollAttempt(i);
+        await new Promise(r => setTimeout(r, 2000));
+        try {
+          const { data } = await api.get('/tunnel/status');
+          const url = data.ngrokUrl || data.url;
+          if (url) { setTunnelUrl(url); setTunnelStatus('running'); setPolling(false); setLoading(false); return; }
+        } catch(e) {}
+      }
+      setTunnelStatus('failed');
+      setError('Tunnel failed to start. Make sure ngrok is authenticated — run "ngrok config add-authtoken YOUR_TOKEN" in terminal, or set the token below.');
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to start tunnel');
+      setTunnelStatus('stopped');
     } finally {
-      setLoading(false);
+      setPolling(false); setLoading(false);
     }
   };
 
@@ -54,12 +70,25 @@ export default function NetworkPage() {
 
   const lanUrl = lanIp ? `http://${lanIp}:3000` : '';
 
+  const statusStyle = (() => {
+    switch (tunnelStatus) {
+      case 'running': return { backgroundColor: 'rgba(52,211,153,0.15)', color: '#34d399' };
+      case 'starting': return { backgroundColor: 'rgba(250,204,21,0.15)', color: '#facc15' };
+      case 'failed': return { backgroundColor: 'rgba(248,113,113,0.15)', color: '#f87171' };
+      default: return { backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' };
+    }
+  })();
+
   return (
     <div className="page-enter">
       <div className="page-header">
         <div>
           <h1 className="page-title">Network Access</h1>
           <p className="page-sub">Configure LAN and tunnel access for candidates</p>
+          <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>
+            Development: <code style={{ color: '#a78bfa' }}>http://localhost:3001</code>
+            &nbsp;·&nbsp; Production / Candidates: <code style={{ color: '#34d399' }}>http://localhost:3000</code>
+          </p>
         </div>
       </div>
 
@@ -112,21 +141,30 @@ export default function NetworkPage() {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
               <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Status</span>
-              <span className={`badge ${tunnelStatus === 'running' ? 'badge-active' : 'badge-muted'}`}>
+              <span className="badge" style={{ ...statusStyle, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                {tunnelStatus === 'running' && (
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#34d399', animation: 'pulse 2s infinite' }} />
+                )}
+                {tunnelStatus === 'starting' && (
+                  <span style={{ width: 10, height: 10, border: '2px solid rgba(250,204,21,0.3)', borderTopColor: '#facc15', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                )}
                 {tunnelStatus}
               </span>
             </div>
 
-            {tunnelUrl && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(0,0,0,0.3)', borderRadius: 8, marginBottom: 16 }}>
-                <code style={{ flex: 1, fontSize: 13, color: '#7c3aed', fontFamily: 'monospace', wordBreak: 'break-all' }}>{tunnelUrl}</code>
-                <button className="btn btn-sm btn-outline" onClick={() => copyUrl(tunnelUrl)}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                  </svg>
-                  Copy
-                </button>
-              </div>
+            {tunnelUrl && tunnelStatus === 'running' && (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(0,0,0,0.3)', borderRadius: 8, marginBottom: 8 }}>
+                  <code style={{ flex: 1, fontSize: 13, color: '#7c3aed', fontFamily: 'monospace', wordBreak: 'break-all' }}>{tunnelUrl}</code>
+                  <button className="btn btn-sm btn-outline" onClick={() => copyUrl(tunnelUrl)}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                    Copy
+                  </button>
+                </div>
+                <p style={{ margin: '0 0 12px', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Share this URL with candidates outside your network</p>
+              </>
             )}
 
             <div style={{ display: 'flex', gap: 10 }}>
@@ -138,6 +176,35 @@ export default function NetworkPage() {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="6" y="6" width="12" height="12"/></svg>
                 Stop Tunnel
               </button>
+            </div>
+
+            {polling && (
+              <p style={{ margin: '10px 0 0', fontSize: 12, color: 'rgba(250,204,21,0.8)' }}>
+                Getting tunnel URL... attempt {pollAttempt}/20
+              </p>
+            )}
+            <p style={{ margin: '8px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>
+              Requires ngrok account (free). Get your token at ngrok.com
+            </p>
+
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', display:'block', marginBottom: 6 }}>Ngrok Auth Token (optional)</label>
+              <div style={{ display:'flex', gap: 8 }}>
+                <input
+                  type="password"
+                  value={authToken}
+                  onChange={e=>setAuthToken(e.target.value)}
+                  placeholder="Paste your ngrok authtoken"
+                  style={{ flex: 1, padding: '8px 12px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.9)', fontSize: 13 }}
+                />
+                <button className="btn btn-outline" disabled={tokenSaving || !authToken} onClick={async () => {
+                  setTokenSaving(true); setTokenMsg('');
+                  try { await api.post('/tunnel/ngrok/auth-token', { token: authToken }); setTokenMsg('Saved'); setAuthToken(''); }
+                  catch(err) { setTokenMsg(err.response?.data?.error || 'Failed'); }
+                  finally { setTokenSaving(false); }
+                }}>{tokenSaving ? 'Saving...' : 'Save'}</button>
+              </div>
+              {tokenMsg && <div style={{ fontSize: 11, marginTop: 6, color: tokenMsg === 'Saved' ? '#34d399' : '#f87171' }}>{tokenMsg}</div>}
             </div>
           </div>
         </div>

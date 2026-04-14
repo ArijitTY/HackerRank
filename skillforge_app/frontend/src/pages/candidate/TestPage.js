@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import api from '../../api';
+import { parseStamp, nowLocalIso } from '../../utils/dateUtils';
 import CodingTestPage from './CodingTestPage';
 // Lazy-load Monaco for hybrid coding section
 import MonacoEditor from '@monaco-editor/react';
@@ -20,12 +21,114 @@ function HybridMonacoEditor({ code, onChange, language = 'python' }) {
   );
 }
 
+// ── Inline Coding Problem Component for Company Tests ──────────────────────
+function CodingProblemInline({ question, savedCode, onCodeSave }) {
+  const [code, setCode] = useState(savedCode || question.starter_code || '');
+  const [output, setOutput] = useState('');
+  const [running, setRunning] = useState(false);
+  const [testResults, setTestResults] = useState([]);
+
+  const runCode = async () => {
+    setRunning(true);
+    setOutput('Running...');
+    setTestResults([]);
+    try {
+      const res = await api.post('/candidate/run-code', {
+        code, language: question.language || 'python', problemId: question.id
+      });
+      setOutput(res.data.output || '(no output)');
+      if (res.data.testResults) setTestResults(res.data.testResults);
+    } catch (err) {
+      setOutput('Error: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const handleSave = () => { onCodeSave(code); };
+
+  return (
+    <div style={{ marginBottom: 28 }}>
+      {/* Problem description */}
+      {question.description && (
+        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: 18, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+            <span style={{ padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+              background: question.difficulty === 'Hard' ? 'rgba(239,68,68,0.15)' : question.difficulty === 'Medium' ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)',
+              color: question.difficulty === 'Hard' ? '#f87171' : question.difficulty === 'Medium' ? '#fbbf24' : '#34d399' }}>{question.difficulty}</span>
+            <span style={{ padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: 'rgba(124,58,237,0.15)', color: '#a78bfa' }}>
+              {(question.language || 'python').toUpperCase()}
+            </span>
+            {question.marks && <span style={{ padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: 'rgba(6,182,212,0.15)', color: '#22d3ee' }}>{question.marks} marks</span>}
+          </div>
+          <pre style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', lineHeight: 1.7, whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'inherit' }}>{question.description}</pre>
+          {question.explanation && (
+            <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 8 }}>
+              <span style={{ fontSize: 12, color: '#fbbf24' }}>💡 Hint: {question.explanation}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Code Editor */}
+      <div style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 14px', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444' }} />
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b' }} />
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981' }} />
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', marginLeft: 8 }}>
+              {question.language === 'sql' ? 'solution.sql' : 'solution.py'}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={handleSave} style={{ padding: '5px 12px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 6, color: '#34d399', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>💾 Save</button>
+            <button onClick={runCode} disabled={running} style={{ padding: '5px 14px', background: 'linear-gradient(135deg,#7c3aed,#5b21b6)', border: 'none', borderRadius: 6, color: 'white', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+              {running ? '⏳ Running...' : '▶ Run'}
+            </button>
+          </div>
+        </div>
+        <MonacoEditor
+          height="300px"
+          language={question.language === 'sql' ? 'sql' : 'python'}
+          value={code}
+          onChange={(val) => setCode(val || '')}
+          theme="vs-dark"
+          options={{ minimap: { enabled: false }, fontSize: 14, scrollBeyondLastLine: false, tabSize: 4, wordWrap: 'on', lineNumbers: 'on', padding: { top: 12 } }}
+        />
+      </div>
+
+      {/* Output */}
+      {output && (
+        <div style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
+          <div style={{ padding: '6px 14px', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.06)', fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Output</div>
+          <pre style={{ padding: 14, margin: 0, color: '#e2e8f0', fontFamily: "'JetBrains Mono',monospace", fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap', background: '#030712', maxHeight: 200, overflowY: 'auto' }}>{output}</pre>
+        </div>
+      )}
+
+      {/* Test Results */}
+      {testResults.length > 0 && (
+        <div style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 14 }}>
+          {testResults.map((tr, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: i < testResults.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+              <span style={{ fontSize: 14 }}>{tr.passed ? '✅' : '❌'}</span>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Test {i + 1}:</span>
+              <span style={{ fontSize: 12, color: tr.passed ? '#34d399' : '#f87171', fontFamily: "'JetBrains Mono',monospace" }}>
+                Expected: {tr.expected} | Got: {tr.actual}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function parseTime(t) {
   if (!t) return Date.now();
   if (typeof t === 'number') return t;
-  const s = String(t);
-  if (!s.includes('Z') && !s.includes('T') && !s.includes('+')) return new Date(s + 'Z').getTime();
-  return new Date(s).getTime();
+  const d = parseStamp(t);
+  return d ? d.getTime() : Date.now();
 }
 
 export default function TestPage({ user }) {
@@ -186,7 +289,7 @@ export default function TestPage({ user }) {
         setShowViolationWarning(true);
         try {
           await api.post(`/candidate/tests/${testId}/session/${sessionId}/violation`, {
-            type, timestamp: new Date().toISOString()
+            type, timestamp: nowLocalIso()
           });
         } catch { /* silent */ }
         // Auto-submit after brief delay so candidate sees the message
@@ -202,7 +305,7 @@ export default function TestPage({ user }) {
         setTimeout(() => setShowViolationWarning(false), 6000);
         try {
           await api.post(`/candidate/tests/${testId}/session/${sessionId}/violation`, {
-            type, timestamp: new Date().toISOString()
+            type, timestamp: nowLocalIso()
           });
         } catch { /* silent */ }
       }
@@ -281,7 +384,7 @@ export default function TestPage({ user }) {
   const hybridRunCode = async (problemId, code, input = '') => {
     setHybridRunning(true);
     try {
-      const { data } = await api.post(`/candidate/tests/${testId}/run`, { problemId, code, input });
+      const { data } = await api.post(`/candidate/tests/${testId}/run`, { sessionId, problemId, code, input });
       setHybridCodeRunResults(prev => ({ ...prev, [problemId]: data }));
       if (data.passed !== undefined || (data.results && data.results.every(r => r.passed))) {
         // Calculate points
@@ -302,7 +405,7 @@ export default function TestPage({ user }) {
     if (!code.trim()) return;
     setHybridRunning(true);
     try {
-      const { data } = await api.post(`/candidate/tests/${testId}/submit-code`, { problemId, code });
+      const { data } = await api.post(`/candidate/tests/${testId}/submit-code`, { sessionId, problemId, code });
       if (data.score !== undefined) {
         setHybridBestScores(prev => ({ ...prev, [problemId]: Math.max(prev[problemId] || 0, data.score) }));
       }
@@ -453,7 +556,7 @@ export default function TestPage({ user }) {
         {/* Header */}
         <div style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{ fontSize: 15, fontWeight: 600 }}>Custom Assessment</div>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>{navState.testName || 'Assessment'}</div>
             <div style={{ display: 'flex', gap: 4 }}>
               <button onClick={() => setHybridSection('mcq')} style={{ padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: hybridSection === 'mcq' ? '#7c3aed' : 'rgba(255,255,255,0.06)', color: hybridSection === 'mcq' ? 'white' : 'rgba(255,255,255,0.5)' }}>
                 📝 MCQ ({answeredMcq}/{questions.length})
@@ -485,6 +588,37 @@ export default function TestPage({ user }) {
                   );
                 })}
               </div>
+              {/* Quick-access coding buttons at bottom of MCQ palette */}
+              {hybridProblems.length > 0 && (
+                <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(6,182,212,0.6)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8 }}>
+                    💻 Coding ({hybridProblems.length})
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {hybridProblems.map((prob, idx) => {
+                      const score = hybridBestScores[prob.id] || 0;
+                      return (
+                        <button key={prob.id}
+                          onClick={() => { setHybridSection('coding'); setHybridActiveProblem(idx); }}
+                          style={{
+                            padding: '7px 10px', borderRadius: 8, cursor: 'pointer',
+                            background: score > 0 ? 'rgba(6,182,212,0.15)' : 'rgba(6,182,212,0.06)',
+                            border: `1px solid ${score > 0 ? 'rgba(6,182,212,0.35)' : 'rgba(6,182,212,0.15)'}`,
+                            color: score > 0 ? '#22d3ee' : 'rgba(6,182,212,0.6)',
+                            fontSize: 11, fontWeight: 600, textAlign: 'left',
+                            fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6,
+                          }}>
+                          <span>💻</span>
+                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {prob.title}
+                          </span>
+                          {score > 0 && <span style={{ fontSize: 10, color: '#22d3ee' }}>{score}pts</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
             {/* Question display */}
             <div style={{ flex: 1, padding: 32, overflowY: 'auto' }}>
@@ -810,7 +944,15 @@ export default function TestPage({ user }) {
               {q.question || q.question_text || q.text}
             </div>
 
-            {/* Options */}
+            {/* Coding Problem */}
+            {q.type === 'coding_problem' ? (
+              <CodingProblemInline
+                question={q}
+                savedCode={answers[q.id]}
+                onCodeSave={(code) => handleAnswer(q.id, code)}
+              />
+            ) : (
+            /* MCQ Options */
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28 }}>
               {(q.options || []).map((opt, oi) => {
                 const isSelected = answers[q.id] === oi;
@@ -838,6 +980,7 @@ export default function TestPage({ user }) {
                 );
               })}
             </div>
+            )}
 
             {/* Navigation */}
             <div style={{

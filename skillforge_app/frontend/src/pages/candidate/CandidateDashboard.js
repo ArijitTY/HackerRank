@@ -1,15 +1,24 @@
 import { useState, useEffect } from 'react';
+import { formatIST, formatISTDate, nowLocalIso } from '../../utils/dateUtils';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api';
 import PerformanceAnalytics from '../../components/PerformanceAnalytics';
 import { useToast } from '../../context/ToastContext';
 
 const TEST_META = {
-  test_r1:  { icon:'\u2615', color:'#f97316', grad:'linear-gradient(135deg,#f97316,#ea580c)', tag:'Java + Selenium' },
-  test_r2:  { icon:'\uD83D\uDCDA', color:'#8b5cf6', grad:'linear-gradient(135deg,#8b5cf6,#6d28d9)', tag:'Practice Mode' },
-  test_r3:  { icon:'\uD83D\uDCBB', color:'#06b6d4', grad:'linear-gradient(135deg,#06b6d4,#0284c7)', tag:'Coding' },
-  test_p1:  { icon:'\uD83D\uDC0D', color:'#10b981', grad:'linear-gradient(135deg,#10b981,#059669)', tag:'Python' },
-  test_pqa: { icon:'\uD83D\uDD2C', color:'#ec4899', grad:'linear-gradient(135deg,#ec4899,#9333ea)', tag:'Python QA' },
+  test_r1:         { icon:'\u2615', color:'#f97316', grad:'linear-gradient(135deg,#f97316,#ea580c)', tag:'Java + Selenium' },
+  test_r2:         { icon:'\uD83D\uDCDA', color:'#8b5cf6', grad:'linear-gradient(135deg,#8b5cf6,#6d28d9)', tag:'Practice Mode' },
+  test_r3:         { icon:'\uD83D\uDCBB', color:'#06b6d4', grad:'linear-gradient(135deg,#06b6d4,#0284c7)', tag:'Coding' },
+  test_p1:         { icon:'\uD83D\uDC0D', color:'#10b981', grad:'linear-gradient(135deg,#10b981,#059669)', tag:'Python' },
+  test_pqa:        { icon:'\uD83D\uDD2C', color:'#ec4899', grad:'linear-gradient(135deg,#ec4899,#9333ea)', tag:'Python QA' },
+  test_pycode:     { icon:'\u26A1', color:'#f59e0b', grad:'linear-gradient(135deg,#f59e0b,#d97706)', tag:'Python Coding' },
+  test_sony:       { icon:'\uD83C\uDFAF', color:'#f97316', grad:'linear-gradient(135deg,#f97316,#ea580c)', tag:'MCQ + Coding' },
+  test_ey:         { icon:'\uD83E\uDDE9', color:'#8b5cf6', grad:'linear-gradient(135deg,#8b5cf6,#6d28d9)', tag:'MCQ + Coding' },
+  test_fluke:      { icon:'\uD83D\uDCCA', color:'#ef4444', grad:'linear-gradient(135deg,#ef4444,#dc2626)', tag:'MCQ + Coding' },
+  test_wakefit:    { icon:'\u26A1', color:'#f59e0b', grad:'linear-gradient(135deg,#f59e0b,#d97706)', tag:'MCQ + Coding' },
+  test_nykaa:      { icon:'\uD83D\uDC84', color:'#ec4899', grad:'linear-gradient(135deg,#ec4899,#db2777)', tag:'MCQ + Coding' },
+  test_greyorange: { icon:'\uD83E\uDD16', color:'#6366f1', grad:'linear-gradient(135deg,#6366f1,#4f46e5)', tag:'MCQ + Coding' },
+  test_arcessium:  { icon:'\uD83D\uDD37', color:'#06b6d4', grad:'linear-gradient(135deg,#06b6d4,#0284c7)', tag:'MCQ + Coding' },
 };
 
 // Dynamic meta generation for custom tests
@@ -45,7 +54,7 @@ export default function CandidateDashboard({ user }) {
   const fetchDashboard = () => {
     setLoading(true);
     api.get('/candidate/dashboard')
-      .then(r => { setTests(r.data.tests || []); setCandidate(r.data.candidate || null); })
+      .then(r => { setTests((r.data.tests || []).filter(t => (t.testType || t.test_type || 'mcq') !== 'interview')); setCandidate(r.data.candidate || null); })
       .catch(e => setError(e.response?.data?.error || 'Failed to load'))
       .finally(() => setLoading(false));
   };
@@ -56,6 +65,14 @@ export default function CandidateDashboard({ user }) {
     api.get('/candidate/interviews')
       .then(r => setInterviews(r.data.interviews || []))
       .catch(() => {}); // silently ignore if endpoint fails
+  }, []);
+
+  // Ping server every 2 minutes to mark candidate as online
+  useEffect(() => {
+    const ping = () => api.get('/candidate/ping').catch(() => {});
+    ping();
+    const id = setInterval(ping, 2 * 60 * 1000);
+    return () => clearInterval(id);
   }, []);
 
   const handleAction = async (test) => {
@@ -94,6 +111,8 @@ export default function CandidateDashboard({ user }) {
   if (error) return <div style={S.center}><div style={{fontSize:48,marginBottom:12}}>⚠️</div><p style={{color:'#ef4444'}}>{error}</p><button onClick={fetchDashboard} style={{marginTop:16,padding:'10px 24px',background:'#7c3aed',border:'none',borderRadius:8,color:'white',cursor:'pointer',fontSize:14,fontWeight:600}}>Retry</button></div>;
 
   const userName = candidate?.name || user?.name || 'Candidate';
+  const regularTests = tests.filter(t => !(t.isInterviewPrep || t.is_interview_prep));
+  const interviewPrepTests = tests.filter(t => t.isInterviewPrep || t.is_interview_prep);
   const stats = [
     { icon:'\uD83D\uDCCB', label:'Total', value:tests.length, color:'#7c3aed' },
     { icon:'\u2705', label:'Available', value:tests.filter(t=>t.status==='available').length, color:'#10b981' },
@@ -125,14 +144,14 @@ export default function CandidateDashboard({ user }) {
       </div>
 
       {/* Heading */}
-      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:20,fontSize:12,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:1}}>YOUR ASSESSMENTS<div style={{flex:1,height:1,background:'rgba(255,255,255,0.05)'}}/></div>
+      {regularTests.length > 0 && <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:20,fontSize:12,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:1}}>YOUR ASSESSMENTS<div style={{flex:1,height:1,background:'rgba(255,255,255,0.05)'}}/></div>}
 
       {tests.length === 0 ? (
         <div style={{textAlign:'center',padding:'80px 20px',background:'#0d1117',border:'1px dashed rgba(255,255,255,0.08)',borderRadius:20}}>
           <div style={{fontSize:64,marginBottom:16}}>🔒</div><h3 style={{fontSize:20,color:'rgba(255,255,255,0.5)',marginBottom:8}}>No tests assigned yet</h3><p style={{color:'rgba(255,255,255,0.25)',fontSize:14}}>Contact your administrator.</p></div>
-      ) : (
+      ) : regularTests.length === 0 ? null : (
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))',gap:20,alignItems:'stretch'}}>
-          {tests.map((t, i) => {
+          {regularTests.map((t, i) => {
             const tid = t.testId || t.test_id;
             const meta = getDynamicMeta(tid, t.testName || t.test_name);
             const st = STATUS_META[t.status] || STATUS_META.locked;
@@ -141,7 +160,7 @@ export default function CandidateDashboard({ user }) {
             const bestPct = best ? Math.round(best.percentage||0) : t.bestScore;
             const pass = t.passPercentage || 60;
             const assigner = t.grantedBy || t.assigned_by_name || 'Admin';
-            const date = (t.grantedAt||t.assigned_at) ? new Date(t.grantedAt||t.assigned_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'}) : '';
+            const date = (t.grantedAt||t.assigned_at) ? formatISTDate() : '';
             const isLoading = actionLoading === tid;
             const submittedCount = (t.sessions||[]).filter(s=>s.status==='submitted').length;
             const maxAttempts = t.maxAttempts || t.max_attempts;
@@ -245,6 +264,85 @@ export default function CandidateDashboard({ user }) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Interview Prep Tests Section (hybrid tests flagged as interview prep) */}
+      {interviewPrepTests.length > 0 && (
+        <div style={{ marginTop: 36 }}>
+          <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:20,fontSize:12,fontWeight:700,color:'#c084fc',letterSpacing:1}}>
+            🎯 MY INTERVIEWS
+            <div style={{flex:1,height:1,background:'rgba(192,132,252,0.12)'}}/>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))',gap:20,alignItems:'stretch'}}>
+            {interviewPrepTests.map((t, i) => {
+              const tid = t.testId || t.test_id;
+              const meta = getDynamicMeta(tid, t.testName || t.test_name);
+              const st = STATUS_META[t.status] || STATUS_META.locked;
+              const disabled = ['locked','expired'].includes(t.status);
+              const best = (t.sessions||[]).filter(s=>s.status==='submitted').sort((a,b)=>(b.percentage||0)-(a.percentage||0))[0];
+              const bestPct = best ? Math.round(best.percentage||0) : t.bestScore;
+              const pass = t.passPercentage || 60;
+              const assigner = t.grantedBy || t.assigned_by_name || 'Admin';
+              const date = (t.grantedAt||t.assigned_at) ? formatISTDate() : '';
+              const isLoading = actionLoading === tid;
+              const submittedCount = (t.sessions||[]).filter(s=>s.status==='submitted').length;
+              const maxAttempts = t.maxAttempts || t.max_attempts;
+              const remainingAttempts = maxAttempts ? maxAttempts - submittedCount : null;
+              return (
+                <div key={tid||i} style={{position:'relative',background:'#0d1117',border:`1px solid ${disabled?'rgba(255,255,255,0.06)':'rgba(192,132,252,0.28)'}`,borderRadius:16,overflow:'hidden',opacity:disabled?0.55:1,display:'flex',flexDirection:'column'}}>
+                  <div style={{height:3,background:'linear-gradient(90deg,#a855f7,#6366f1)'}}/>
+                  <div style={{padding:'20px 22px 22px',display:'flex',flexDirection:'column',flex:1}}>
+                    <div style={{display:'flex',alignItems:'flex-start',gap:14,marginBottom:12}}>
+                      <div style={{width:52,height:52,borderRadius:14,background:'rgba(168,85,247,0.15)',border:'1px solid rgba(168,85,247,0.35)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,flexShrink:0}}>🎤</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <h3 style={{fontSize:16,fontWeight:800,color:'#f8fafc',margin:'0 0 7px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{t.testName||t.test_name}</h3>
+                        <div style={{display:'inline-flex',alignItems:'center',gap:6,padding:'4px 11px',borderRadius:20,fontSize:12,fontWeight:700,color:st.color,background:st.bg,border:`1px solid ${st.border}`}}>
+                          <span style={{width:6,height:6,borderRadius:'50%',background:st.dot,display:'inline-block'}}/>{st.label}
+                        </div>
+                      </div>
+                    </div>
+                    {(t.testDescription||t.test_description) && <p style={{fontSize:13,color:'rgba(255,255,255,0.4)',lineHeight:1.55,margin:'0 0 14px',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'}}>{t.testDescription||t.test_description}</p>}
+                    <div style={{display:'flex',flexWrap:'wrap',gap:7,marginBottom:14}}>
+                      <span style={{padding:'5px 11px',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:8,fontSize:12,color:'rgba(255,255,255,0.5)'}}>⏱ {t.durationMinutes||t.duration||'?'} min</span>
+                      <span style={{padding:'5px 11px',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:8,fontSize:12,color:'rgba(255,255,255,0.5)'}}>❓ {t.totalQuestions||t.question_count||'?'} questions</span>
+                      <span style={{padding:'5px 11px',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:8,fontSize:12,color:'rgba(255,255,255,0.5)'}}>🎯 {pass}% pass</span>
+                      <span style={{padding:'5px 11px',background:'rgba(168,85,247,0.12)',border:'1px solid rgba(168,85,247,0.4)',borderRadius:8,fontSize:12,color:'#c084fc',fontWeight:600}}>INTERVIEW PREP</span>
+                      {remainingAttempts !== null && remainingAttempts > 0 && t.status !== 'completed' && (
+                        <span style={{padding:'5px 11px',background:'rgba(139,92,246,0.08)',border:'1px solid rgba(139,92,246,0.25)',borderRadius:8,fontSize:12,color:'#a78bfa',fontWeight:600}}>🔁 {remainingAttempts} left</span>
+                      )}
+                    </div>
+                    {t.status==='completed' && bestPct!=null && (
+                      <div style={{marginBottom:12,padding:'11px 14px',background:'rgba(255,255,255,0.025)',border:'1px solid rgba(255,255,255,0.06)',borderRadius:10}}>
+                        <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+                          <span style={{fontSize:12,color:'rgba(255,255,255,0.4)'}}>Best Score</span>
+                          <span style={{fontSize:16,fontWeight:800,color:bestPct>=pass?'#34d399':'#f87171'}}>{bestPct}%</span>
+                        </div>
+                        <div style={{height:7,background:'rgba(255,255,255,0.07)',borderRadius:4,overflow:'hidden'}}><div style={{height:'100%',width:`${bestPct}%`,background:bestPct>=pass?'linear-gradient(90deg,#a855f7,#6366f1)':'linear-gradient(90deg,#ef4444,#f87171)'}}/></div>
+                      </div>
+                    )}
+                    <div style={{flex:1}}/>
+                    <div style={{display:'flex',alignItems:'center',gap:9,paddingTop:12,borderTop:'1px solid rgba(255,255,255,0.05)',marginBottom:14}}>
+                      <span style={{fontSize:12,color:'rgba(255,255,255,0.3)',flex:1}}>Assigned by <strong style={{color:'rgba(255,255,255,0.6)'}}>{assigner}</strong></span>
+                      {date && <span style={{fontSize:11,color:'rgba(255,255,255,0.2)'}}>{date}</span>}
+                    </div>
+                    {isLoading ? (
+                      <button style={{...btnBase,background:'rgba(255,255,255,0.06)',color:'rgba(255,255,255,0.4)',cursor:'wait'}}>Loading...</button>
+                    ) : t.status==='available' ? (
+                      <button onClick={()=>handleAction(t)} style={{...btnBase,background:'linear-gradient(135deg,#a855f7,#6366f1)',color:'white'}}>🎤 Start Interview</button>
+                    ) : t.status==='in_progress' ? (
+                      <button onClick={()=>handleAction(t)} style={{...btnBase,background:'linear-gradient(135deg,#d97706,#b45309)',color:'white'}}>▶ Resume</button>
+                    ) : t.status==='completed' ? (
+                      <button onClick={()=>{ const sess=(t.sessions||[]).filter(s=>s.status==='submitted').sort((a,b)=>(b.percentage||0)-(a.percentage||0))[0]; if(sess?.id) navigate(`/candidate/review/${tid}/${sess.id}`); }}
+                        style={{...btnBase,background:'linear-gradient(135deg,#1d4ed8,#2563eb)',color:'white'}}>📝 Review</button>
+                    ) : (
+                      <div style={{...btnBase,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.06)',color:'rgba(255,255,255,0.2)',cursor:'not-allowed'}}>{t.status==='expired'?'⏰ Expired':'🔒 Locked'}</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

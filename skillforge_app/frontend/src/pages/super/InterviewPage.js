@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { formatIST, formatISTDate, nowLocalIso } from '../../utils/dateUtils';
 import api from '../../api';
 
 // ─── Styles ────────────────────────────────────────────────────────────────
@@ -306,6 +307,140 @@ function AssignModal({ test, onClose }) {
   );
 }
 
+// ─── Prep Edit Modal (edits fields of an interview-prep test in `tests` table) ─
+function PrepEditModal({ test, role, onClose, onSaved }) {
+  const [name, setName] = useState(test.name || '');
+  const [description, setDescription] = useState(test.description || '');
+  const [duration, setDuration] = useState(test.duration_minutes || 90);
+  const [passing, setPassing] = useState(test.passing_percentage || 60);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const save = async () => {
+    setSaving(true); setMsg('');
+    try {
+      await api.put(`/${role}/tests/${test.id}`, {
+        name, description,
+        duration_minutes: parseInt(duration),
+        passing_percentage: parseFloat(passing),
+      });
+      setMsg('✅ Saved');
+      setTimeout(() => { onSaved && onSaved(); onClose(); }, 800);
+    } catch (e) { setMsg(e.response?.data?.error || 'Failed to save'); }
+    setSaving(false);
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ background: '#0d1117', border: '1px solid rgba(168,85,247,0.3)', borderRadius: 14, width: '100%', maxWidth: 520, padding: 26 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+          <h3 style={{ color: 'white', margin: 0 }}>✏️ Edit: {test.name}</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 22, cursor: 'pointer' }}>×</button>
+        </div>
+        {msg && <div style={msg.startsWith('✅') ? S.success : S.error}>{msg}</div>}
+        <div style={{ marginBottom: 12 }}>
+          <label style={S.label}>Test Name</label>
+          <input style={S.input} value={name} onChange={e => setName(e.target.value)} />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={S.label}>Description</label>
+          <textarea style={S.textarea} value={description} onChange={e => setDescription(e.target.value)} />
+        </div>
+        <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
+          <div style={{ flex: 1 }}>
+            <label style={S.label}>Duration (min)</label>
+            <input type="number" min={1} style={S.input} value={duration} onChange={e => setDuration(e.target.value)} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={S.label}>Passing %</label>
+            <input type="number" min={0} max={100} step="0.1" style={S.input} value={passing} onChange={e => setPassing(e.target.value)} />
+          </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button onClick={onClose} style={S.btn('rgba(255,255,255,0.05)', 'rgba(255,255,255,0.6)')}>Cancel</button>
+          <button onClick={save} disabled={saving} style={S.btn('#a855f7')}>{saving ? '⏳ Saving...' : '💾 Save'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Prep Assign Modal (assigns interview-prep tests via test_permissions) ─
+function PrepAssignModal({ test, role, onClose }) {
+  const [candidates, setCandidates] = useState([]);
+  const [assigned, setAssigned] = useState(new Set());
+  const [selected, setSelected] = useState(new Set());
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [assigning, setAssigning] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      api.get(`/${role}/candidates`).then(r => Array.isArray(r.data) ? r.data : (r.data.candidates || [])),
+      api.get(`/${role}/tests/${test.id}/assignees`).then(r => r.data.assignees || []).catch(() => []),
+    ]).then(([cands, assignees]) => {
+      setCandidates(cands);
+      setAssigned(new Set(assignees));
+    }).finally(() => setLoading(false));
+  }, [role, test.id]);
+
+  const toggle = (id) => { if (assigned.has(id)) return; setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; }); };
+
+  const assign = async () => {
+    if (selected.size === 0) return setMsg('Select at least one candidate');
+    setAssigning(true);
+    try {
+      const r = await api.post(`/${role}/tests/${test.id}/assign-interview`, { candidateIds: [...selected], maxAttempts: 1 });
+      setMsg(`✅ Assigned to ${r.data.assigned} candidate(s)${r.data.skipped ? ` (${r.data.skipped} already had access)` : ''}`);
+      setTimeout(onClose, 1500);
+    } catch (e) { setMsg(e.response?.data?.error || 'Failed to assign'); }
+    setAssigning(false);
+  };
+
+  const filtered = candidates.filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.email.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ background: '#0d1117', border: '1px solid rgba(168,85,247,0.3)', borderRadius: 14, width: '100%', maxWidth: 520, padding: 26 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+          <h3 style={{ color: 'white', margin: 0 }}>🎯 Assign: {test.name}</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 22, cursor: 'pointer' }}>×</button>
+        </div>
+        {msg && <div style={msg.startsWith('✅') ? S.success : S.error}>{msg}</div>}
+        <input style={{ ...S.input, marginBottom: 12 }} placeholder="Search candidates..." value={search} onChange={e => setSearch(e.target.value)} />
+        <div style={{ maxHeight: 280, overflowY: 'auto', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)', marginBottom: 14 }}>
+          {loading ? <div style={{ padding: 20, textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>Loading candidates...</div> : filtered.map(c => {
+            const isAssigned = assigned.has(c.id);
+            const isSelected = selected.has(c.id);
+            return (
+              <div key={c.id} onClick={() => toggle(c.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', cursor: isAssigned ? 'not-allowed' : 'pointer', borderBottom: '1px solid rgba(255,255,255,0.04)', background: isSelected ? 'rgba(168,85,247,0.1)' : 'transparent', opacity: isAssigned ? 0.45 : 1 }}>
+                <div style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${isAssigned ? 'rgba(255,255,255,0.15)' : isSelected ? '#a855f7' : 'rgba(255,255,255,0.2)'}`, background: isSelected && !isAssigned ? '#a855f7' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {isSelected && !isAssigned && <span style={{ color: 'white', fontSize: 12 }}>✓</span>}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>{c.name}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>{c.email}</div>
+                </div>
+                {isAssigned && <span style={{ fontSize: 10, padding: '3px 8px', background: 'rgba(16,185,129,0.12)', color: '#34d399', borderRadius: 12, fontWeight: 600 }}>Already Assigned</span>}
+              </div>
+            );
+          })}
+          {!loading && filtered.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>No candidates found</div>}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{selected.size} selected · {candidates.length} total · {assigned.size} already assigned</span>
+          <button onClick={assign} disabled={assigning || selected.size === 0} style={{ ...S.btn('#a855f7'), opacity: selected.size === 0 ? 0.5 : 1 }}>
+            {assigning ? '⏳ Assigning...' : `✔ Assign to ${selected.size} Candidate${selected.size !== 1 ? 's' : ''}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Review Session Modal ─────────────────────────────────────────────────
 function ReviewModal({ sessionId, onClose, onApproved }) {
   const [data, setData] = useState(null);
@@ -389,7 +524,7 @@ function ReviewModal({ sessionId, onClose, onApproved }) {
           <div>
             <h2 style={{ color: 'white', margin: '0 0 4px', fontSize: 18 }}>📋 {session.test_name}</h2>
             <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>
-              {session.candidate_name} ({session.candidate_email}) &nbsp;·&nbsp; {new Date(session.started_at).toLocaleDateString()}
+              {session.candidate_name} ({session.candidate_email}) &nbsp;·&nbsp; {formatISTDate()}
             </div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 24, cursor: 'pointer' }}>×</button>
@@ -522,9 +657,13 @@ export default function InterviewPage() {
   const [editTest, setEditTest] = useState(null);
   const [assignTest, setAssignTest] = useState(null);
   const [reviewSession, setReviewSession] = useState(null);
+  const [prepTests, setPrepTests] = useState([]);
+  const [assignPrep, setAssignPrep] = useState(null);
+  const [editPrep, setEditPrep] = useState(null);
 
   const loadTests = useCallback(() => {
     api.get('/super/interview-tests').then(r => setTests(r.data.tests || [])).finally(() => setLoading(false));
+    api.get('/super/tests').then(r => setPrepTests((r.data.tests || []).filter(t => t.is_interview_prep === 1))).catch(() => {});
   }, []);
 
   const loadResults = useCallback(() => {
@@ -596,7 +735,7 @@ export default function InterviewPage() {
                   <span style={S.badge('#3b82f6')}>{t.session_count} Sessions</span>
                 </div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', marginBottom: 14 }}>
-                  Created {new Date(t.created_at).toLocaleDateString()}
+                  Created {formatISTDate()}
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={() => openEdit(t)} style={S.btn('rgba(255,255,255,0.05)', 'rgba(255,255,255,0.6)')}>✏️ Edit</button>
@@ -606,6 +745,42 @@ export default function InterviewPage() {
             ))}
           </div>
         )
+      )}
+
+      {/* Interview Prep Tests (hybrid tests flagged as interview prep) */}
+      {assignPrep && <PrepAssignModal test={assignPrep} role="super" onClose={() => setAssignPrep(null)} />}
+      {editPrep && <PrepEditModal test={editPrep} role="super" onClose={() => setEditPrep(null)} onSaved={loadTests} />}
+      {tab === 'tests' && prepTests.length > 0 && (
+        <div style={{ marginTop: 36 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom: 16, fontSize: 12, fontWeight: 700, color:'#c084fc', letterSpacing: 1 }}>
+            🎯 INTERVIEW PREP TESTS
+            <div style={{ flex:1, height:1, background:'rgba(192,132,252,0.12)' }}/>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))', gap: 16 }}>
+            {prepTests.map(t => (
+              <div key={t.id} style={{ ...S.card, border: '1px solid rgba(168,85,247,0.25)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: 'rgba(255,255,255,0.9)', marginBottom: 3 }}>{t.name}</div>
+                    {t.description && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>{t.description}</div>}
+                  </div>
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>Read-only</span>
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+                  <span style={S.badge('#a78bfa')}>{t.total_questions || 0} Questions</span>
+                  <span style={S.badge('#3b82f6')}>{t.totalAttempts || 0} Sessions</span>
+                </div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', marginBottom: 14 }}>
+                  Created {t.created_at ? formatISTDate() : '—'}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setEditPrep(t)} style={S.btn('rgba(255,255,255,0.05)', 'rgba(255,255,255,0.6)')}>✏️ Edit</button>
+                  <button onClick={() => setAssignPrep(t)} style={S.btn('#7c3aed')}>👥 Assign</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Results Tab */}
@@ -624,7 +799,7 @@ export default function InterviewPage() {
                   .then(r => r.blob()).then(blob => {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
-                    a.href = url; a.download = `interview_results_${new Date().toISOString().split('T')[0]}.csv`;
+                    a.href = url; a.download = `interview_results_${nowLocalIso().split('T')[0]}.csv`;
                     document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
                   });
               }}>
@@ -645,7 +820,7 @@ export default function InterviewPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>{s.candidate_name}</div>
                     <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>{s.candidate_email} &nbsp;·&nbsp; {s.test_name}</div>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', marginTop: 2 }}>{new Date(s.started_at).toLocaleDateString()}</div>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', marginTop: 2 }}>{formatISTDate()}</div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     {s.status !== 'in_progress' && <div style={{ fontSize: 15, fontWeight: 700, color: pct >= 60 ? '#10b981' : '#f59e0b', fontFamily: 'monospace', marginBottom: 2 }}>{earned}/{max} pts</div>}

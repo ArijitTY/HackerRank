@@ -22,7 +22,7 @@ db.exec(`
     role TEXT NOT NULL CHECK(role IN ('super_admin', 'admin', 'candidate')),
     is_active INTEGER DEFAULT 1,
     created_by TEXT,
-    created_at TEXT DEFAULT (datetime('now')),
+    created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', 'localtime')),
     last_login TEXT,
     FOREIGN KEY (created_by) REFERENCES users(id)
   );
@@ -32,7 +32,7 @@ db.exec(`
     admin_id TEXT NOT NULL,
     assigned_tests TEXT DEFAULT '[]',
     max_candidates INTEGER DEFAULT 100,
-    created_at TEXT DEFAULT (datetime('now')),
+    created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', 'localtime')),
     FOREIGN KEY (admin_id) REFERENCES users(id)
   );
 
@@ -45,7 +45,7 @@ db.exec(`
     passing_percentage REAL DEFAULT 60.0,
     total_questions INTEGER DEFAULT 100,
     is_active INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', 'localtime'))
   );
 
   CREATE TABLE IF NOT EXISTS test_permissions (
@@ -56,7 +56,7 @@ db.exec(`
     max_attempts INTEGER DEFAULT 1,
     attempt_count INTEGER DEFAULT 0,
     granted_by TEXT,
-    granted_at TEXT DEFAULT (datetime('now')),
+    granted_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', 'localtime')),
     analysis_only INTEGER DEFAULT 0,
     analysis_expires_at TEXT,
     FOREIGN KEY (candidate_id) REFERENCES users(id),
@@ -70,7 +70,7 @@ db.exec(`
     test_id TEXT NOT NULL,
     permission_id TEXT,
     status TEXT DEFAULT 'in_progress' CHECK(status IN ('in_progress', 'submitted', 'timed_out', 'abandoned')),
-    start_time TEXT DEFAULT (datetime('now')),
+    start_time TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', 'localtime')),
     end_time TEXT,
     duration_minutes INTEGER,
     questions_json TEXT,
@@ -82,7 +82,7 @@ db.exec(`
     grade TEXT,
     result_json TEXT,
     time_taken INTEGER,
-    created_at TEXT DEFAULT (datetime('now')),
+    created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', 'localtime')),
     FOREIGN KEY (candidate_id) REFERENCES users(id),
     FOREIGN KEY (test_id) REFERENCES tests(id),
     FOREIGN KEY (permission_id) REFERENCES test_permissions(id)
@@ -114,13 +114,13 @@ db.exec(`
     target_type TEXT,
     target_id TEXT,
     details TEXT,
-    timestamp TEXT DEFAULT (datetime('now'))
+    timestamp TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', 'localtime'))
   );
 
   CREATE TABLE IF NOT EXISTS config (
     key TEXT PRIMARY KEY,
     value TEXT,
-    updated_at TEXT DEFAULT (datetime('now'))
+    updated_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', 'localtime'))
   );
 
   CREATE TABLE IF NOT EXISTS coding_problems (
@@ -160,7 +160,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS app_settings (
     key TEXT PRIMARY KEY,
     value TEXT,
-    updated_at TEXT DEFAULT (datetime('now'))
+    updated_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', 'localtime'))
   );
 
   CREATE TABLE IF NOT EXISTS interview_tests (
@@ -169,7 +169,7 @@ db.exec(`
     description TEXT,
     extracted_text TEXT,
     created_by TEXT,
-    created_at TEXT DEFAULT (datetime('now')),
+    created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', 'localtime')),
     is_active INTEGER DEFAULT 1,
     FOREIGN KEY (created_by) REFERENCES users(id)
   );
@@ -191,7 +191,7 @@ db.exec(`
     test_id INTEGER NOT NULL,
     status TEXT DEFAULT 'granted',
     granted_by TEXT,
-    granted_at TEXT DEFAULT (datetime('now'))
+    granted_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', 'localtime'))
   );
 
   CREATE TABLE IF NOT EXISTS interview_sessions (
@@ -199,7 +199,7 @@ db.exec(`
     candidate_id TEXT NOT NULL,
     test_id INTEGER NOT NULL,
     status TEXT DEFAULT 'in_progress',
-    started_at TEXT DEFAULT (datetime('now')),
+    started_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', 'localtime')),
     submitted_at TEXT,
     total_max_score INTEGER DEFAULT 0,
     is_approved INTEGER DEFAULT 0,
@@ -252,6 +252,8 @@ try { db.exec(`ALTER TABLE test_sessions ADD COLUMN violation_log_json TEXT DEFA
 // Add test scheduling columns
 try { db.exec(`ALTER TABLE tests ADD COLUMN available_from TEXT`); } catch (e) {}
 try { db.exec(`ALTER TABLE tests ADD COLUMN available_until TEXT`); } catch (e) {}
+try { db.exec(`ALTER TABLE tests ADD COLUMN is_interview_prep INTEGER DEFAULT 0`); } catch (e) {}
+try { db.prepare(`UPDATE tests SET is_interview_prep=1 WHERE id IN ('test_sony','test_ey','test_fluke','test_wakefit','test_nykaa','test_greyorange','test_arcessium')`).run(); } catch (e) {}
 
 // ========== SEED SUPER ADMIN ==========
 

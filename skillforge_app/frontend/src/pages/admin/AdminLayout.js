@@ -7,6 +7,7 @@ import LiveMonitor from '../super/LiveMonitor';
 import DesignTestPage from '../super/DesignTestPage';
 import NetworkPage from '../super/NetworkPage';
 import AdminInterviewPage from './AdminInterviewPage';
+import AuditLogPage from '../super/AuditLogPage';
 
 const navItems = [
   {
@@ -41,6 +42,10 @@ const navItems = [
     path: '/admin/network', label: 'Network',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
   },
+  {
+    path: '/admin/audit-log', label: 'Audit Log',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+  },
 ];
 
 export default function AdminLayout({ user, onLogout }) {
@@ -55,8 +60,8 @@ export default function AdminLayout({ user, onLogout }) {
   const initial = user?.name ? user.name.charAt(0).toUpperCase() : 'A';
 
   return (
-    <div className="app-layout">
-      <nav className="sidebar">
+    <div style={{ display:'flex', height:'100vh', overflow:'hidden', position:'relative' }}>
+      <nav className="sidebar" style={{ width:'260px', minWidth:'260px', height:'100vh', position:'fixed', left:0, top:0, overflowY:'auto', overflowX:'hidden', zIndex:100, display:'flex', flexDirection:'column' }}>
         <div className="sidebar-brand">
           <div className="sidebar-logo">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -106,7 +111,7 @@ export default function AdminLayout({ user, onLogout }) {
         </div>
       </nav>
 
-      <main className="main-content">
+      <main className="main-content main-content-area" style={{ marginLeft:'260px', flex:1, height:'100vh', overflowY:'auto', overflowX:'auto', padding:'2rem', boxSizing:'border-box' }}>
         <Routes>
           <Route index element={<AdminDashboard />} />
           <Route path="candidates" element={<AdminCandidates />} />
@@ -116,6 +121,7 @@ export default function AdminLayout({ user, onLogout }) {
           <Route path="live" element={<LiveMonitor />} />
           <Route path="interview" element={<AdminInterviewPage />} />
           <Route path="network" element={<NetworkPage />} />
+          <Route path="audit-log" element={<AuditLogPage apiPrefix="/admin" />} />
         </Routes>
       </main>
     </div>

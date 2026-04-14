@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { formatIST, formatISTDate, nowLocalIso } from '../../utils/dateUtils';
 import api from '../../api';
 
 const PROVIDERS = [
@@ -188,7 +189,7 @@ export default function SettingsPage() {
               .then(r => r.blob()).then(blob => {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = url; a.download = `skillforge_backup_${new Date().toISOString().split('T')[0]}.db`;
+                a.href = url; a.download = `skillforge_backup_${nowLocalIso().split('T')[0]}.db`;
                 document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
               }).catch(() => alert('Backup failed'));
           }} style={S.btn('rgba(255,255,255,0.06)')}>

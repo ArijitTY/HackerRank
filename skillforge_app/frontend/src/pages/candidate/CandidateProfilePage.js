@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { formatIST, formatISTDate, nowLocalIso } from '../../utils/dateUtils';
 import api from '../../api';
 import { useToast } from '../../context/ToastContext';
 
@@ -97,7 +98,7 @@ export default function CandidateProfilePage({ user }) {
             </div>
             <div style={S.statRow}>
               <span style={S.statLabel}>Member Since</span>
-              <span style={S.statVal}>{profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</span>
+              <span style={S.statVal}>{profile?.created_at ? formatISTDate() : '—'}</span>
             </div>
           </div>
         </div>

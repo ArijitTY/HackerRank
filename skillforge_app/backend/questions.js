@@ -61,6 +61,52 @@ function buildQuestionSet(db, testId, sessionId) {
   let allQuestions;
   let quotas;
 
+  // Company interview prep tests — pull from company_questions table
+  const companyMap = {
+    'test_sony': 'Sony',
+    'test_ey': 'EY',
+    'test_fluke': 'Fluke',
+    'test_wakefit': 'Wakefit',
+    'test_nykaa': 'Nykaa',
+    'test_greyorange': 'GreyOrange',
+    'test_arcessium': 'Arcessium'
+  };
+
+  if (companyMap[testId]) {
+    const company = companyMap[testId];
+    const testRecord = db.prepare('SELECT * FROM tests WHERE id = ?').get(testId);
+    const totalNeeded = testRecord ? testRecord.total_questions : 50;
+
+    // MCQ-only: coding problems are loaded separately by the hybrid engine in server.js
+    const mcqPool = db.prepare('SELECT * FROM company_questions WHERE company = ?').all(company);
+    if (mcqPool.length === 0) return null;
+
+    const shuffled = seededShuffle(mcqPool, seed);
+    const selected = shuffled.slice(0, Math.min(totalNeeded, shuffled.length));
+
+    const questions = selected.map((q, i) => ({
+      displayId: i + 1,
+      id: q.id,
+      subject: q.subject || company + ' Interview',
+      topic: q.topic || 'General',
+      difficulty: q.difficulty || 'Medium',
+      type: q.type || 'mcq',
+      question: q.question,
+      options: [q.option_a, q.option_b, q.option_c, q.option_d].filter(o => o && o.trim()),
+      answer: q.answer_index != null ? q.answer_index : answerIndex(q.correct_answer),
+      explanation: q.explanation || '',
+      code_snippet: q.code_snippet || ''
+    }));
+
+    const safeQuestions = questions.map(q => ({
+      displayId: q.displayId, id: q.id, subject: q.subject, topic: q.topic,
+      difficulty: q.difficulty, type: q.type, question: q.question,
+      options: q.options, code_snippet: q.code_snippet
+    }));
+
+    return { questions, safeQuestions };
+  }
+
   if (testId === 'test_p1') {
     // Python Round 1: only Python subject
     allQuestions = db.prepare("SELECT * FROM questions WHERE subject = 'Python'").all();

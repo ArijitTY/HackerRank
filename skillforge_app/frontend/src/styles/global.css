@@ -2090,3 +2090,155 @@ input[aria-hidden="true"] {
   .problem-sidebar{display:none}.pane-left{width:100%;min-width:0}.split-pane{flex-direction:column}
   .pane-right{width:100%;min-height:50vh}
 }
+
+/* ===== Scrollable dropdowns ===== */
+select {
+  max-height: 200px;
+}
+.dropdown-list {
+  max-height: 250px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.dropdown-list::-webkit-scrollbar { width: 6px; }
+.dropdown-list::-webkit-scrollbar-track { background: transparent; }
+.dropdown-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+.dropdown-list::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+
+
+/* ===== Dark-theme dropdown overrides ===== */
+.dropdown-list,
+.custom-dropdown,
+.dropdown-menu,
+.dropdown-options {
+  background: #1a1a2e !important;
+  border: 1px solid rgba(139, 92, 246, 0.3) !important;
+  border-radius: 8px !important;
+  color: #ffffff !important;
+  max-height: 250px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+.dropdown-option,
+.dropdown-item {
+  background: transparent !important;
+  color: #ffffff !important;
+  padding: 10px 16px !important;
+}
+.dropdown-option:hover,
+.dropdown-item:hover {
+  background: rgba(139, 92, 246, 0.2) !important;
+  color: #ffffff !important;
+}
+.dropdown-option.selected,
+.dropdown-item.selected,
+.dropdown-option.active {
+  background: rgba(139, 92, 246, 0.4) !important;
+  color: #ffffff !important;
+}
+.dropdown-group-header,
+.dropdown-optgroup-label {
+  background: #0f0f1a !important;
+  color: rgba(139, 92, 246, 0.9) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  padding: 8px 16px 4px !important;
+  pointer-events: none !important;
+}
+select,
+select option,
+select optgroup {
+  background: #1a1a2e !important;
+  color: #ffffff !important;
+}
+select {
+  border: 1px solid rgba(139, 92, 246, 0.3) !important;
+}
+select optgroup {
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(139, 92, 246, 0.9) !important;
+}
+.dropdown-list::-webkit-scrollbar,
+.custom-dropdown::-webkit-scrollbar { width: 4px; }
+.dropdown-list::-webkit-scrollbar-track,
+.custom-dropdown::-webkit-scrollbar-track { background: transparent; }
+.dropdown-list::-webkit-scrollbar-thumb,
+.custom-dropdown::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.4); border-radius: 2px; }
+.dropdown-list::-webkit-scrollbar-thumb:hover,
+.custom-dropdown::-webkit-scrollbar-thumb:hover { background: rgba(139,92,246,0.7); }
+
+/* ===== Leaderboard horizontal scroll ===== */
+.leaderboard-table-wrapper::-webkit-scrollbar { height: 6px; }
+.leaderboard-table-wrapper::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 3px; }
+.leaderboard-table-wrapper::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.4); border-radius: 3px; }
+.leaderboard-table-wrapper::-webkit-scrollbar-thumb:hover { background: rgba(139,92,246,0.7); }
+
+/* ===== Leaderboard: override parent .table-container overflow:hidden ===== */
+.leaderboard-scroll-wrapper {
+  display: block !important;
+  width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  -webkit-overflow-scrolling: touch;
+}
+.leaderboard-scroll-wrapper table {
+  min-width: 1200px !important;
+  width: max-content !important;
+  border-collapse: collapse !important;
+}
+/* Ensure the outer container doesn't clip the scrollable child */
+.table-container:has(.leaderboard-scroll-wrapper) {
+  overflow: visible !important;
+}
+
+/* ===== Leaderboard scroll (nuclear override) ===== */
+.leaderboard-scroll-wrapper {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: scroll !important;
+  overflow-y: visible !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+.leaderboard-scroll-wrapper > table {
+  min-width: 1100px !important;
+  white-space: nowrap !important;
+}
+
+/* ===== Sticky layout: sidebar header/footer fixed, nav scrolls internally, main content scrolls independently ===== */
+html, body, #root { height: 100%; }
+.app-layout { height: 100vh; overflow: hidden; }
+.sidebar {
+  overflow: hidden !important;   /* inner sections manage their own scroll */
+}
+.sidebar-brand,
+.sidebar-user {
+  flex-shrink: 0 !important;
+  background: var(--surface);
+}
+.sidebar-nav {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  min-height: 0;
+}
+.sidebar-footer {
+  flex-shrink: 0 !important;
+  background: var(--surface);
+}
+.main-content {
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: auto;    /* allows horizontal scroll on wide tables */
+}
+
+/* Scroll fixes for tables and main content area */
+.table-scroll-wrapper { display:block !important; width:100% !important; overflow-x:auto !important; -webkit-overflow-scrolling:touch; }
+.table-scroll-wrapper table { min-width:max-content !important; white-space:nowrap !important; }
+.main-content-area { height:100vh; overflow-y:auto; overflow-x:auto; }
+* { box-sizing:border-box; }

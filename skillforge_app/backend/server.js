@@ -13,17 +13,114 @@ const { logAudit } = require('./audit');
 const { runProblem, isJavaAvailable } = require('./codeExecution');
 
 const app = express();
-const PORT = 3000;
+const PORT = parseInt(process.env.PORT) || 3000;
 
-// SQLite datetime('now') returns UTC without 'Z' suffix.
-// JavaScript new Date() parses without 'Z' as LOCAL time, causing timezone mismatch.
-// This helper ensures correct UTC parsing.
+// ── Input validation helpers ──────────────────────────────────────────────────
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+function sanitizeHtml(str) {
+  if (typeof str !== 'string') return str;
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
+}
+
+// Timestamps are stored as local (server) time using strftime(..., 'localtime').
+// Format: "YYYY-MM-DDTHH:MM:SS.sss" — when parsed by `new Date(str)` (no Z),
+// JS treats it as local time, which matches the stored value. No Z appended.
 function parseDbTime(t) {
   if (!t) return 0;
-  // If it already has Z or timezone, parse directly
-  if (t.includes('Z') || t.includes('+') || t.includes('T')) return new Date(t).getTime();
-  // SQLite format "YYYY-MM-DD HH:MM:SS" — append Z for UTC
-  return new Date(t + 'Z').getTime();
+  if (typeof t === 'number') return t;
+  const s = String(t);
+  // Strip any trailing Z from legacy UTC-stored rows so we parse as local.
+  const normalized = s.endsWith('Z') ? s.slice(0, -1) : s;
+  // Convert "YYYY-MM-DD HH:MM:SS" to ISO-ish for consistent parsing.
+  const iso = normalized.includes('T') ? normalized : normalized.replace(' ', 'T');
+  return new Date(iso).getTime();
+}
+
+// Current local time as ISO-like string matching DB storage format.
+function nowLocalIso() {
+  const d = new Date();
+  const pad = (n, w = 2) => String(n).padStart(w, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`;
+}
+
+// Produce a human-readable message from a stored audit entry.
+function describeAudit(entry) {
+  const a = entry.action || '';
+  let d = {};
+  try { d = typeof entry.details === 'string' ? JSON.parse(entry.details || '{}') : (entry.details || {}); } catch (e) { d = {}; }
+  const actor = entry.actor_name ? `${entry.actor_name}${entry.actor_email ? ' (' + entry.actor_email + ')' : ''}` : (d.actorName || d.email || 'Unknown');
+  const role = entry.actor_role || d.role || 'user';
+  const roleLabel = role === 'super_admin' ? 'Super Admin' : role === 'admin' ? 'Admin' : role === 'candidate' ? 'Candidate' : 'User';
+  const targetName = d.targetName || d.candidateName || d.name || d.email || entry.target_id || '';
+  const testName = d.testName || d.test || '';
+  const pct = d.percentage != null ? `${d.percentage}%` : '';
+  const grade = d.grade ? ` (${d.grade})` : '';
+  const count = d.count != null ? d.count : (d.assigned != null ? d.assigned : '');
+
+  switch (a) {
+    case 'login': return `${roleLabel} ${actor} logged in`;
+    case 'logout': return `${roleLabel} ${actor} logged out`;
+    case 'login_failed': return `Failed login attempt for ${d.email || 'unknown email'}${d.reason ? ' (' + d.reason + ')' : ''}`;
+    case 'create_candidate': return `Created candidate account for ${targetName}`;
+    case 'delete_candidate': return `Deleted candidate ${targetName}`;
+    case 'bulk_import_candidates': return `Bulk imported ${count} candidates${d.skipped ? ' (' + d.skipped + ' skipped)' : ''}`;
+    case 'reset_password': return `Reset password for ${targetName}`;
+    case 'deactivate_user': return `Deactivated ${targetName}`;
+    case 'activate_user': return `Activated ${targetName}`;
+    case 'create_admin': return `Created admin account for ${targetName}`;
+    case 'delete_admin': return `Deleted admin ${targetName}`;
+    case 'assign_test':
+    case 'grant_permission': return `Granted access to "${testName}" for ${targetName}`;
+    case 'revoke_permission':
+    case 'revoke_test': return `Revoked access to "${testName}" from ${targetName}`;
+    case 'restore_permission': return `Restored access to "${testName}" for ${targetName}`;
+    case 'reset_attempts': return `Reset attempts for "${testName}" for ${targetName}`;
+    case 'analysis_only': return `Set analysis-only mode for "${testName}" for ${targetName}`;
+    case 'bulk_grant_permissions': return `Bulk assigned "${testName}" to ${count} candidates`;
+    case 'create_test': return `Created new test "${testName}"${d.type ? ' (' + d.type + ')' : ''}`;
+    case 'edit_test':
+    case 'update_test': return `Updated test "${testName}"`;
+    case 'delete_test': return `Deleted test "${testName}"`;
+    case 'start_test': return `${actor} started test "${testName}"`;
+    case 'submit_test': return `${actor} submitted "${testName}"${pct ? ' — Score: ' + pct : ''}${grade}`;
+    case 'auto_submit': return `Test "${testName}" auto-submitted for ${targetName || actor}${d.reason ? ' (' + d.reason + ')' : ''}`;
+    case 'create_interview_test': return `Created interview test "${d.name || testName}"`;
+    case 'assign_interview': return `Assigned interview to ${d.assigned || count} candidates`;
+    case 'evaluate_interview': return `Evaluated ${d.evaluated}/${d.total} interview answers`;
+    case 'approve_interview': return `Approved interview submission`;
+    case 'override_interview_score': return `Overrode interview score to ${d.finalScore}`;
+    case 'assign_interview_prep': return `Assigned interview-prep tests${count ? ' to ' + count : ''}`;
+    case 'db_backup': return `Downloaded database backup`;
+    default: return `${a.replace(/_/g,' ')}${testName ? ' — ' + testName : ''}${targetName ? ' — ' + targetName : ''}`;
+  }
+}
+
+function categorizeAudit(action) {
+  if (/login$|logout/.test(action)) return action === 'login_failed' ? 'danger' : 'success';
+  if (/grant|assign|restore/.test(action)) return 'info';
+  if (/revoke|delete|auto_submit|login_failed/.test(action)) return 'danger';
+  if (/reset_password|edit|update|create_test/.test(action)) return 'warning';
+  if (/create_candidate|bulk_import|create_admin/.test(action)) return 'purple';
+  return 'default';
+}
+
+// Format a DB/ISO timestamp as "DD/MM/YYYY, hh:mm AM/PM" (local time).
+function formatToIST(dateStr) {
+  if (!dateStr) return null;
+  const ms = parseDbTime(dateStr);
+  if (!ms) return null;
+  const d = new Date(ms);
+  const pad = (n) => String(n).padStart(2, '0');
+  const day = pad(d.getDate());
+  const month = pad(d.getMonth() + 1);
+  const year = d.getFullYear();
+  let hours = d.getHours();
+  const minutes = pad(d.getMinutes());
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12 || 12;
+  return `${day}/${month}/${year}, ${pad(hours)}:${minutes} ${ampm}`;
 }
 
 app.use(cors({
@@ -44,6 +141,35 @@ app.use(cors({
 }));
 app.use(bodyParser.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname, '..', 'frontend', 'build')));
+
+// ============================================================
+// ONLINE CANDIDATE TRACKING
+// userId -> lastSeen (ms). Considered online if seen within ONLINE_WINDOW_MS.
+// ============================================================
+const onlineCandidates = new Map();
+const ONLINE_WINDOW_MS = 5 * 60 * 1000;
+function markCandidateSeen(userId) {
+  if (userId) onlineCandidates.set(userId, Date.now());
+}
+function isCandidateOnline(userId) {
+  const last = onlineCandidates.get(userId);
+  return !!(last && Date.now() - last < ONLINE_WINDOW_MS);
+}
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/candidate/')) {
+    const auth = req.headers.authorization;
+    if (auth && auth.startsWith('Bearer ')) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.decode(auth.slice(7));
+        if (decoded && decoded.role === 'candidate' && decoded.id) {
+          markCandidateSeen(decoded.id);
+        }
+      } catch (e) { /* ignore */ }
+    }
+  }
+  next();
+});
 
 // ============================================================
 // IN-MEMORY RATE LIMITER (no external packages needed)
@@ -100,17 +226,20 @@ app.post('/api/auth/login', rateLimit({ windowMs: 15 * 60 * 1000, max: 20, messa
 
     const user = db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get(email);
     if (!user) {
+      logAudit(db, { actorId: null, actorRole: null, action: 'login_failed', targetType: 'user', targetId: null, details: { email, reason: 'no_such_user' } });
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     if (!user.is_active) {
+      logAudit(db, { actorId: user.id, actorRole: user.role, action: 'login_failed', targetType: 'user', targetId: user.id, details: { email, reason: 'deactivated' } });
       return res.status(403).json({ error: 'Account is deactivated' });
     }
     if (!comparePassword(password, user.password)) {
+      logAudit(db, { actorId: user.id, actorRole: user.role, action: 'login_failed', targetType: 'user', targetId: user.id, details: { email, reason: 'bad_password' } });
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const token = generateToken(user);
-    db.prepare('UPDATE users SET last_login = datetime(\'now\') WHERE id = ?').run(user.id);
+    db.prepare("UPDATE users SET last_login = strftime('%Y-%m-%dT%H:%M:%f','now','localtime') WHERE id = ?").run(user.id);
 
     logAudit(db, {
       actorId: user.id,
@@ -144,6 +273,14 @@ app.post('/api/auth/login', rateLimit({ windowMs: 15 * 60 * 1000, max: 20, messa
 });
 
 // GET /api/auth/me
+app.post('/api/auth/logout', authMiddleware, (req, res) => {
+  try {
+    logAudit(db, { actorId: req.user.id, actorRole: req.user.role, action: 'logout', targetType: 'user', targetId: req.user.id, details: { email: req.user.email } });
+    if (req.user.role === 'candidate') onlineCandidates.delete(req.user.id);
+  } catch (e) { /* ignore */ }
+  res.json({ status: 'ok' });
+});
+
 app.get('/api/auth/me', authMiddleware, (req, res) => {
   try {
     const user = db.prepare('SELECT id, name, email, role, is_active, created_at, last_login FROM users WHERE id = ?').get(req.user.id);
@@ -194,6 +331,10 @@ app.post('/api/super/admins', authMiddleware, requireRole('super_admin'), (req, 
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Name, email and password required' });
     }
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+    const safeName = sanitizeHtml(name.trim());
 
     const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)').get(email);
     if (existing) return res.status(409).json({ error: 'Email already exists' });
@@ -204,7 +345,7 @@ app.post('/api/super/admins', authMiddleware, requireRole('super_admin'), (req, 
     db.prepare(`
       INSERT INTO users (id, name, email, password, role, created_by)
       VALUES (?, ?, ?, ?, 'admin', ?)
-    `).run(id, name, email, hashed, req.user.id);
+    `).run(id, safeName, email, hashed, req.user.id);
 
     db.prepare(`
       INSERT INTO admin_assignments (id, admin_id, assigned_tests, max_candidates)
@@ -252,6 +393,31 @@ app.put('/api/super/admins/:id/restore', authMiddleware, requireRole('super_admi
   }
 });
 
+// --- Online candidate status (shared by super + admin) ---
+function buildOnlineStatusResponse() {
+  const rows = db.prepare("SELECT id FROM users WHERE role = 'candidate'").all();
+  const out = {};
+  for (const r of rows) {
+    const last = onlineCandidates.get(r.id);
+    out[r.id] = {
+      status: last && Date.now() - last < ONLINE_WINDOW_MS ? 'online' : 'offline',
+      lastSeen: last ? formatToIST(new Date(last).toISOString()) : null,
+      lastSeenMs: last || null,
+    };
+  }
+  return out;
+}
+app.get('/api/super/candidates/online-status', authMiddleware, requireRole('super_admin'), (req, res) => {
+  res.json(buildOnlineStatusResponse());
+});
+app.get('/api/admin/candidates/online-status', authMiddleware, requireRole('admin'), (req, res) => {
+  res.json(buildOnlineStatusResponse());
+});
+app.get('/api/candidate/ping', authMiddleware, requireRole('candidate'), (req, res) => {
+  markCandidateSeen(req.user.id);
+  res.json({ status: 'ok' });
+});
+
 // --- Candidate management (super admin) ---
 
 app.get('/api/super/candidates', authMiddleware, requireRole('super_admin'), (req, res) => {
@@ -280,6 +446,10 @@ app.post('/api/super/candidates', authMiddleware, requireRole('super_admin'), (r
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Name, email and password required' });
     }
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+    const safeName = sanitizeHtml(name.trim());
 
     const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)').get(email);
     if (existing) return res.status(409).json({ error: 'Email already exists' });
@@ -290,15 +460,15 @@ app.post('/api/super/candidates', authMiddleware, requireRole('super_admin'), (r
     db.prepare(`
       INSERT INTO users (id, name, email, password, role, created_by)
       VALUES (?, ?, ?, ?, 'candidate', ?)
-    `).run(id, name, email, hashed, req.user.id);
+    `).run(id, safeName, email, hashed, req.user.id);
 
     logAudit(db, {
       actorId: req.user.id, actorRole: 'super_admin',
       action: 'create_candidate', targetType: 'user', targetId: id,
-      details: { name, email }
+      details: { name: safeName, email }
     });
 
-    res.status(201).json({ id, name, email, role: 'candidate' });
+    res.status(201).json({ id, name: safeName, email, role: 'candidate' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -478,7 +648,7 @@ app.put('/api/super/permissions/:id/reset', authMiddleware, requireRole('super_a
 app.put('/api/super/permissions/:id/analysis', authMiddleware, requireRole('super_admin'), (req, res) => {
   try {
     const { expiresAt } = req.body;
-    const expires = expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const expires = expiresAt || (function(){const d=new Date(Date.now()+24*60*60*1000);const p=(n,w=2)=>String(n).padStart(w,0);return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds())+"."+p(d.getMilliseconds(),3);})();
     db.prepare(`
       UPDATE test_permissions SET analysis_only = 1, analysis_expires_at = ? WHERE id = ?
     `).run(expires, req.params.id);
@@ -523,7 +693,7 @@ app.get('/api/super/dashboard', authMiddleware, requireRole('super_admin'), (req
         FROM test_sessions WHERE test_id = ?
       `).get(t.id);
       return {
-        id: t.id, name: t.name,
+        id: t.id, name: t.name, test_type: t.test_type, total_questions: t.total_questions,
         totalAttempts: stats.submitted_count || 0,
         avgScore: stats.avg_score ? Math.round(stats.avg_score) : 0,
         passRate: stats.submitted_count > 0 ? Math.round(((stats.passed_count || 0) / stats.submitted_count) * 100) : 0,
@@ -533,15 +703,22 @@ app.get('/api/super/dashboard', authMiddleware, requireRole('super_admin'), (req
 
     // Recent activity from audit log
     const recentActivity = db.prepare(`
-      SELECT al.*, u.name as actor_name
+      SELECT al.*, u.name as actor_name, u.email as actor_email
       FROM audit_log al
       LEFT JOIN users u ON al.actor_id = u.id
       ORDER BY al.timestamp DESC
       LIMIT 20
-    `).all().map(a => ({
-      ...a,
-      details: a.details ? JSON.parse(a.details) : {}
-    }));
+    `).all().map(a => {
+      const detailsObj = a.details ? (() => { try { return JSON.parse(a.details); } catch(e) { return {}; } })() : {};
+      return {
+        ...a,
+        details: detailsObj,
+        message: describeAudit(a),
+        category: categorizeAudit(a.action),
+        timestamp_ist: formatToIST(a.timestamp),
+        performed_by: a.actor_name ? `${a.actor_name}${a.actor_email ? ' (' + a.actor_email + ')' : ''}` : null,
+      };
+    });
 
     res.json({
       candidates, admins, tests, liveSessions, avgPassRate,
@@ -634,6 +811,41 @@ app.get('/api/admin/tests', authMiddleware, requireRole('admin'), (req, res) => 
     });
     res.json({ tests: testsWithStats });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+// ============================================================
+// TESTS FOR DROPDOWN (grouped: regular + interview prep)
+// ============================================================
+function buildTestsForDropdown(filterByAdminId) {
+  const baseSql = filterByAdminId
+    ? `SELECT t.*, u.name as creator_name FROM tests t LEFT JOIN users u ON t.created_by = u.id
+       WHERE t.is_active = 1 AND (t.is_custom = 0 OR (t.is_custom = 1 AND t.created_by = ?)) ORDER BY t.name`
+    : `SELECT t.*, u.name as creator_name FROM tests t LEFT JOIN users u ON t.created_by = u.id
+       WHERE t.is_active = 1 ORDER BY t.name`;
+  const rows = filterByAdminId ? db.prepare(baseSql).all(filterByAdminId) : db.prepare(baseSql).all();
+  const regular = [], interviewPrep = [];
+  for (const t of rows) {
+    const item = { id: t.id, name: t.name, test_type: t.test_type, is_custom: t.is_custom, created_by_name: t.creator_name || 'System' };
+    if (t.is_interview_prep) interviewPrep.push(item); else regular.push(item);
+  }
+  // Also include external interview_tests (from interview_tests table) for super admin only
+  if (!filterByAdminId) {
+    try {
+      const iTests = db.prepare(`SELECT id, name FROM interview_tests WHERE is_active = 1 ORDER BY name`).all();
+      for (const t of iTests) {
+        interviewPrep.push({ id: `interview:${t.id}`, name: t.name, test_type: 'interview', is_custom: 0, created_by_name: 'System' });
+      }
+    } catch (e) { /* table may not exist */ }
+  }
+  return { regular, interviewPrep };
+}
+app.get('/api/super/tests/all-for-dropdown', authMiddleware, requireRole('super_admin'), (req, res) => {
+  try { res.json(buildTestsForDropdown(null)); }
+  catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+app.get('/api/admin/tests/all-for-dropdown', authMiddleware, requireRole('admin'), (req, res) => {
+  try { res.json(buildTestsForDropdown(req.user.id)); }
+  catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ============================================================
@@ -930,7 +1142,7 @@ app.get('/api/super/results/export', authMiddleware, requireRole('super_admin'),
       ORDER BY ts.end_time DESC
     `).all();
     const csv = buildResultsCsv(rows);
-    const filename = `skillforge_results_${new Date().toISOString().split('T')[0]}.csv`;
+    const filename = `skillforge_results_${nowLocalIso().split('T')[0]}.csv`;
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(csv);
@@ -1051,6 +1263,10 @@ app.post('/api/admin/candidates', authMiddleware, requireRole('admin'), (req, re
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Name, email and password required' });
     }
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+    const safeName = sanitizeHtml(name.trim());
 
     const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)').get(email);
     if (existing) return res.status(409).json({ error: 'Email already exists' });
@@ -1061,15 +1277,15 @@ app.post('/api/admin/candidates', authMiddleware, requireRole('admin'), (req, re
     db.prepare(`
       INSERT INTO users (id, name, email, password, role, created_by)
       VALUES (?, ?, ?, ?, 'candidate', ?)
-    `).run(id, name, email, hashed, req.user.id);
+    `).run(id, safeName, email, hashed, req.user.id);
 
     logAudit(db, {
       actorId: req.user.id, actorRole: 'admin',
       action: 'create_candidate', targetType: 'user', targetId: id,
-      details: { name, email }
+      details: { name: safeName, email }
     });
 
-    res.status(201).json({ id, name, email, role: 'candidate' });
+    res.status(201).json({ id, name: safeName, email, role: 'candidate' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -1153,9 +1369,9 @@ app.post('/api/admin/permissions', authMiddleware, requireRole('admin'), (req, r
       return res.status(400).json({ error: 'candidateId and testId required' });
     }
 
-    // Verify candidate belongs to this admin
-    const candidate = db.prepare("SELECT id FROM users WHERE id = ? AND role = 'candidate' AND created_by = ?").get(candidateId, req.user.id);
-    if (!candidate) return res.status(404).json({ error: 'Candidate not found or not yours' });
+    // Verify candidate exists (admins can grant permissions to any candidate)
+    const candidate = db.prepare("SELECT id FROM users WHERE id = ? AND role = 'candidate'").get(candidateId);
+    if (!candidate) return res.status(404).json({ error: 'Candidate not found' });
 
     const id = uuidv4();
     db.prepare(`
@@ -1181,8 +1397,8 @@ app.put('/api/admin/permissions/:id/revoke', authMiddleware, requireRole('admin'
     const perm = db.prepare(`
       SELECT tp.id FROM test_permissions tp
       JOIN users u ON tp.candidate_id = u.id
-      WHERE tp.id = ? AND u.created_by = ?
-    `).get(req.params.id, req.user.id);
+      WHERE tp.id = ? AND (u.created_by = ? OR tp.granted_by = ?)
+    `).get(req.params.id, req.user.id, req.user.id);
     if (!perm) return res.status(404).json({ error: 'Permission not found' });
 
     db.prepare("UPDATE test_permissions SET status = 'revoked' WHERE id = ?").run(req.params.id);
@@ -1202,8 +1418,8 @@ app.put('/api/admin/permissions/:id/restore', authMiddleware, requireRole('admin
     const perm = db.prepare(`
       SELECT tp.id FROM test_permissions tp
       JOIN users u ON tp.candidate_id = u.id
-      WHERE tp.id = ? AND u.created_by = ?
-    `).get(req.params.id, req.user.id);
+      WHERE tp.id = ? AND (u.created_by = ? OR tp.granted_by = ?)
+    `).get(req.params.id, req.user.id, req.user.id);
     if (!perm) return res.status(404).json({ error: 'Permission not found' });
 
     db.prepare("UPDATE test_permissions SET status = 'granted' WHERE id = ?").run(req.params.id);
@@ -1223,8 +1439,8 @@ app.put('/api/admin/permissions/:id/reset', authMiddleware, requireRole('admin')
     const perm = db.prepare(`
       SELECT tp.id FROM test_permissions tp
       JOIN users u ON tp.candidate_id = u.id
-      WHERE tp.id = ? AND u.created_by = ?
-    `).get(req.params.id, req.user.id);
+      WHERE tp.id = ? AND (u.created_by = ? OR tp.granted_by = ?)
+    `).get(req.params.id, req.user.id, req.user.id);
     if (!perm) return res.status(404).json({ error: 'Permission not found' });
 
     db.prepare("UPDATE test_permissions SET max_attempts = max_attempts + 1, status = 'granted' WHERE id = ?").run(req.params.id);
@@ -1244,12 +1460,12 @@ app.put('/api/admin/permissions/:id/analysis', authMiddleware, requireRole('admi
     const perm = db.prepare(`
       SELECT tp.id FROM test_permissions tp
       JOIN users u ON tp.candidate_id = u.id
-      WHERE tp.id = ? AND u.created_by = ?
-    `).get(req.params.id, req.user.id);
+      WHERE tp.id = ? AND (u.created_by = ? OR tp.granted_by = ?)
+    `).get(req.params.id, req.user.id, req.user.id);
     if (!perm) return res.status(404).json({ error: 'Permission not found' });
 
     const { expiresAt } = req.body;
-    const expires = expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const expires = expiresAt || (function(){const d=new Date(Date.now()+24*60*60*1000);const p=(n,w=2)=>String(n).padStart(w,0);return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds())+"."+p(d.getMilliseconds(),3);})();
     db.prepare("UPDATE test_permissions SET analysis_only = 1, analysis_expires_at = ? WHERE id = ?").run(expires, req.params.id);
     logAudit(db, {
       actorId: req.user.id, actorRole: 'admin',
@@ -1278,7 +1494,7 @@ app.get('/api/admin/results/export', authMiddleware, requireRole('admin'), (req,
       ORDER BY ts.end_time DESC
     `).all(req.user.id);
     const csv = buildResultsCsv(rows);
-    const filename = `skillforge_results_${new Date().toISOString().split('T')[0]}.csv`;
+    const filename = `skillforge_results_${nowLocalIso().split('T')[0]}.csv`;
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(csv);
@@ -1402,7 +1618,7 @@ app.get('/api/admin/dashboard', authMiddleware, requireRole('admin'), (req, res)
 
     // Recent activity
     const recentActivity = db.prepare(`
-      SELECT al.*, u.name as actor_name
+      SELECT al.*, u.name as actor_name, u.email as actor_email
       FROM audit_log al
       LEFT JOIN users u ON al.actor_id = u.id
       WHERE al.actor_id = ? OR al.target_id IN (
@@ -1410,12 +1626,37 @@ app.get('/api/admin/dashboard', authMiddleware, requireRole('admin'), (req, res)
       )
       ORDER BY al.timestamp DESC
       LIMIT 20
-    `).all(req.user.id, req.user.id).map(a => ({
-      ...a,
-      details: a.details ? JSON.parse(a.details) : {}
-    }));
+    `).all(req.user.id, req.user.id).map(a => {
+      const detailsObj = a.details ? (() => { try { return JSON.parse(a.details); } catch(e) { return {}; } })() : {};
+      return {
+        ...a,
+        details: detailsObj,
+        message: describeAudit(a),
+        category: categorizeAudit(a.action),
+        timestamp_ist: formatToIST(a.timestamp),
+        performed_by: a.actor_name ? `${a.actor_name}${a.actor_email ? ' (' + a.actor_email + ')' : ''}` : null,
+      };
+    });
 
-    res.json({ candidates, testsAssigned, liveSessions, passRate, totalSessions, recentActivity });
+    const allTests = db.prepare('SELECT * FROM tests WHERE is_active = 1').all();
+    const testStats = allTests.map(t => {
+      const s = db.prepare(`
+        SELECT COUNT(*) as total_attempts,
+               AVG(CASE WHEN ts.status='submitted' THEN ts.percentage END) as avg_score,
+               SUM(CASE WHEN ts.status='submitted' AND ts.passed=1 THEN 1 ELSE 0 END) as passed_count,
+               SUM(CASE WHEN ts.status='submitted' THEN 1 ELSE 0 END) as submitted_count
+        FROM test_sessions ts JOIN users u ON ts.candidate_id = u.id
+        WHERE ts.test_id = ? AND u.created_by = ?
+      `).get(t.id, req.user.id);
+      return {
+        id: t.id, name: t.name, test_type: t.test_type, total_questions: t.total_questions,
+        totalAttempts: s.submitted_count || 0,
+        avgScore: s.avg_score ? Math.round(s.avg_score) : 0,
+        passRate: s.submitted_count > 0 ? Math.round(((s.passed_count || 0) / s.submitted_count) * 100) : 0,
+      };
+    }).filter(t => t.totalAttempts > 0);
+
+    res.json({ candidates, testsAssigned, liveSessions, passRate, totalSessions, recentActivity, testStats });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -1494,11 +1735,13 @@ app.get('/api/candidate/dashboard', authMiddleware, requireRole('candidate'), (r
     const permissions = db.prepare(`
       SELECT tp.*, t.name as test_name, t.description as test_description,
              t.duration_minutes, t.passing_percentage, t.total_questions,
-             t.test_type, u.name as granted_by_name
+             t.test_type, COALESCE(t.is_interview_prep, 0) as is_interview_prep,
+             u.name as granted_by_name
       FROM test_permissions tp
       JOIN tests t ON tp.test_id = t.id
       LEFT JOIN users u ON tp.granted_by = u.id
       WHERE tp.candidate_id = ?
+        AND COALESCE(t.test_type, 'mcq') != 'interview'
       ORDER BY tp.granted_at DESC
     `).all(candidateId);
 
@@ -1528,6 +1771,7 @@ app.get('/api/candidate/dashboard', authMiddleware, requireRole('candidate'), (r
         testName: perm.test_name,
         testDescription: perm.test_description || '',
         testType: perm.test_type || 'mcq',
+        isInterviewPrep: perm.is_interview_prep === 1,
         durationMinutes: perm.duration_minutes,
         totalQuestions: perm.total_questions,
         passPercentage: perm.passing_percentage || 60,
@@ -1557,9 +1801,14 @@ app.get('/api/candidate/dashboard', authMiddleware, requireRole('candidate'), (r
       };
     });
 
+    const regular_tests = tests.filter(t => !t.isInterviewPrep);
+    const interview_prep_tests = tests.filter(t => t.isInterviewPrep);
+
     res.json({
       candidate: { id: fullUser?.id || candidateId, name: fullUser?.name || req.user.name, email: fullUser?.email || req.user.email },
-      tests
+      tests,
+      regular_tests,
+      interview_prep_tests
     });
   } catch (err) {
     console.error(err);
@@ -1730,7 +1979,7 @@ app.post('/api/candidate/tests/:testId/start', authMiddleware, requireRole('cand
 
       return res.json({
         testType: 'coding', sessionId,
-        startTime: new Date().toISOString(), start_time: new Date().toISOString(),
+        startTime: nowLocalIso(), start_time: nowLocalIso(),
         problems: safeProblems, totalPoints, sections,
         durationMinutes: permission.duration_minutes, testName: permission.test_name
       });
@@ -1766,8 +2015,12 @@ app.post('/api/candidate/tests/:testId/start', authMiddleware, requireRole('cand
       if (existingHybrid) {
         selectedProblemIds = JSON.parse(existingHybrid.hybrid_problem_ids_json || '[]');
       } else {
-        const allPythonProblems = db.prepare("SELECT id FROM coding_problems WHERE evaluation_type = 'python' ORDER BY id").all();
-        const shuffled = seededShuffle(allPythonProblems.map(p => p.id), hashCode(candidateId + testId + '_coding'));
+        // First try problems specific to this test, then fall back to general python problems
+        let candidateProblems = db.prepare("SELECT id FROM coding_problems WHERE test_id = ? ORDER BY id").all(testId);
+        if (candidateProblems.length === 0) {
+          candidateProblems = db.prepare("SELECT id FROM coding_problems WHERE evaluation_type = 'python' ORDER BY id").all();
+        }
+        const shuffled = seededShuffle(candidateProblems.map(p => p.id), hashCode(candidateId + testId + '_coding'));
         selectedProblemIds = shuffled.slice(0, codingCount);
       }
 
@@ -1815,7 +2068,7 @@ app.post('/api/candidate/tests/:testId/start', authMiddleware, requireRole('cand
 
       return res.json({
         testType: 'hybrid', sessionId,
-        startTime: new Date().toISOString(), start_time: new Date().toISOString(),
+        startTime: nowLocalIso(), start_time: nowLocalIso(),
         durationMinutes: permission.duration_minutes, testName: permission.test_name,
         questions: safeMcqQuestions, totalQuestions: mcqQuestions.length,
         problems: safeProblems, totalPoints
@@ -1873,7 +2126,7 @@ app.post('/api/candidate/tests/:testId/start', authMiddleware, requireRole('cand
       return res.json({
         testType: 'mcq',
         sessionId,
-        startTime: new Date().toISOString(),
+        startTime: nowLocalIso(),
         safeQuestions: [],
         durationMinutes: permission.duration_minutes,
         message: 'This test uses external question system'
@@ -1899,8 +2152,8 @@ app.post('/api/candidate/tests/:testId/start', authMiddleware, requireRole('cand
     res.json({
       testType: 'mcq',
       sessionId,
-      startTime: new Date().toISOString(),
-      start_time: new Date().toISOString(),
+      startTime: nowLocalIso(),
+      start_time: nowLocalIso(),
       questions: result.safeQuestions,
       safeQuestions: result.safeQuestions,
       durationMinutes: permission.duration_minutes
@@ -1938,7 +2191,7 @@ app.get('/api/candidate/tests/:testId/active-session', authMiddleware, requireRo
         const totalPoints = allProblems.reduce((s, p) => s + p.points, 0);
         const earnedPoints = Object.values(bestScores).reduce((a, b) => a + b, 0);
         const pct = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
-        db.prepare(`UPDATE test_sessions SET status='timed_out', end_time=datetime('now'),
+        db.prepare(`UPDATE test_sessions SET status='timed_out', end_time=strftime('%Y-%m-%dT%H:%M:%f','now','localtime'),
           score=?, total_questions=?, percentage=?, passed=?, time_taken=? WHERE id=?`)
           .run(earnedPoints, allProblems.length, pct, pct >= 60 ? 1 : 0, test?.duration_minutes || 90, session.id);
       } else {
@@ -1951,7 +2204,7 @@ app.get('/api/candidate/tests/:testId/active-session', authMiddleware, requireRo
         });
         const total = questions.length;
         const pct = total > 0 ? Math.round((score / total) * 100) : 0;
-        db.prepare(`UPDATE test_sessions SET status='timed_out', end_time=datetime('now'),
+        db.prepare(`UPDATE test_sessions SET status='timed_out', end_time=strftime('%Y-%m-%dT%H:%M:%f','now','localtime'),
           score=?, total_questions=?, percentage=?, passed=?, time_taken=? WHERE id=?`)
           .run(score, total, pct, pct >= 60 ? 1 : 0, test?.duration_minutes || 90, session.id);
       }
@@ -2116,20 +2369,30 @@ const codeRunRateLimit = rateLimit({ windowMs: 5 * 60 * 1000, max: 30, message: 
 app.post('/api/candidate/tests/:testId/run', authMiddleware, requireRole('candidate'), codeRunRateLimit, (req, res) => {
   try {
     const { testId } = req.params;
-    const { sessionId, problemId, code } = req.body;
+    const { sessionId: reqSessionId, problemId, code } = req.body;
     const candidateId = req.user.id;
 
-    const session = db.prepare('SELECT * FROM test_sessions WHERE id = ? AND candidate_id = ? AND test_id = ? AND status = ?')
-      .get(sessionId, candidateId, testId, 'in_progress');
+    // Look up session by ID, or fall back to active session for this test
+    let session;
+    if (reqSessionId) {
+      session = db.prepare('SELECT * FROM test_sessions WHERE id = ? AND candidate_id = ? AND test_id = ? AND status = ?')
+        .get(reqSessionId, candidateId, testId, 'in_progress');
+    }
+    if (!session) {
+      session = db.prepare('SELECT * FROM test_sessions WHERE candidate_id = ? AND test_id = ? AND status = ? ORDER BY start_time DESC LIMIT 1')
+        .get(candidateId, testId, 'in_progress');
+    }
     if (!session) return res.status(404).json({ error: 'Session not found or not active' });
 
-    const problem = db.prepare('SELECT * FROM coding_problems WHERE id = ? AND test_id = ?').get(problemId, testId);
+    // Look up problem by ID (hybrid tests may use problems from other test_ids)
+    let problem = db.prepare('SELECT * FROM coding_problems WHERE id = ? AND test_id = ?').get(problemId, testId);
+    if (!problem) problem = db.prepare('SELECT * FROM coding_problems WHERE id = ?').get(problemId);
     if (!problem) return res.status(404).json({ error: 'Problem not found' });
 
     // Save code
     const codeMap = JSON.parse(session.code_map_json || '{}');
     codeMap[problemId] = code;
-    db.prepare('UPDATE test_sessions SET code_map_json = ? WHERE id = ?').run(JSON.stringify(codeMap), sessionId);
+    db.prepare('UPDATE test_sessions SET code_map_json = ? WHERE id = ?').run(JSON.stringify(codeMap), session.id);
 
     // Get sample test cases
     const sampleCases = db.prepare('SELECT input, expected_output as expectedOutput, explanation FROM coding_test_cases WHERE problem_id = ? AND is_hidden = 0').all(problemId);
@@ -2167,20 +2430,30 @@ app.post('/api/candidate/tests/:testId/run', authMiddleware, requireRole('candid
 app.post('/api/candidate/tests/:testId/run-custom', authMiddleware, requireRole('candidate'), codeRunRateLimit, (req, res) => {
   try {
     const { testId } = req.params;
-    const { sessionId, problemId, code, customInput } = req.body;
+    const { sessionId: reqSessionId, problemId, code, customInput } = req.body;
     const candidateId = req.user.id;
 
-    const session = db.prepare('SELECT * FROM test_sessions WHERE id = ? AND candidate_id = ? AND test_id = ? AND status = ?')
-      .get(sessionId, candidateId, testId, 'in_progress');
+    // Look up session by ID, or fall back to active session for this test
+    let session;
+    if (reqSessionId) {
+      session = db.prepare('SELECT * FROM test_sessions WHERE id = ? AND candidate_id = ? AND test_id = ? AND status = ?')
+        .get(reqSessionId, candidateId, testId, 'in_progress');
+    }
+    if (!session) {
+      session = db.prepare('SELECT * FROM test_sessions WHERE candidate_id = ? AND test_id = ? AND status = ? ORDER BY start_time DESC LIMIT 1')
+        .get(candidateId, testId, 'in_progress');
+    }
     if (!session) return res.status(404).json({ error: 'Session not found or not active' });
 
-    const problem = db.prepare('SELECT * FROM coding_problems WHERE id = ? AND test_id = ?').get(problemId, testId);
+    // Look up problem by ID (hybrid tests may use problems from other test_ids)
+    let problem = db.prepare('SELECT * FROM coding_problems WHERE id = ? AND test_id = ?').get(problemId, testId);
+    if (!problem) problem = db.prepare('SELECT * FROM coding_problems WHERE id = ?').get(problemId);
     if (!problem) return res.status(404).json({ error: 'Problem not found' });
 
     // Save code
     const codeMap = JSON.parse(session.code_map_json || '{}');
     codeMap[problemId] = code;
-    db.prepare('UPDATE test_sessions SET code_map_json = ? WHERE id = ?').run(JSON.stringify(codeMap), sessionId);
+    db.prepare('UPDATE test_sessions SET code_map_json = ? WHERE id = ?').run(JSON.stringify(codeMap), session.id);
 
     const { executePython, executeSql, sanitizePythonCode } = require('./codeExecution');
     const evalType = problem.evaluation_type || 'python';
@@ -2212,14 +2485,24 @@ app.post('/api/candidate/tests/:testId/run-custom', authMiddleware, requireRole(
 app.post('/api/candidate/tests/:testId/submit-code', authMiddleware, requireRole('candidate'), (req, res) => {
   try {
     const { testId } = req.params;
-    const { sessionId, problemId, code } = req.body;
+    const { sessionId: reqSessionId, problemId, code } = req.body;
     const candidateId = req.user.id;
 
-    const session = db.prepare('SELECT * FROM test_sessions WHERE id = ? AND candidate_id = ? AND test_id = ? AND status = ?')
-      .get(sessionId, candidateId, testId, 'in_progress');
+    // Look up session by ID, or fall back to active session for this test
+    let session;
+    if (reqSessionId) {
+      session = db.prepare('SELECT * FROM test_sessions WHERE id = ? AND candidate_id = ? AND test_id = ? AND status = ?')
+        .get(reqSessionId, candidateId, testId, 'in_progress');
+    }
+    if (!session) {
+      session = db.prepare('SELECT * FROM test_sessions WHERE candidate_id = ? AND test_id = ? AND status = ? ORDER BY start_time DESC LIMIT 1')
+        .get(candidateId, testId, 'in_progress');
+    }
     if (!session) return res.status(404).json({ error: 'Session not found or not active' });
 
-    const problem = db.prepare('SELECT * FROM coding_problems WHERE id = ? AND test_id = ?').get(problemId, testId);
+    // Look up problem by ID (hybrid tests may use problems from other test_ids)
+    let problem = db.prepare('SELECT * FROM coding_problems WHERE id = ? AND test_id = ?').get(problemId, testId);
+    if (!problem) problem = db.prepare('SELECT * FROM coding_problems WHERE id = ?').get(problemId);
     if (!problem) return res.status(404).json({ error: 'Problem not found' });
 
     // Save code
@@ -2253,7 +2536,7 @@ app.post('/api/candidate/tests/:testId/submit-code', authMiddleware, requireRole
     codingResults[problemId] = { passedCases: passedCount, totalCases, score, maxScore: problem.points, status: overallStatus };
 
     db.prepare('UPDATE test_sessions SET code_map_json = ?, coding_results_json = ?, best_scores_json = ? WHERE id = ?')
-      .run(JSON.stringify(codeMap), JSON.stringify(codingResults), JSON.stringify(bestScores), sessionId);
+      .run(JSON.stringify(codeMap), JSON.stringify(codingResults), JSON.stringify(bestScores), session.id);
 
     // Return per-case summary — mask input/expected for hidden cases
     const caseSummary = results.map(r => ({
@@ -2344,7 +2627,7 @@ app.post('/api/candidate/tests/:testId/session/:sessionId/submit', authMiddlewar
 
       db.prepare(`
         UPDATE test_sessions
-        SET status = 'submitted', end_time = datetime('now'), score = ?, total_questions = ?,
+        SET status = 'submitted', end_time = strftime('%Y-%m-%dT%H:%M:%f','now','localtime'), score = ?, total_questions = ?,
             percentage = ?, passed = ?, grade = ?, time_taken = ?, result_json = ?
         WHERE id = ?
       `).run(score, total, percentage, passed, grade, timeTaken, resultJson, sessionId);
@@ -2409,38 +2692,74 @@ app.post('/api/candidate/tests/:testId/session/:sessionId/submit', authMiddlewar
       const test = db.prepare('SELECT * FROM tests WHERE id = ?').get(testId);
       const passingPct = test?.passing_percentage || 60;
       const passed = percentage >= passingPct;
-      const timeTaken = session.start_time ? Math.floor((Date.now() - new Date(session.start_time + 'Z').getTime()) / 60000) : 0;
+      const timeTaken = session.start_time ? Math.floor((Date.now() - parseDbTime(session.start_time)) / 60000) : 0;
+
+      // Merge submitted answers with session answers before saving
+      const hybridMergedAnswers = { ...sessionAnswers };
+      for (const [k, v] of Object.entries(submittedAnswers)) {
+        const parsed = parseInt(v, 10);
+        if (!isNaN(parsed)) hybridMergedAnswers[String(k)] = parsed;
+      }
+
+      const hybridGrade = percentage >= 90 ? 'A+' : percentage >= 80 ? 'A' : percentage >= 70 ? 'B' : percentage >= 60 ? 'C' : percentage >= 50 ? 'D' : 'F';
+      const hybridResultJson = JSON.stringify({
+        testType: 'hybrid', passed, percentage,
+        mcqScore, mcqTotal, codingEarned, codingTotal,
+        score: mcqScore + codingEarned, total: mcqTotal + problemIds.length,
+        grade: hybridGrade, timeTaken
+      });
 
       db.prepare(`
-        UPDATE test_sessions SET status='submitted', end_time=datetime('now'),
+        UPDATE test_sessions SET status='submitted', end_time=strftime('%Y-%m-%dT%H:%M:%f','now','localtime'),
           answers_json=?, score=?, total_questions=?, percentage=?, passed=?, time_taken=?,
-          coding_results_json=?
+          coding_results_json=?, result_json=?, grade=?
         WHERE id=?
       `).run(
-        JSON.stringify(submittedAnswers), mcqScore + codingEarned,
+        JSON.stringify(hybridMergedAnswers), mcqScore + codingEarned,
         mcqTotal + problemIds.length, percentage, passed ? 1 : 0, timeTaken,
-        session.coding_results_json, session.id
+        session.coding_results_json, hybridResultJson, hybridGrade, session.id
       );
 
-      db.prepare('UPDATE test_permissions SET status=?, attempt_count=attempt_count+1 WHERE candidate_id=? AND test_id=?')
-        .run('completed', candidateId, testId);
+      // BUG FIX: respect max_attempts instead of always setting 'completed'
+      const hybridPerm = session.permission_id
+        ? db.prepare('SELECT * FROM test_permissions WHERE id = ?').get(session.permission_id)
+        : db.prepare('SELECT * FROM test_permissions WHERE candidate_id = ? AND test_id = ?').get(candidateId, testId);
+      if (hybridPerm) {
+        const newAttemptCount = hybridPerm.attempt_count + 1;
+        const newPermStatus = newAttemptCount >= hybridPerm.max_attempts ? 'completed' : 'granted';
+        db.prepare('UPDATE test_permissions SET attempt_count = ?, status = ? WHERE id = ?')
+          .run(newAttemptCount, newPermStatus, hybridPerm.id);
+      }
 
-      logAudit(db, { actorId: candidateId, actorRole: 'candidate', action: 'submit_test', targetType: 'test_session', targetId: session.id, details: { testType: 'hybrid', mcqScore, mcqTotal, codingEarned, codingTotal, percentage } });
+      logAudit(db, { actorId: candidateId, actorRole: 'candidate', action: 'submit_test', targetType: 'test_session', targetId: session.id, details: { testType: 'hybrid', mcqScore, mcqTotal, codingEarned, codingTotal, percentage, grade: hybridGrade } });
 
       return res.json({
         result: {
           testType: 'hybrid', passed, percentage,
           mcqScore, mcqTotal, codingEarned, codingTotal,
           score: mcqScore + codingEarned, total: mcqTotal + problemIds.length,
-          grade: percentage >= 90 ? 'A+' : percentage >= 80 ? 'A' : percentage >= 70 ? 'B' : percentage >= 60 ? 'C' : 'F',
-          timeTaken
+          grade: hybridGrade, timeTaken
         }
       });
     }
 
     // ===== MCQ TEST SUBMIT (existing flow) =====
     const questions = session.questions_json ? JSON.parse(session.questions_json) : [];
-    const answers = session.answers_json ? JSON.parse(session.answers_json) : {};
+
+    // BUG FIX: merge session-saved answers with any answers submitted in body
+    // Body answers are the freshest (in-flight saves may not have hit DB yet)
+    const sessionAnswers = session.answers_json ? JSON.parse(session.answers_json) : {};
+    const bodyAnswers = req.body.answers || {};
+    const answers = { ...sessionAnswers };
+    for (const [k, v] of Object.entries(bodyAnswers)) {
+      const parsed = parseInt(v, 10);
+      if (!isNaN(parsed)) answers[String(k)] = parsed;
+    }
+
+    // Guard: no questions means nothing to score
+    if (questions.length === 0) {
+      return res.status(400).json({ error: 'no_questions', message: 'Session has no questions. Please start a new test.' });
+    }
 
     // Score
     score = 0;
@@ -2454,8 +2773,13 @@ app.post('/api/candidate/tests/:testId/session/:sessionId/submit', authMiddlewar
       }
       subjectScores[subj].total++;
 
-      const userAnswer = answers[q.id];
-      if (userAnswer !== undefined && userAnswer === q.answer) {
+      // BUG FIX: use String key lookup + handle both answer/answer_index field names
+      const qKey = String(q.id);
+      const userAnswer = answers[qKey];
+      // BUG FIX: handle both q.answer (int) and q.answer_index field names
+      const correctAnswer = q.answer_index !== undefined ? parseInt(q.answer_index, 10)
+        : q.answer !== undefined ? parseInt(q.answer, 10) : -1;
+      if (userAnswer !== undefined && parseInt(userAnswer, 10) === correctAnswer) {
         score++;
         subjectScores[subj].correct++;
       }
@@ -2480,10 +2804,10 @@ app.post('/api/candidate/tests/:testId/session/:sessionId/submit', authMiddlewar
 
     db.prepare(`
       UPDATE test_sessions
-      SET status = 'submitted', end_time = datetime('now'), score = ?, total_questions = ?,
-          percentage = ?, passed = ?, grade = ?, time_taken = ?, result_json = ?
+      SET status = 'submitted', end_time = strftime('%Y-%m-%dT%H:%M:%f','now','localtime'), score = ?, total_questions = ?,
+          percentage = ?, passed = ?, grade = ?, time_taken = ?, result_json = ?, answers_json = ?
       WHERE id = ?
-    `).run(score, total, percentage, passed, grade, timeTaken, resultJson, sessionId);
+    `).run(score, total, percentage, passed, grade, timeTaken, resultJson, JSON.stringify(answers), sessionId);
 
     // Update permission
     if (session.permission_id) {
@@ -2494,6 +2818,15 @@ app.post('/api/candidate/tests/:testId/session/:sessionId/submit', authMiddlewar
         db.prepare('UPDATE test_permissions SET attempt_count = ?, status = ? WHERE id = ?')
           .run(newAttemptCount, newStatus, session.permission_id);
       }
+    } else {
+      // Fallback: update by candidate_id + test_id
+      const perm2 = db.prepare('SELECT * FROM test_permissions WHERE candidate_id = ? AND test_id = ?').get(candidateId, testId);
+      if (perm2) {
+        const newAttemptCount = perm2.attempt_count + 1;
+        const newStatus = newAttemptCount >= perm2.max_attempts ? 'completed' : 'granted';
+        db.prepare('UPDATE test_permissions SET attempt_count = ?, status = ? WHERE id = ?')
+          .run(newAttemptCount, newStatus, perm2.id);
+      }
     }
 
     logAudit(db, {
@@ -2503,8 +2836,7 @@ app.post('/api/candidate/tests/:testId/session/:sessionId/submit', authMiddlewar
     });
 
     res.json({
-      score, total, percentage, passed: !!passed, grade, subjectScores,
-      timeTaken
+      result: { score, total, percentage, passed: !!passed, grade, subjectScores, timeTaken }
     });
   } catch (err) {
     console.error('Submit error:', err);
@@ -2541,7 +2873,10 @@ app.get('/api/candidate/tests/:testId/sessions/:sessionId/review', authMiddlewar
     const answers = session.answers_json ? JSON.parse(session.answers_json) : {};
 
     const review = questions.map(q => {
-      const userAnswer = answers[q.id];
+      const userAnswer = answers[String(q.id)];
+      const correctAnswer = q.answer_index !== undefined ? parseInt(q.answer_index, 10)
+        : q.answer !== undefined ? parseInt(q.answer, 10) : -1;
+      const isCorrect = userAnswer !== undefined && parseInt(userAnswer, 10) === correctAnswer;
       return {
         displayId: q.displayId,
         id: q.id,
@@ -2553,8 +2888,8 @@ app.get('/api/candidate/tests/:testId/sessions/:sessionId/review', authMiddlewar
         options: q.options,
         code_snippet: q.code_snippet,
         userAnswer: userAnswer !== undefined ? userAnswer : null,
-        correctAnswer: q.answer,
-        isCorrect: userAnswer !== undefined && userAnswer === q.answer,
+        correctAnswer,
+        isCorrect,
         explanation: q.explanation
       };
     });
@@ -2582,51 +2917,64 @@ app.get('/api/candidate/tests/:testId/sessions/:sessionId/review', authMiddlewar
 // MONITORING
 // ============================================================
 
+function buildLiveMonitorRows(scopedAdminId) {
+  const sql = `
+    SELECT ts.id, ts.candidate_id, ts.test_id, ts.start_time, ts.answers_json,
+           ts.coding_results_json, ts.best_scores_json, ts.tab_violations,
+           u.name as candidate_name, u.email as candidate_email, u.created_by,
+           t.name as test_name, t.duration_minutes, t.test_type, t.total_questions
+    FROM test_sessions ts
+    JOIN users u ON ts.candidate_id = u.id
+    JOIN tests t ON ts.test_id = t.id
+    WHERE ts.status = 'in_progress' ${scopedAdminId ? 'AND u.created_by = ?' : ''}
+  `;
+  const liveSessions = scopedAdminId ? db.prepare(sql).all(scopedAdminId) : db.prepare(sql).all();
+
+  const now = Date.now();
+  return liveSessions.map(s => {
+    const startMs = parseDbTime(s.start_time);
+    const elapsedSec = Math.max(0, Math.floor((now - startMs) / 1000));
+    const lastSeen = onlineCandidates.get(s.candidate_id);
+    const idleSec = lastSeen ? Math.floor((now - lastSeen) / 1000) : null;
+    const status = idleSec != null && idleSec > 120 ? 'idle' : 'active';
+
+    let answeredCount = 0;
+    const totalQuestions = s.total_questions || 0;
+    if (s.test_type === 'coding') {
+      const cr = s.coding_results_json ? JSON.parse(s.coding_results_json) : {};
+      answeredCount = Object.keys(cr).length;
+    } else {
+      const answers = s.answers_json ? JSON.parse(s.answers_json) : {};
+      answeredCount = Object.keys(answers).length;
+    }
+
+    return {
+      sessionId: s.id,
+      candidateId: s.candidate_id,
+      candidateName: s.candidate_name,
+      email: s.candidate_email,
+      testId: s.test_id,
+      testName: s.test_name,
+      testType: s.test_type || 'mcq',
+      startedAt: formatToIST(s.start_time),
+      startTime: s.start_time,
+      timeElapsedSeconds: elapsedSec,
+      questionsAnswered: answeredCount,
+      totalQuestions,
+      durationMinutes: s.duration_minutes,
+      violations: s.tab_violations || 0,
+      status,
+      lastActivity: lastSeen ? formatToIST(new Date(lastSeen).toISOString()) : null,
+      lastActivityMs: lastSeen || null,
+    };
+  });
+}
+
 app.get('/api/monitor/live', authMiddleware, requireRole('admin', 'super_admin'), (req, res) => {
   try {
-    const liveSessions = db.prepare(`
-      SELECT ts.id, ts.candidate_id, ts.test_id, ts.start_time, ts.answers_json,
-             ts.coding_results_json, ts.best_scores_json,
-             u.name as candidate_name, u.email as candidate_email,
-             t.name as test_name, t.duration_minutes, t.test_type, t.total_questions
-      FROM test_sessions ts
-      JOIN users u ON ts.candidate_id = u.id
-      JOIN tests t ON ts.test_id = t.id
-      WHERE ts.status = 'in_progress'
-    `).all();
-
-    const now = new Date();
-    const live = liveSessions.map(s => {
-      const startTime = new Date(parseDbTime(s.start_time));
-      const elapsedMs = now - startTime;
-      const elapsedMin = Math.floor(elapsedMs / 60000);
-      const remainingMin = Math.max(0, s.duration_minutes - elapsedMin);
-
-      const base = {
-        sessionId: s.id, candidateId: s.candidate_id,
-        candidateName: s.candidate_name, candidateEmail: s.candidate_email,
-        testId: s.test_id, testName: s.test_name, testType: s.test_type || 'mcq',
-        startTime: s.start_time, timeElapsed: elapsedMin,
-        timeRemaining: remainingMin, durationMinutes: s.duration_minutes
-      };
-
-      if (s.test_type === 'coding') {
-        const codingResults = s.coding_results_json ? JSON.parse(s.coding_results_json) : {};
-        const bestScores = s.best_scores_json ? JSON.parse(s.best_scores_json) : {};
-        const attempted = Object.keys(codingResults).length;
-        const solved = Object.values(codingResults).filter(r => r.status === 'accepted').length;
-        const earnedPoints = Object.values(bestScores).reduce((a, b) => a + b, 0);
-        return { ...base, attempted, solved, totalProblems: s.total_questions, earnedPoints };
-      } else {
-        const answers = s.answers_json ? JSON.parse(s.answers_json) : {};
-        return { ...base, answeredCount: Object.keys(answers).length, totalQuestions: s.total_questions };
-      }
-    });
-    res.json(live);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
+    const scope = req.user.role === 'admin' ? req.user.id : null;
+    res.json(buildLiveMonitorRows(scope));
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ============================================================
@@ -2634,16 +2982,21 @@ app.get('/api/monitor/live', authMiddleware, requireRole('admin', 'super_admin')
 // ============================================================
 
 let ngrokProcess = null;
+let ngrokUrl = null;
+let ngrokRunning = false;
 
 app.get('/api/tunnel/status', (req, res) => {
   try {
     const lanIp = getLanIp();
-    const ngrokUrl = db.prepare("SELECT value FROM config WHERE key = 'ngrok_url'").get();
+    const stored = db.prepare("SELECT value FROM config WHERE key = 'ngrok_url'").get();
+    const url = ngrokUrl || stored?.value || null;
     res.json({
       lanIp,
       lanUrl: `http://${lanIp}:${PORT}`,
-      ngrokUrl: ngrokUrl ? ngrokUrl.value : null,
-      ngrokRunning: ngrokProcess !== null
+      ngrokUrl: url,
+      ngrokRunning,
+      url,
+      status: ngrokRunning ? 'running' : 'stopped'
     });
   } catch (err) {
     console.error(err);
@@ -2657,40 +3010,54 @@ app.get('/api/tunnel/lan', (req, res) => {
 
 app.post('/api/tunnel/ngrok/start', authMiddleware, requireRole('super_admin', 'admin'), (req, res) => {
   try {
-    if (ngrokProcess) {
-      return res.status(400).json({ error: 'ngrok already running' });
-    }
+    if (ngrokProcess) return res.status(400).json({ error: 'ngrok already running' });
 
-    ngrokProcess = spawn('ngrok', ['http', String(PORT)], { detached: true, stdio: 'ignore' });
+    ngrokProcess = spawn('ngrok', ['http', String(PORT)], { detached: true, stdio: 'ignore', shell: true });
+    ngrokRunning = true;
+    ngrokUrl = null;
+
+    ngrokProcess.on('error', (err) => {
+      console.error('ngrok spawn error:', err);
+      ngrokRunning = false;
+      ngrokProcess = null;
+    });
+    ngrokProcess.on('close', (code) => {
+      console.log('ngrok closed with code', code);
+      ngrokRunning = false;
+      ngrokUrl = null;
+      ngrokProcess = null;
+      try { db.prepare("DELETE FROM config WHERE key = 'ngrok_url'").run(); } catch(e){}
+    });
     ngrokProcess.unref();
 
-    // Give ngrok a moment to start, then try to get the URL
-    setTimeout(() => {
-      try {
-        const http = require('http');
+    const pollNgrokUrl = async (retries = 15) => {
+      const http = require('http');
+      const fetchOnce = () => new Promise((resolve) => {
         http.get('http://127.0.0.1:4040/api/tunnels', (resp) => {
-          let data = '';
-          resp.on('data', chunk => data += chunk);
-          resp.on('end', () => {
-            try {
-              const tunnels = JSON.parse(data);
-              const url = tunnels.tunnels[0]?.public_url || '';
-              db.prepare("INSERT OR REPLACE INTO config (key, value, updated_at) VALUES ('ngrok_url', ?, datetime('now'))").run(url);
-            } catch (e) {
-              console.error('Error parsing ngrok tunnels:', e);
-            }
-          });
-        }).on('error', (e) => {
-          console.error('Error connecting to ngrok API:', e);
-        });
-      } catch (e) {
-        console.error('ngrok URL fetch error:', e);
+          let data = ''; resp.on('data', c => data += c);
+          resp.on('end', () => { try { resolve(JSON.parse(data)); } catch { resolve(null); } });
+        }).on('error', () => resolve(null));
+      });
+      for (let i = 0; i < retries; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        const data = await fetchOnce();
+        const tunnel = data?.tunnels?.find(t => t.proto === 'https') || data?.tunnels?.[0];
+        if (tunnel?.public_url) {
+          ngrokUrl = tunnel.public_url;
+          try {
+            db.prepare("INSERT OR REPLACE INTO config (key, value, updated_at) VALUES ('ngrok_url', ?, strftime('%Y-%m-%dT%H:%M:%f','now','localtime'))").run(ngrokUrl);
+          } catch(e) { console.error('config save error', e); }
+          return ngrokUrl;
+        }
       }
-    }, 3000);
+      return null;
+    };
+    pollNgrokUrl();
 
-    res.json({ success: true, message: 'ngrok starting...' });
+    res.json({ success: true, message: 'ngrok starting...', status: 'starting' });
   } catch (err) {
     console.error(err);
+    ngrokRunning = false; ngrokProcess = null;
     res.status(500).json({ error: 'Failed to start ngrok' });
   }
 });
@@ -2698,14 +3065,35 @@ app.post('/api/tunnel/ngrok/start', authMiddleware, requireRole('super_admin', '
 app.post('/api/tunnel/ngrok/stop', authMiddleware, requireRole('super_admin', 'admin'), (req, res) => {
   try {
     if (ngrokProcess) {
-      ngrokProcess.kill();
+      try { spawn('taskkill', ['/pid', String(ngrokProcess.pid), '/f', '/t'], { shell: true }); } catch(e){}
       ngrokProcess = null;
     }
+    ngrokUrl = null;
+    ngrokRunning = false;
     db.prepare("DELETE FROM config WHERE key = 'ngrok_url'").run();
-    res.json({ success: true });
+    res.json({ success: true, status: 'stopped', ngrokUrl: null, url: null });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to stop ngrok' });
+  }
+});
+
+app.post('/api/tunnel/ngrok/auth-token', authMiddleware, requireRole('super_admin', 'admin'), (req, res) => {
+  const { token } = req.body || {};
+  if (!token || typeof token !== 'string' || token.length < 10) {
+    return res.status(400).json({ error: 'Invalid token' });
+  }
+  try {
+    const proc = spawn('ngrok', ['config', 'add-authtoken', token], { shell: true });
+    let stderr = '';
+    proc.stderr?.on('data', c => stderr += c);
+    proc.on('close', (code) => {
+      if (code === 0) res.json({ success: true });
+      else res.status(500).json({ error: 'ngrok config failed: ' + stderr });
+    });
+    proc.on('error', (e) => res.status(500).json({ error: e.message }));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -2728,7 +3116,7 @@ app.post('/api/candidate/tests/:testId/session/:sessionId/violation', authMiddle
 
     const violations = (session.tab_violations || 0) + 1;
     const log = JSON.parse(session.violation_log_json || '[]');
-    log.push({ type: type || 'tab_switch', timestamp: timestamp || new Date().toISOString() });
+    log.push({ type: type || 'tab_switch', timestamp: timestamp || nowLocalIso() });
 
     db.prepare('UPDATE test_sessions SET tab_violations = ?, violation_log_json = ? WHERE id = ?')
       .run(violations, JSON.stringify(log), sessionId);
@@ -2738,6 +3126,57 @@ app.post('/api/candidate/tests/:testId/session/:sessionId/violation', authMiddle
   } catch (err) {
     console.error('Violation tracking error:', err);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ============================================================
+// RUN CODE — Company coding problems
+// ============================================================
+
+app.post('/api/candidate/run-code', authMiddleware, requireRole('candidate'), (req, res) => {
+  try {
+    const { code, language, problemId } = req.body;
+    if (!code) return res.status(400).json({ error: 'No code provided' });
+
+    if (language === 'sql') {
+      return res.json({ output: '-- SQL query validated. Results would appear when connected to a live database.\n\n' + code, testResults: [] });
+    }
+
+    // Run Python code
+    const fs = require('fs');
+    const path = require('path');
+    const { execSync } = require('child_process');
+    const tmpFile = path.join(require('os').tmpdir(), `sf_run_${Date.now()}_${Math.random().toString(36).slice(2)}.py`);
+
+    fs.writeFileSync(tmpFile, code);
+    let output = '';
+    try {
+      output = execSync(`python "${tmpFile}"`, { timeout: 10000, encoding: 'utf8', maxBuffer: 1024 * 1024 });
+    } catch (execErr) {
+      output = execErr.stderr || execErr.stdout || execErr.message || 'Execution error';
+    }
+    try { fs.unlinkSync(tmpFile); } catch (e) {}
+
+    // Check test cases if problem exists
+    let testResults = [];
+    if (problemId) {
+      try {
+        const problem = db.prepare('SELECT test_cases FROM company_coding_problems WHERE id=?').get(problemId);
+        if (problem && problem.test_cases) {
+          const cases = JSON.parse(problem.test_cases);
+          const outputTrimmed = output.trim();
+          testResults = cases.map(tc => ({
+            expected: tc.expected,
+            actual: outputTrimmed.split('\n')[0] || outputTrimmed,
+            passed: outputTrimmed.includes(tc.expected.trim())
+          }));
+        }
+      } catch (e) {}
+    }
+
+    res.json({ output: output || '(no output)', testResults });
+  } catch (err) {
+    res.status(500).json({ error: err.message, output: 'Server error: ' + err.message });
   }
 });
 
@@ -2874,68 +3313,80 @@ function getLeaderboard(db, testId, adminId) {
   return deduped;
 }
 
+function enrichLeaderboardRow(r) {
+  return {
+    rank: r.rank,
+    session_id: r.session_id,
+    candidate_id: r.candidate_id,
+    candidate_name: r.candidate_name,
+    candidate_email: r.candidate_email,
+    test_id: r.test_id,
+    test_name: r.test_name,
+    test_is_active: r.test_is_active,
+    score: r.score,
+    total_questions: r.total_questions,
+    percentage: r.percentage,
+    grade: r.grade,
+    passed: r.passed,
+    time_taken_seconds: r.time_taken ? r.time_taken * 60 : 0,
+    time_taken: r.time_taken,
+    completed_at: r.completed_at,
+    submitted_at: r.completed_at,
+    submitted_at_ist: formatToIST(r.completed_at),
+  };
+}
+
 app.get('/api/super/leaderboard', authMiddleware, requireRole('super_admin'), (req, res) => {
   try {
     const { testId } = req.query;
-    const tests = db.prepare("SELECT id, name FROM tests WHERE is_active = 1 ORDER BY created_at DESC").all();
-    if (!testId) {
-      // Return overall leaderboard (all tests combined, best score per candidate per test)
-      const allRows = db.prepare(`
-        SELECT u.id as candidate_id, u.name as candidate_name, u.email as candidate_email,
-               ts.percentage, ts.score, ts.total_questions, ts.grade, ts.passed,
-               ts.end_time as completed_at, ts.tab_violations, t.name as test_name, ts.id as session_id, ts.test_id
-        FROM test_sessions ts
-        JOIN users u ON ts.candidate_id = u.id
-        JOIN tests t ON ts.test_id = t.id
-        WHERE ts.status = 'submitted'
-        ORDER BY ts.percentage DESC, ts.end_time ASC
-      `).all();
-      const seen = new Set();
-      const deduped = [];
-      for (const r of allRows) {
-        const key = r.candidate_id + '_' + r.test_id;
-        if (!seen.has(key)) { seen.add(key); deduped.push({ ...r, rank: deduped.length + 1 }); }
-      }
-      return res.json({ tests, leaderboard: deduped });
+    const tests = db.prepare("SELECT id, name, is_active FROM tests ORDER BY is_active DESC, name").all();
+    const sql = `
+      SELECT u.id as candidate_id, u.name as candidate_name, u.email as candidate_email,
+             ts.percentage, ts.score, ts.total_questions, ts.grade, ts.passed,
+             ts.end_time as completed_at, ts.time_taken,
+             t.name as test_name, t.is_active as test_is_active,
+             ts.id as session_id, ts.test_id
+      FROM test_sessions ts
+      JOIN users u ON ts.candidate_id = u.id
+      JOIN tests t ON ts.test_id = t.id
+      WHERE ts.status = 'submitted' ${testId ? 'AND ts.test_id = ?' : ''}
+      ORDER BY ts.percentage DESC, ts.end_time ASC`;
+    const allRows = testId ? db.prepare(sql).all(testId) : db.prepare(sql).all();
+    const seen = new Set();
+    const deduped = [];
+    for (const r of allRows) {
+      const key = r.candidate_id + '_' + r.test_id;
+      if (!seen.has(key)) { seen.add(key); deduped.push({ ...r, rank: deduped.length + 1 }); }
     }
-    const leaderboard = getLeaderboard(db, testId, null);
-    res.json({ tests, leaderboard });
-  } catch (err) {
-    console.error('Leaderboard error:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
+    res.json({ tests, leaderboard: deduped.map(enrichLeaderboardRow) });
+  } catch (err) { console.error('Leaderboard error:', err); res.status(500).json({ error: 'Server error' }); }
 });
 
 app.get('/api/admin/leaderboard', authMiddleware, requireRole('admin'), (req, res) => {
   try {
     const { testId } = req.query;
-    const tests = db.prepare("SELECT id, name FROM tests WHERE is_active = 1 ORDER BY created_at DESC").all();
-    if (!testId) {
-      // Return all candidates leaderboard (scoped to admin's candidates)
-      const allRows = db.prepare(`
-        SELECT u.id as candidate_id, u.name as candidate_name, u.email as candidate_email,
-               ts.percentage, ts.score, ts.total_questions, ts.grade, ts.passed,
-               ts.end_time as completed_at, ts.tab_violations, t.name as test_name, ts.id as session_id, ts.test_id
-        FROM test_sessions ts
-        JOIN users u ON ts.candidate_id = u.id
-        JOIN tests t ON ts.test_id = t.id
-        WHERE ts.status = 'submitted' AND u.created_by = ?
-        ORDER BY ts.percentage DESC, ts.end_time ASC
-      `).all(req.user.id);
-      const seen = new Set();
-      const deduped = [];
-      for (const r of allRows) {
-        const key = r.candidate_id + '_' + r.test_id;
-        if (!seen.has(key)) { seen.add(key); deduped.push({ ...r, rank: deduped.length + 1 }); }
-      }
-      return res.json({ tests, leaderboard: deduped });
+    const tests = db.prepare("SELECT id, name, is_active FROM tests ORDER BY is_active DESC, name").all();
+    const sql = `
+      SELECT u.id as candidate_id, u.name as candidate_name, u.email as candidate_email,
+             ts.percentage, ts.score, ts.total_questions, ts.grade, ts.passed,
+             ts.end_time as completed_at, ts.time_taken,
+             t.name as test_name, t.is_active as test_is_active,
+             ts.id as session_id, ts.test_id
+      FROM test_sessions ts
+      JOIN users u ON ts.candidate_id = u.id
+      JOIN tests t ON ts.test_id = t.id
+      WHERE ts.status = 'submitted' AND u.created_by = ? ${testId ? 'AND ts.test_id = ?' : ''}
+      ORDER BY ts.percentage DESC, ts.end_time ASC`;
+    const params = testId ? [req.user.id, testId] : [req.user.id];
+    const allRows = db.prepare(sql).all(...params);
+    const seen = new Set();
+    const deduped = [];
+    for (const r of allRows) {
+      const key = r.candidate_id + '_' + r.test_id;
+      if (!seen.has(key)) { seen.add(key); deduped.push({ ...r, rank: deduped.length + 1 }); }
     }
-    const leaderboard = getLeaderboard(db, testId, req.user.id);
-    res.json({ tests, leaderboard });
-  } catch (err) {
-    console.error('Leaderboard error:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
+    res.json({ tests, leaderboard: deduped.map(enrichLeaderboardRow) });
+  } catch (err) { console.error('Leaderboard error:', err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ============================================================
@@ -3028,18 +3479,20 @@ app.put('/api/super/users/:id/password', authMiddleware, requireRole('super_admi
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-app.put('/api/admin/candidates/:id/password', authMiddleware, requireRole('admin'), (req, res) => {
+function adminResetPassword(req, res) {
   try {
     const newPassword = req.body.newPassword || req.body.password;
     if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
-    const candidate = db.prepare("SELECT id, name FROM users WHERE id = ? AND role = 'candidate' AND created_by = ?").get(req.params.id, req.user.id);
+    const candidate = db.prepare("SELECT id, name FROM users WHERE id = ? AND role = 'candidate'").get(req.params.id);
     if (!candidate) return res.status(404).json({ error: 'Candidate not found' });
     db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashPassword(newPassword), req.params.id);
     logAudit(db, { actorId: req.user.id, actorRole: 'admin', action: 'reset_password',
       targetType: 'user', targetId: req.params.id, details: { targetName: candidate.name } });
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
-});
+}
+app.put('/api/admin/candidates/:id/password', authMiddleware, requireRole('admin'), adminResetPassword);
+app.put('/api/admin/candidates/:id/reset-password', authMiddleware, requireRole('admin'), adminResetPassword);
 
 // ============================================================
 // CANDIDATE PROFILE UPDATE
@@ -3085,54 +3538,122 @@ app.put('/api/candidate/profile/password', authMiddleware, requireRole('candidat
 // BULK PERMISSION ASSIGN
 // ============================================================
 
+// Assign an interview-prep test (lives in tests table) to candidates via test_permissions
+function assignInterviewPrep(req, res, role) {
+  try {
+    const testId = req.params.id;
+    const { candidateIds, maxAttempts } = req.body;
+    const test = db.prepare('SELECT id, is_interview_prep FROM tests WHERE id = ?').get(testId);
+    if (!test) return res.status(404).json({ error: 'Test not found' });
+    if (test.is_interview_prep !== 1) return res.status(400).json({ error: 'Not an interview prep test' });
+    if (!Array.isArray(candidateIds) || candidateIds.length === 0) return res.status(400).json({ error: 'candidateIds required' });
+    const results = { assigned: 0, skipped: 0 };
+    const tx = db.transaction(() => {
+      for (const cid of candidateIds) {
+        const c = db.prepare("SELECT id FROM users WHERE id = ? AND role = 'candidate'").get(cid);
+        if (!c) continue;
+        const existing = db.prepare('SELECT id FROM test_permissions WHERE candidate_id = ? AND test_id = ? AND status = ?').get(cid, testId, 'granted');
+        if (existing) { results.skipped++; continue; }
+        db.prepare('INSERT INTO test_permissions (id, candidate_id, test_id, max_attempts, granted_by) VALUES (?, ?, ?, ?, ?)')
+          .run(uuidv4(), cid, testId, maxAttempts || 1, req.user.id);
+        results.assigned++;
+      }
+    });
+    tx();
+    logAudit(db, { actorId: req.user.id, actorRole: role, action: 'assign_interview_prep',
+      targetType: 'test', targetId: testId, details: results });
+    res.json(results);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+}
+app.post('/api/super/tests/:id/assign-interview', authMiddleware, requireRole('super_admin'), (req, res) => assignInterviewPrep(req, res, 'super_admin'));
+app.post('/api/admin/tests/:id/assign-interview', authMiddleware, requireRole('admin'), (req, res) => assignInterviewPrep(req, res, 'admin'));
+
+// Return ids of candidates currently granted access to a test
+function listAssignees(req, res) {
+  try {
+    const rows = db.prepare(`SELECT candidate_id FROM test_permissions WHERE test_id = ? AND status = 'granted'`).all(req.params.id);
+    res.json({ assignees: rows.map(r => r.candidate_id) });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+}
+app.get('/api/super/tests/:id/assignees', authMiddleware, requireRole('super_admin'), listAssignees);
+app.get('/api/admin/tests/:id/assignees', authMiddleware, requireRole('admin'), listAssignees);
+
+// Update editable fields on a test (used by interview-prep edit modal)
+function updateTestMeta(req, res, role) {
+  try {
+    const testId = req.params.id;
+    const existing = db.prepare('SELECT id FROM tests WHERE id = ?').get(testId);
+    if (!existing) return res.status(404).json({ error: 'Test not found' });
+    const { name, description, duration_minutes, passing_percentage } = req.body;
+    if (!name || String(name).trim() === '') return res.status(400).json({ error: 'Name required' });
+    const dur = parseInt(duration_minutes);
+    const pass = parseFloat(passing_percentage);
+    if (isNaN(dur) || dur < 1) return res.status(400).json({ error: 'Invalid duration' });
+    if (isNaN(pass) || pass < 0 || pass > 100) return res.status(400).json({ error: 'Invalid passing percentage' });
+    db.prepare('UPDATE tests SET name = ?, description = ?, duration_minutes = ?, passing_percentage = ? WHERE id = ?')
+      .run(String(name).trim(), description || '', dur, pass, testId);
+    logAudit(db, { actorId: req.user.id, actorRole: role, action: 'update_test',
+      targetType: 'test', targetId: testId, details: { name, duration_minutes: dur, passing_percentage: pass } });
+    res.json({ ok: true, test: db.prepare('SELECT * FROM tests WHERE id = ?').get(testId) });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+}
+app.put('/api/super/tests/:id', authMiddleware, requireRole('super_admin'), (req, res) => updateTestMeta(req, res, 'super_admin'));
+app.put('/api/admin/tests/:id', authMiddleware, requireRole('admin'), (req, res) => updateTestMeta(req, res, 'admin'));
+
 app.post('/api/super/permissions/bulk', authMiddleware, requireRole('super_admin'), (req, res) => {
   try {
-    const { candidateIds, testId, maxAttempts } = req.body;
-    if (!candidateIds || !Array.isArray(candidateIds) || !testId) {
-      return res.status(400).json({ error: 'candidateIds array and testId required' });
+    const { candidateIds, maxAttempts } = req.body;
+    const testIds = req.body.testIds || (req.body.testId ? [req.body.testId] : null);
+    if (!candidateIds || !Array.isArray(candidateIds) || !testIds || !Array.isArray(testIds) || testIds.length === 0) {
+      return res.status(400).json({ error: 'candidateIds array and testId/testIds required' });
     }
     const results = { granted: [], skipped: [], errors: [] };
     const insert = db.transaction(() => {
       for (const candidateId of candidateIds) {
         const candidate = db.prepare("SELECT id FROM users WHERE id = ? AND role = 'candidate'").get(candidateId);
         if (!candidate) { results.errors.push({ candidateId, reason: 'Not found' }); continue; }
-        const existing = db.prepare('SELECT id FROM test_permissions WHERE candidate_id = ? AND test_id = ? AND status = ?').get(candidateId, testId, 'granted');
-        if (existing) { results.skipped.push({ candidateId, reason: 'Already assigned' }); continue; }
-        const id = uuidv4();
-        db.prepare('INSERT INTO test_permissions (id, candidate_id, test_id, max_attempts, granted_by) VALUES (?, ?, ?, ?, ?)')
-          .run(id, candidateId, testId, maxAttempts || 1, req.user.id);
-        results.granted.push({ id, candidateId });
+        for (const testId of testIds) {
+          const existing = db.prepare('SELECT id FROM test_permissions WHERE candidate_id = ? AND test_id = ? AND status = ?').get(candidateId, testId, 'granted');
+          if (existing) { results.skipped.push({ candidateId, testId, reason: 'Already assigned' }); continue; }
+          const id = uuidv4();
+          db.prepare('INSERT INTO test_permissions (id, candidate_id, test_id, max_attempts, granted_by) VALUES (?, ?, ?, ?, ?)')
+            .run(id, candidateId, testId, maxAttempts || 1, req.user.id);
+          results.granted.push({ id, candidateId, testId });
+        }
       }
     });
     insert();
     logAudit(db, { actorId: req.user.id, actorRole: 'super_admin', action: 'bulk_grant_permissions',
-      targetType: 'test', targetId: testId, details: { granted: results.granted.length, skipped: results.skipped.length } });
+      targetType: 'test', targetId: testIds.join(','), details: { granted: results.granted.length, skipped: results.skipped.length } });
     res.json(results);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 app.post('/api/admin/permissions/bulk', authMiddleware, requireRole('admin'), (req, res) => {
   try {
-    const { candidateIds, testId, maxAttempts } = req.body;
-    if (!candidateIds || !Array.isArray(candidateIds) || !testId) {
-      return res.status(400).json({ error: 'candidateIds array and testId required' });
+    const { candidateIds, maxAttempts } = req.body;
+    const testIds = req.body.testIds || (req.body.testId ? [req.body.testId] : null);
+    if (!candidateIds || !Array.isArray(candidateIds) || !testIds || !Array.isArray(testIds) || testIds.length === 0) {
+      return res.status(400).json({ error: 'candidateIds array and testId/testIds required' });
     }
     const results = { granted: [], skipped: [], errors: [] };
     const insert = db.transaction(() => {
       for (const candidateId of candidateIds) {
-        const candidate = db.prepare("SELECT id FROM users WHERE id = ? AND role = 'candidate' AND created_by = ?").get(candidateId, req.user.id);
+        const candidate = db.prepare("SELECT id FROM users WHERE id = ? AND role = 'candidate'").get(candidateId);
         if (!candidate) { results.errors.push({ candidateId, reason: 'Not found' }); continue; }
-        const existing = db.prepare('SELECT id FROM test_permissions WHERE candidate_id = ? AND test_id = ? AND status = ?').get(candidateId, testId, 'granted');
-        if (existing) { results.skipped.push({ candidateId, reason: 'Already assigned' }); continue; }
-        const id = uuidv4();
-        db.prepare('INSERT INTO test_permissions (id, candidate_id, test_id, max_attempts, granted_by) VALUES (?, ?, ?, ?, ?)')
-          .run(id, candidateId, testId, maxAttempts || 1, req.user.id);
-        results.granted.push({ id, candidateId });
+        for (const testId of testIds) {
+          const existing = db.prepare('SELECT id FROM test_permissions WHERE candidate_id = ? AND test_id = ? AND status = ?').get(candidateId, testId, 'granted');
+          if (existing) { results.skipped.push({ candidateId, testId, reason: 'Already assigned' }); continue; }
+          const id = uuidv4();
+          db.prepare('INSERT INTO test_permissions (id, candidate_id, test_id, max_attempts, granted_by) VALUES (?, ?, ?, ?, ?)')
+            .run(id, candidateId, testId, maxAttempts || 1, req.user.id);
+          results.granted.push({ id, candidateId, testId });
+        }
       }
     });
     insert();
     logAudit(db, { actorId: req.user.id, actorRole: 'admin', action: 'bulk_grant_permissions',
-      targetType: 'test', targetId: testId, details: { granted: results.granted.length, skipped: results.skipped.length } });
+      targetType: 'test', targetId: testIds.join(','), details: { granted: results.granted.length, skipped: results.skipped.length } });
     res.json(results);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
@@ -3141,43 +3662,67 @@ app.post('/api/admin/permissions/bulk', authMiddleware, requireRole('admin'), (r
 // AUDIT LOG VIEWER (with pagination)
 // ============================================================
 
+function buildAuditLogResponse(req, restrictAdminId) {
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(100, parseInt(req.query.limit) || 50);
+  const offset = (page - 1) * limit;
+  const { action, actorId, search, category, dateFrom, dateTo } = req.query;
+
+  let where = '1=1';
+  const params = [];
+  if (action) { where += ' AND al.action = ?'; params.push(action); }
+  if (actorId) { where += ' AND al.actor_id = ?'; params.push(actorId); }
+  if (search) {
+    where += ' AND (LOWER(u.name) LIKE ? OR LOWER(u.email) LIKE ? OR LOWER(al.action) LIKE ? OR LOWER(al.details) LIKE ?)';
+    const q = `%${search.toLowerCase()}%`;
+    params.push(q, q, q, q);
+  }
+  if (dateFrom) { where += ' AND al.timestamp >= ?'; params.push(dateFrom); }
+  if (dateTo) { where += ' AND al.timestamp <= ?'; params.push(dateTo + 'T23:59:59.999'); }
+  if (category) {
+    const groups = {
+      login: ["'login','logout','login_failed'"],
+      permission: ["'assign_test','grant_permission','revoke_permission','revoke_test','restore_permission','reset_attempts','analysis_only','bulk_grant_permissions'"],
+      candidate: ["'create_candidate','delete_candidate','bulk_import_candidates','reset_password','deactivate_user','activate_user'"],
+      test: ["'create_test','edit_test','update_test','delete_test','start_test','submit_test','auto_submit'"],
+    };
+    if (groups[category]) { where += ` AND al.action IN (${groups[category]})`; }
+  }
+  if (restrictAdminId) {
+    where += ' AND (al.actor_id = ? OR al.target_id IN (SELECT id FROM users WHERE created_by = ?))';
+    params.push(restrictAdminId, restrictAdminId);
+  }
+
+  const total = db.prepare(`SELECT COUNT(*) as c FROM audit_log al LEFT JOIN users u ON al.actor_id = u.id WHERE ${where}`).get(...params).c;
+  const logs = db.prepare(`
+    SELECT al.*, u.name as actor_name, u.email as actor_email, u.role as actor_role
+    FROM audit_log al LEFT JOIN users u ON al.actor_id = u.id
+    WHERE ${where}
+    ORDER BY al.timestamp DESC
+    LIMIT ? OFFSET ?
+  `).all(...params, limit, offset).map(a => {
+    const detailsObj = a.details ? (() => { try { return JSON.parse(a.details); } catch(e) { return {}; } })() : {};
+    return {
+      ...a,
+      details: detailsObj,
+      timestamp_ist: formatToIST(a.timestamp),
+      message: describeAudit({ ...a, details: detailsObj }),
+      category: categorizeAudit(a.action),
+      performed_by: a.actor_name ? `${a.actor_name}${a.actor_email ? ' (' + a.actor_email + ')' : ''}` : null,
+    };
+  });
+
+  const actions = db.prepare('SELECT DISTINCT action FROM audit_log ORDER BY action').all().map(r => r.action);
+  return { logs, total, page, limit, pages: Math.ceil(total / limit), actions };
+}
+
 app.get('/api/super/audit-log', authMiddleware, requireRole('super_admin'), (req, res) => {
-  try {
-    const page = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.min(100, parseInt(req.query.limit) || 50);
-    const offset = (page - 1) * limit;
-    const { action, actorId, search } = req.query;
-
-    let where = '1=1';
-    const params = [];
-    if (action) { where += ' AND al.action = ?'; params.push(action); }
-    if (actorId) { where += ' AND al.actor_id = ?'; params.push(actorId); }
-    if (search) {
-      where += ' AND (LOWER(u.name) LIKE ? OR LOWER(u.email) LIKE ? OR LOWER(al.action) LIKE ?)';
-      const q = `%${search.toLowerCase()}%`;
-      params.push(q, q, q);
-    }
-
-    const total = db.prepare(`SELECT COUNT(*) as c FROM audit_log al LEFT JOIN users u ON al.actor_id = u.id WHERE ${where}`).get(...params).c;
-    const logs = db.prepare(`
-      SELECT al.*, u.name as actor_name, u.email as actor_email, u.role as actor_role
-      FROM audit_log al LEFT JOIN users u ON al.actor_id = u.id
-      WHERE ${where}
-      ORDER BY al.timestamp DESC
-      LIMIT ? OFFSET ?
-    `).all(...params, limit, offset).map(a => ({ ...a, details: a.details ? (() => { try { return JSON.parse(a.details); } catch(e) { return {}; } })() : {} }));
-
-    const actions = db.prepare('SELECT DISTINCT action FROM audit_log ORDER BY action').all().map(r => r.action);
-    res.json({ logs, total, page, limit, pages: Math.ceil(total / limit), actions });
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+  try { res.json(buildAuditLogResponse(req, null)); }
+  catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
-
-// ============================================================
-// CATCH-ALL: serve frontend (MUST be last — after all API routes)
-// ============================================================
-
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'frontend', 'build', 'index.html'));
+app.get('/api/admin/audit-log', authMiddleware, requireRole('admin'), (req, res) => {
+  try { res.json(buildAuditLogResponse(req, req.user.id)); }
+  catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ============================================================
@@ -3192,7 +3737,7 @@ function getSetting(key) {
   return row ? row.value : null;
 }
 function setSetting(key, value) {
-  db.prepare('INSERT OR REPLACE INTO app_settings(key,value,updated_at) VALUES(?,?,datetime("now"))').run(key, value);
+  db.prepare("INSERT OR REPLACE INTO app_settings(key,value,updated_at) VALUES(?,?,strftime('%Y-%m-%dT%H:%M:%f','now','localtime'))").run(key, value);
 }
 function getLLMSettings() {
   return {
@@ -3272,7 +3817,11 @@ app.post('/api/super/interview-tests', authMiddleware, requireRole('super_admin'
       'INSERT INTO interview_questions(test_id,question_num,question_text,model_answer,question_type,max_score) VALUES(?,?,?,?,?,?)'
     );
     for (const [i, q] of questions.entries()) {
-      insertQ.run(testId, q.questionNum || i + 1, q.questionText, q.modelAnswer, q.questionType || 'short', q.maxScore || 10);
+      insertQ.run(testId, q.questionNum || q.question_num || i + 1,
+        q.questionText || q.question_text,
+        q.modelAnswer || q.model_answer || q.expected_answer || '',
+        q.questionType || q.question_type || 'short',
+        q.maxScore || q.max_score || q.marks || 10);
     }
     logAudit(db, { actorId: req.user.id, actorRole: req.user.role, action: 'create_interview_test', targetType: 'interview_test', targetId: String(testId), details: { name } });
     res.json({ testId, ok: true });
@@ -3299,7 +3848,11 @@ app.put('/api/super/interview-tests/:id', authMiddleware, requireRole('super_adm
       db.prepare('DELETE FROM interview_questions WHERE test_id = ?').run(req.params.id);
       const insertQ = db.prepare('INSERT INTO interview_questions(test_id,question_num,question_text,model_answer,question_type,max_score) VALUES(?,?,?,?,?,?)');
       for (const [i, q] of questions.entries()) {
-        insertQ.run(req.params.id, q.questionNum || i + 1, q.questionText, q.modelAnswer, q.questionType || 'short', q.maxScore || 10);
+        insertQ.run(req.params.id, q.questionNum || q.question_num || i + 1,
+          q.questionText || q.question_text,
+          q.modelAnswer || q.model_answer || q.expected_answer || '',
+          q.questionType || q.question_type || 'short',
+          q.maxScore || q.max_score || q.marks || 10);
       }
     }
     res.json({ ok: true });
@@ -3375,12 +3928,12 @@ app.get('/api/super/interview-results/export', authMiddleware, requireRole('supe
       const pct = s.max_score > 0 ? Math.round((s.earned_score / s.max_score) * 100) : 0;
       return [s.candidate_name, s.candidate_email, s.test_name, s.status,
         s.earned_score ?? 0, s.max_score ?? 0, pct + '%',
-        s.started_at ? new Date(s.started_at).toISOString() : '',
-        s.completed_at ? new Date(s.completed_at).toISOString() : ''].map(escCsv).join(',');
+        s.started_at ? formatToIST(s.started_at) : '',
+        s.completed_at ? formatToIST(s.completed_at) : ''].map(escCsv).join(',');
     });
     const csv = [header.map(escCsv).join(','), ...rows].join('\n');
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="interview_results_${new Date().toISOString().split('T')[0]}.csv"`);
+    res.setHeader('Content-Disposition', `attachment; filename="interview_results_${nowLocalIso().split('T')[0]}.csv"`);
     res.send(csv);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -3423,7 +3976,7 @@ app.post('/api/super/interview-results/:sessionId/evaluate', authMiddleware, req
     if (answers.length === 0) return res.status(400).json({ error: 'No answers found for this session' });
 
     const update = db.prepare(`
-      UPDATE interview_answers SET ai_score=?,ai_reasoning=?,ai_strengths=?,ai_missing=?,final_score=?,evaluated_at=datetime('now')
+      UPDATE interview_answers SET ai_score=?,ai_reasoning=?,ai_strengths=?,ai_missing=?,final_score=?,evaluated_at=strftime('%Y-%m-%dT%H:%M:%f','now','localtime')
       WHERE id=?
     `);
 
@@ -3541,7 +4094,11 @@ app.put('/api/admin/interview-tests/:id', authMiddleware, requireRole('admin'), 
       db.prepare('DELETE FROM interview_questions WHERE test_id = ?').run(req.params.id);
       const insertQ = db.prepare('INSERT INTO interview_questions(test_id,question_num,question_text,model_answer,question_type,max_score) VALUES(?,?,?,?,?,?)');
       for (const [i, q] of questions.entries()) {
-        insertQ.run(req.params.id, q.questionNum || i + 1, q.questionText, q.modelAnswer, q.questionType || 'short', q.maxScore || 10);
+        insertQ.run(req.params.id, q.questionNum || q.question_num || i + 1,
+          q.questionText || q.question_text,
+          q.modelAnswer || q.model_answer || q.expected_answer || '',
+          q.questionType || q.question_type || 'short',
+          q.maxScore || q.max_score || q.marks || 10);
       }
     }
     res.json({ ok: true });
@@ -3622,7 +4179,7 @@ app.post('/api/admin/interview-results/:sessionId/evaluate', authMiddleware, req
       WHERE a.session_id = ?
     `).all(req.params.sessionId);
     if (answers.length === 0) return res.status(400).json({ error: 'No answers found for this session' });
-    const update = db.prepare(`UPDATE interview_answers SET ai_score=?,ai_reasoning=?,ai_strengths=?,ai_missing=?,final_score=?,evaluated_at=datetime('now') WHERE id=?`);
+    const update = db.prepare(`UPDATE interview_answers SET ai_score=?,ai_reasoning=?,ai_strengths=?,ai_missing=?,final_score=?,evaluated_at=strftime('%Y-%m-%dT%H:%M:%f','now','localtime') WHERE id=?`);
     let evaluated = 0;
     for (const ans of answers) {
       try {
@@ -3739,7 +4296,7 @@ app.post('/api/candidate/interviews/:testId/session/:sessionId/submit', authMidd
     if (!session) return res.status(404).json({ error: 'Session not found' });
     if (session.status !== 'in_progress') return res.status(400).json({ error: 'Already submitted' });
 
-    db.prepare("UPDATE interview_sessions SET status='submitted',submitted_at=datetime('now') WHERE id=?").run(req.params.sessionId);
+    db.prepare("UPDATE interview_sessions SET status='submitted',submitted_at=strftime('%Y-%m-%dT%H:%M:%f','now','localtime') WHERE id=?").run(req.params.sessionId);
     res.json({ ok: true, message: 'Interview submitted successfully' });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -3759,7 +4316,7 @@ app.get('/api/health', (req, res) => {
       uptime: `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${uptime % 60}s`,
       database: dbOk ? 'ok' : 'error',
       memory: { heapUsed: Math.round(mem.heapUsed / 1024 / 1024) + 'MB', rss: Math.round(mem.rss / 1024 / 1024) + 'MB' },
-      timestamp: new Date().toISOString(),
+      timestamp: nowLocalIso(),
     });
   } catch (e) { res.status(500).json({ status: 'error', error: e.message }); }
 });
@@ -3770,12 +4327,20 @@ app.get('/api/super/backup', authMiddleware, requireRole('super_admin'), (req, r
     const fs = require('fs');
     const dbPath = path.join(__dirname, 'skillforge.db');
     if (!fs.existsSync(dbPath)) return res.status(404).json({ error: 'Database file not found' });
-    const filename = `skillforge_backup_${new Date().toISOString().split('T')[0]}.db`;
+    const filename = `skillforge_backup_${nowLocalIso().split('T')[0]}.db`;
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', 'application/octet-stream');
     fs.createReadStream(dbPath).pipe(res);
     logAudit(db, { actorId: req.user.id, actorRole: 'super_admin', action: 'db_backup', targetType: 'database', targetId: 'skillforge.db', details: {} });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// CATCH-ALL: serve frontend (MUST be last — after all API routes)
+// ============================================================
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'frontend', 'build', 'index.html'));
 });
 
 // ============================================================

@@ -71,8 +71,8 @@ export default function SuperLayout({ user, onLogout }) {
   const initial = user?.name ? user.name.charAt(0).toUpperCase() : 'S';
 
   return (
-    <div className="app-layout">
-      <nav className="sidebar">
+    <div style={{ display:'flex', height:'100vh', overflow:'hidden', position:'relative' }}>
+      <nav className="sidebar" style={{ width:'260px', minWidth:'260px', height:'100vh', position:'fixed', left:0, top:0, overflowY:'auto', overflowX:'hidden', zIndex:100, display:'flex', flexDirection:'column' }}>
         <div className="sidebar-brand">
           <div className="sidebar-logo">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -122,7 +122,7 @@ export default function SuperLayout({ user, onLogout }) {
         </div>
       </nav>
 
-      <main className="main-content">
+      <main className="main-content main-content-area" style={{ marginLeft:'260px', flex:1, height:'100vh', overflowY:'auto', overflowX:'auto', padding:'2rem', boxSizing:'border-box' }}>
         <Routes>
           <Route index element={<Dashboard />} />
           <Route path="admins" element={<AdminsPage />} />
