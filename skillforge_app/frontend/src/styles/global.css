@@ -1220,15 +1220,27 @@ tbody tr:last-child td { border-bottom: none; }
   border-radius: var(--radius-lg);
   width: 100%;
   max-width: 520px;
-  max-height: 85vh;
+  max-height: 90vh;
   overflow-y: auto;
   animation: slideUp 0.3s ease-out;
+}
+.modal-content:has(> .modal-body) {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .modal-xl { max-width: 800px; }
 .modal-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 18px 24px;
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px 24px;
 }
 .modal-title { font-size: 16px; font-weight: 700; color: var(--text-primary); }
 .modal-close {
@@ -1247,6 +1259,7 @@ tbody tr:last-child td { border-bottom: none; }
   display: flex; justify-content: flex-end; gap: 8px;
   padding: 16px 24px;
   border-top: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 /* ============================================================
@@ -1845,6 +1858,22 @@ button, .btn {
   padding: 32px !important;
   border-radius: 16px !important;
 }
+.modal-content:has(> .modal-body) {
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  max-height: 90vh !important;
+  overflow: hidden !important;
+}
+.modal-content:has(> .modal-body) .modal-header {
+  padding: 20px 28px !important;
+  margin-bottom: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+}
+.modal-content:has(> .modal-body) .modal-actions {
+  margin-top: 0 !important;
+  padding: 16px 28px !important;
+}
 .modal-header {
   margin-bottom: 24px !important;
   display: flex !important;
@@ -1881,6 +1910,13 @@ button, .btn {
   margin-top: 24px !important;
   padding-top: 20px !important;
   border-top: 1px solid rgba(255,255,255,0.06) !important;
+  flex-shrink: 0 !important;
+}
+.modal-content:has(> .modal-body) .modal-body {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 24px 28px !important;
 }
 
 /* --- Table Toolbar --- */
@@ -2242,3 +2278,16 @@ html, body, #root { height: 100%; }
 .table-scroll-wrapper table { min-width:max-content !important; white-space:nowrap !important; }
 .main-content-area { height:100vh; overflow-y:auto; overflow-x:auto; }
 * { box-sizing:border-box; }
+
+/* Modal + dropdown custom scrollbars */
+.modal-body::-webkit-scrollbar,
+.modal-scroll::-webkit-scrollbar { width: 4px; }
+.modal-body::-webkit-scrollbar-track,
+.modal-scroll::-webkit-scrollbar-track { background: transparent; }
+.modal-body::-webkit-scrollbar-thumb,
+.modal-scroll::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.3); border-radius: 2px; }
+.modal-body::-webkit-scrollbar-thumb:hover,
+.modal-scroll::-webkit-scrollbar-thumb:hover { background: rgba(139,92,246,0.6); }
+.dropdown-scroll::-webkit-scrollbar { width: 4px; }
+.dropdown-scroll::-webkit-scrollbar-track { background: transparent; }
+.dropdown-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }

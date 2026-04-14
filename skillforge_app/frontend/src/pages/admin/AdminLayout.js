@@ -2,16 +2,20 @@ import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import AdminDashboard from './AdminDashboard';
 import AdminCandidates from './AdminCandidates';
 import AdminResults from './AdminResults';
-import AdminLeaderboard from './AdminLeaderboard';
 import LiveMonitor from '../super/LiveMonitor';
 import DesignTestPage from '../super/DesignTestPage';
-import NetworkPage from '../super/NetworkPage';
+import AdminNetworkPage from './AdminNetworkPage';
 import AdminInterviewPage from './AdminInterviewPage';
 import AuditLogPage from '../super/AuditLogPage';
+import AdminBatchesPage from './AdminBatchesPage';
 
 const navItems = [
   {
     path: '/admin', label: 'Dashboard',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+  },
+  {
+    path: '/admin/batches', label: 'Batches',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
   },
   {
@@ -25,10 +29,6 @@ const navItems = [
   {
     path: '/admin/results', label: 'Results',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-  },
-  {
-    path: '/admin/leaderboard', label: 'Leaderboard',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M17 3H7l-2 7h14z"/><path d="M3 10h18"/></svg>
   },
   {
     path: '/admin/live', label: 'Live Monitor', live: true,
@@ -114,13 +114,13 @@ export default function AdminLayout({ user, onLogout }) {
       <main className="main-content main-content-area" style={{ marginLeft:'260px', flex:1, height:'100vh', overflowY:'auto', overflowX:'auto', padding:'2rem', boxSizing:'border-box' }}>
         <Routes>
           <Route index element={<AdminDashboard />} />
+          <Route path="batches" element={<AdminBatchesPage />} />
           <Route path="candidates" element={<AdminCandidates />} />
           <Route path="design-test" element={<DesignTestPage apiPrefix="/admin" />} />
           <Route path="results" element={<AdminResults />} />
-          <Route path="leaderboard" element={<AdminLeaderboard />} />
           <Route path="live" element={<LiveMonitor />} />
           <Route path="interview" element={<AdminInterviewPage />} />
-          <Route path="network" element={<NetworkPage />} />
+          <Route path="network" element={<AdminNetworkPage />} />
           <Route path="audit-log" element={<AuditLogPage apiPrefix="/admin" />} />
         </Routes>
       </main>

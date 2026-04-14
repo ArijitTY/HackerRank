@@ -1,26 +1,48 @@
 import { useState } from 'react';
 import { login } from '../api';
 
+function getLoginError(code, defaultMsg) {
+  switch (code) {
+    case 'EMAIL_NOT_FOUND':  return 'No account found with this email address';
+    case 'INVALID_PASSWORD': return 'Incorrect password. Please try again';
+    case 'ACCOUNT_INACTIVE': return 'Your account has been deactivated. Contact your administrator';
+    case 'RATE_LIMITED':     return 'Too many login attempts. Please wait 15 minutes';
+    case 'MISSING_CREDENTIALS': return 'Email and password required';
+    default: return defaultMsg || 'Login failed. Please try again.';
+  }
+}
+
 export default function LoginPage({ onLogin }) {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [error, setError]       = useState('');
+  const [errorCode, setErrorCode] = useState('');
   const [loading, setLoading]   = useState(false);
   const [showPass, setShowPass] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError(''); setErrorCode('');
     setLoading(true);
     try {
       const { data } = await login(email, password);
       onLogin(data.user, data.token);
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed. Please try again.');
+      const payload = err.response?.data || {};
+      const code = payload.error || '';
+      const msg  = payload.message || getLoginError(code, 'Login failed. Please try again.');
+      setErrorCode(code);
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
+
+  const isInactive = errorCode === 'ACCOUNT_INACTIVE';
+  const emailInvalid = errorCode === 'EMAIL_NOT_FOUND';
+  const pwdInvalid   = errorCode === 'INVALID_PASSWORD';
+
+  const clearErr = () => { if (errorCode || error) { setError(''); setErrorCode(''); } };
 
   return (
     <div className="login-page">
@@ -111,7 +133,14 @@ export default function LoginPage({ onLogin }) {
           </div>
 
           {error && (
-            <div className="login-error">
+            <div
+              className="login-error"
+              style={isInactive ? {
+                background: 'rgba(186,117,23,0.1)',
+                border: '1px solid #BA7517',
+                color: '#F0B429',
+              } : undefined}
+            >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                 <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
               </svg>
@@ -134,10 +163,11 @@ export default function LoginPage({ onLogin }) {
                   className="login-input"
                   type="email"
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  onChange={e => { setEmail(e.target.value); clearErr(); }}
                   placeholder="you@example.com"
                   required
                   autoComplete="email"
+                  style={emailInvalid ? { border: '1px solid #E24B4A' } : undefined}
                 />
               </div>
             </div>
@@ -156,10 +186,11 @@ export default function LoginPage({ onLogin }) {
                   className="login-input"
                   type={showPass ? 'text' : 'password'}
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
+                  onChange={e => { setPassword(e.target.value); clearErr(); }}
                   placeholder="Enter your password"
                   required
                   autoComplete="current-password"
+                  style={pwdInvalid ? { border: '1px solid #E24B4A' } : undefined}
                 />
                 <button
                   type="button"

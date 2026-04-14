@@ -217,37 +217,47 @@ function getLanIp() {
 // ============================================================
 
 // POST /api/auth/login
-app.post('/api/auth/login', rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: 'Too many login attempts. Please wait 15 minutes.' }), (req, res) => {
+app.post('/api/auth/login', rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  handler: (req, res /*, next, options*/) => {
+    return res.status(429).json({
+      error: 'RATE_LIMITED',
+      message: 'Too many login attempts. Please wait 15 minutes',
+    });
+  },
+}), (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password required' });
+      return res.status(400).json({ error: 'MISSING_CREDENTIALS', message: 'Email and password required' });
     }
 
     const user = db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get(email);
     if (!user) {
-      logAudit(db, { actorId: null, actorRole: null, action: 'login_failed', targetType: 'user', targetId: null, details: { email, reason: 'no_such_user' } });
-      return res.status(401).json({ error: 'Invalid credentials' });
+      logAudit(db, { actorId: null, actorRole: null, action: 'login_failed', targetType: 'user', targetId: null, details: `Failed login attempt for email: ${email}` });
+      return res.status(400).json({ error: 'EMAIL_NOT_FOUND', message: 'No account found with this email address' });
     }
     if (!user.is_active) {
-      logAudit(db, { actorId: user.id, actorRole: user.role, action: 'login_failed', targetType: 'user', targetId: user.id, details: { email, reason: 'deactivated' } });
-      return res.status(403).json({ error: 'Account is deactivated' });
+      logAudit(db, { actorId: user.id, actorRole: user.role, action: 'login_failed', targetType: 'user', targetId: user.id, details: `Failed login attempt for email: ${email}` });
+      return res.status(403).json({ error: 'ACCOUNT_INACTIVE', message: 'Your account has been deactivated. Contact your administrator' });
     }
     if (!comparePassword(password, user.password)) {
-      logAudit(db, { actorId: user.id, actorRole: user.role, action: 'login_failed', targetType: 'user', targetId: user.id, details: { email, reason: 'bad_password' } });
-      return res.status(401).json({ error: 'Invalid credentials' });
+      logAudit(db, { actorId: user.id, actorRole: user.role, action: 'login_failed', targetType: 'user', targetId: user.id, details: `Failed login attempt for email: ${email}` });
+      return res.status(400).json({ error: 'INVALID_PASSWORD', message: 'Incorrect password. Please try again' });
     }
 
     const token = generateToken(user);
     db.prepare("UPDATE users SET last_login = strftime('%Y-%m-%dT%H:%M:%f','now','localtime') WHERE id = ?").run(user.id);
 
+    const roleLabelLogin = user.role === 'super_admin' ? 'Super Admin' : user.role === 'admin' ? 'Admin' : 'Candidate';
     logAudit(db, {
       actorId: user.id,
       actorRole: user.role,
       action: 'login',
       targetType: 'user',
       targetId: user.id,
-      details: { email: user.email }
+      details: `${roleLabelLogin} ${user.name} (${user.email}) logged in successfully`
     });
 
     const response = {
@@ -424,12 +434,14 @@ app.get('/api/super/candidates', authMiddleware, requireRole('super_admin'), (re
   try {
     const candidates = db.prepare(`
       SELECT u.id, u.name, u.email, u.is_active, u.created_at, u.last_login, u.created_by,
+             u.batch_id, b.name as batch_name, b.code as batch_code,
              (SELECT COUNT(*) FROM test_permissions WHERE candidate_id = u.id) as permissions_count,
              (SELECT COUNT(*) FROM test_sessions WHERE candidate_id = u.id AND status = 'submitted') as completed_tests,
              (SELECT ROUND(AVG(percentage),1) FROM test_sessions WHERE candidate_id = u.id AND status = 'submitted') as avg_score,
              (SELECT MAX(percentage) FROM test_sessions WHERE candidate_id = u.id AND status = 'submitted') as best_score,
              (SELECT name FROM users WHERE id = u.created_by) as created_by_name
       FROM users u
+      LEFT JOIN batches b ON b.id = u.batch_id
       WHERE u.role = 'candidate'
       ORDER BY u.created_at DESC
     `).all();
@@ -442,7 +454,7 @@ app.get('/api/super/candidates', authMiddleware, requireRole('super_admin'), (re
 
 app.post('/api/super/candidates', authMiddleware, requireRole('super_admin'), (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, batch_id } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Name, email and password required' });
     }
@@ -451,24 +463,57 @@ app.post('/api/super/candidates', authMiddleware, requireRole('super_admin'), (r
     }
     const safeName = sanitizeHtml(name.trim());
 
-    const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)').get(email);
-    if (existing) return res.status(409).json({ error: 'Email already exists' });
+    const existing = db.prepare(`
+      SELECT u.id, u.name, u.email, u.batch_id, b.code AS batch_code
+      FROM users u
+      LEFT JOIN batches b ON u.batch_id = b.id
+      WHERE LOWER(u.email) = LOWER(?)
+    `).get(email);
+    if (existing) {
+      const sameName  = (existing.name || '') === safeName;
+      const existingBatch = existing.batch_id || null;
+      const newBatch = batch_id || null;
+      const sameBatch = String(existingBatch || '') === String(newBatch || '');
+      const existingCandidate = {
+        id: existing.id, name: existing.name, email: existing.email,
+        batchCode: existing.batch_code || null,
+      };
+      if (sameName && sameBatch) {
+        return res.status(409).json({
+          error: 'DUPLICATE_CANDIDATE',
+          message: 'A candidate with this name, email and batch already exists',
+          existingCandidate,
+        });
+      }
+      return res.status(409).json({
+        error: 'EMAIL_EXISTS',
+        message: 'An account with this email already exists',
+        existingCandidate,
+      });
+    }
+
+    let resolvedBatchId = null, resolvedBatchCode = null;
+    if (batch_id) {
+      const b = db.prepare('SELECT id, code FROM batches WHERE id = ?').get(batch_id);
+      if (!b) return res.status(400).json({ error: 'Batch not found' });
+      resolvedBatchId = b.id; resolvedBatchCode = b.code;
+    }
 
     const id = uuidv4();
     const hashed = hashPassword(password);
 
     db.prepare(`
-      INSERT INTO users (id, name, email, password, role, created_by)
-      VALUES (?, ?, ?, ?, 'candidate', ?)
-    `).run(id, safeName, email, hashed, req.user.id);
+      INSERT INTO users (id, name, email, password, role, created_by, batch_id)
+      VALUES (?, ?, ?, ?, 'candidate', ?, ?)
+    `).run(id, safeName, email, hashed, req.user.id, resolvedBatchId);
 
     logAudit(db, {
       actorId: req.user.id, actorRole: 'super_admin',
       action: 'create_candidate', targetType: 'user', targetId: id,
-      details: { name: safeName, email }
+      details: `Created candidate account for ${safeName} (${email}) in batch ${resolvedBatchCode || 'none'}`
     });
 
-    res.status(201).json({ id, name: safeName, email, role: 'candidate' });
+    res.status(201).json({ id, name: safeName, email, role: 'candidate', batch_id: resolvedBatchId });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -505,6 +550,198 @@ app.get('/api/super/candidates/:id', authMiddleware, requireRole('super_admin'),
   }
 });
 
+// ========== CANDIDATE PERFORMANCE (shared helper) ==========
+function buildCandidatePerformance(candidateId) {
+  const candidate = db.prepare(`
+    SELECT u.id, u.name, u.email, u.created_at, u.created_by, u.is_active, u.last_login,
+           creator.name as created_by_name
+    FROM users u
+    LEFT JOIN users creator ON u.created_by = creator.id
+    WHERE u.id = ? AND u.role = 'candidate'
+  `).get(candidateId);
+  if (!candidate) return null;
+
+  const permissions = db.prepare(`
+    SELECT tp.*, t.name as test_name, t.test_type, t.passing_percentage,
+           t.available_from as t_available_from, t.available_until as t_available_until
+    FROM test_permissions tp
+    JOIN tests t ON tp.test_id = t.id
+    WHERE tp.candidate_id = ?
+  `).all(candidateId);
+
+  const sessions = db.prepare(`
+    SELECT ts.*, t.name as test_name, t.test_type, t.passing_percentage, t.total_questions as t_total_questions
+    FROM test_sessions ts
+    JOIN tests t ON ts.test_id = t.id
+    WHERE ts.candidate_id = ?
+    ORDER BY COALESCE(ts.end_time, ts.start_time) DESC
+  `).all(candidateId);
+
+  const totalAssigned = permissions.length;
+  const attempted = sessions.filter(s => !!s.start_time);
+  const completed = sessions.filter(s => s.status === 'submitted' || s.status === 'timed_out' || !!s.end_time);
+  const passedSessions = completed.filter(s => {
+    if (s.passed != null) return !!s.passed;
+    if (s.percentage != null && s.passing_percentage != null) return s.percentage >= s.passing_percentage;
+    return false;
+  });
+  const failedCount = completed.length - passedSessions.length;
+
+  const pcts = completed.map(s => s.percentage).filter(p => p != null);
+  const avg = pcts.length ? pcts.reduce((a,b)=>a+b,0) / pcts.length : 0;
+  const best = pcts.length ? Math.max(...pcts) : 0;
+  const worst = pcts.length ? Math.min(...pcts) : 0;
+
+  let totalTime = 0;
+  for (const s of sessions) {
+    if (s.time_taken != null) { totalTime += Number(s.time_taken) || 0; continue; }
+    if (s.start_time && s.end_time) {
+      const a = new Date(s.start_time).getTime();
+      const b = new Date(s.end_time).getTime();
+      if (!isNaN(a) && !isNaN(b) && b > a) totalTime += Math.floor((b - a) / 1000);
+    }
+  }
+
+  const passRate = completed.length > 0 ? (passedSessions.length / completed.length) * 100 : 0;
+  const violations = sessions.reduce((sum, s) => sum + (Number(s.tab_violations) || 0), 0);
+
+  const gradeOf = (pct) => {
+    if (pct == null) return null;
+    if (pct >= 90) return 'A+';
+    if (pct >= 80) return 'A';
+    if (pct >= 70) return 'B';
+    if (pct >= 60) return 'C';
+    if (pct >= 50) return 'D';
+    return 'F';
+  };
+
+  const gradeDistribution = { 'A+':0, 'A':0, 'B':0, 'C':0, 'D':0, 'F':0 };
+  for (const s of completed) {
+    const g = gradeOf(s.percentage);
+    if (g && gradeDistribution.hasOwnProperty(g)) gradeDistribution[g]++;
+  }
+
+  // Attempt numbering per test (oldest = 1)
+  const byTest = {};
+  const orderedAsc = [...sessions].sort((a,b) => {
+    const ax = new Date(a.start_time || a.created_at || 0).getTime();
+    const bx = new Date(b.start_time || b.created_at || 0).getTime();
+    return ax - bx;
+  });
+  for (const s of orderedAsc) {
+    byTest[s.test_id] = (byTest[s.test_id] || 0) + 1;
+    s._attemptNumber = byTest[s.test_id];
+  }
+
+  const testResults = sessions.map(s => {
+    let timeTaken = null;
+    if (s.time_taken != null) timeTaken = Number(s.time_taken);
+    else if (s.start_time && s.end_time) {
+      const a = new Date(s.start_time).getTime();
+      const b = new Date(s.end_time).getTime();
+      if (!isNaN(a) && !isNaN(b) && b > a) timeTaken = Math.floor((b - a) / 1000);
+    }
+    return {
+      testId: s.test_id,
+      testName: s.test_name,
+      testType: s.test_type || 'mcq',
+      score: s.score,
+      totalQuestions: s.total_questions != null ? s.total_questions : s.t_total_questions,
+      percentage: s.percentage,
+      grade: s.grade || gradeOf(s.percentage),
+      passed: s.passed != null ? !!s.passed : (s.percentage != null && s.passing_percentage != null ? s.percentage >= s.passing_percentage : false),
+      timeTaken,
+      startedAt: s.start_time,
+      submittedAt: s.end_time,
+      attemptNumber: s._attemptNumber,
+      violations: Number(s.tab_violations) || 0,
+    };
+  });
+
+  // Count sessions per test (fallback for attempt_count)
+  const sessionCountByTest = {};
+  for (const s of sessions) {
+    sessionCountByTest[s.test_id] = (sessionCountByTest[s.test_id] || 0) + 1;
+  }
+
+  const nowMs = Date.now();
+  const assignedTests = permissions.map(p => {
+    const attemptCount = p.attempt_count != null ? Number(p.attempt_count) : (sessionCountByTest[p.test_id] || 0);
+    const maxAttempts = p.max_attempts != null ? Number(p.max_attempts) : null;
+    const availFrom = p.t_available_from;
+    const availUntil = p.t_available_until;
+    let status = 'Available';
+    if (p.status === 'revoked') status = 'Expired';
+    else if (availUntil && new Date(availUntil).getTime() < nowMs) status = 'Expired';
+    else if (availFrom && new Date(availFrom).getTime() > nowMs) status = 'Pending';
+    else if (maxAttempts && maxAttempts > 0 && attemptCount >= maxAttempts) status = 'Completed';
+    return {
+      testId: p.test_id,
+      testName: p.test_name,
+      testType: p.test_type || 'mcq',
+      status,
+      maxAttempts,
+      attemptCount,
+      availableFrom: availFrom || null,
+      availableUntil: availUntil || null,
+    };
+  });
+
+  const recentActivity = db.prepare(`
+    SELECT id, actor_id, actor_role, action, target_type, target_id, details, timestamp
+    FROM audit_log
+    WHERE target_id = ? OR actor_id = ?
+    ORDER BY timestamp DESC
+    LIMIT 5
+  `).all(candidateId, candidateId).map(r => ({
+    id: r.id,
+    action: r.action,
+    targetType: r.target_type,
+    details: r.details,
+    createdAt: r.timestamp,
+    actorRole: r.actor_role,
+  }));
+
+  return {
+    candidate: {
+      id: candidate.id,
+      name: candidate.name,
+      email: candidate.email,
+      createdAt: candidate.created_at,
+      createdBy: candidate.created_by_name || candidate.created_by || null,
+      status: candidate.is_active ? 'Active' : 'Inactive',
+    },
+    stats: {
+      totalAssigned,
+      totalAttempted: attempted.length,
+      totalCompleted: completed.length,
+      totalPassed: passedSessions.length,
+      totalFailed: failedCount,
+      averageScore: Number(avg.toFixed(2)),
+      bestScore: Number(best.toFixed(2)),
+      worstScore: Number(worst.toFixed(2)),
+      totalTimeTaken: totalTime,
+      passRate: Number(passRate.toFixed(2)),
+      violations,
+    },
+    testResults,
+    assignedTests,
+    gradeDistribution,
+    recentActivity,
+  };
+}
+
+app.get('/api/super/candidates/:id/performance', authMiddleware, requireRole('super_admin'), (req, res) => {
+  try {
+    const data = buildCandidatePerformance(req.params.id);
+    if (!data) return res.status(404).json({ error: 'Candidate not found' });
+    res.json(data);
+  } catch (err) {
+    console.error('[super/candidates/:id/performance]', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 app.put('/api/super/candidates/:id/revoke', authMiddleware, requireRole('super_admin'), (req, res) => {
   try {
     db.prepare(`
@@ -527,8 +764,8 @@ app.put('/api/super/candidates/:id/revoke', authMiddleware, requireRole('super_a
 // DELETE super admin candidate permanently
 app.delete('/api/super/candidates/:id', authMiddleware, requireRole('super_admin'), (req, res) => {
   try {
-    const candidate = db.prepare("SELECT id FROM users WHERE id = ? AND role = 'candidate'").get(req.params.id);
-    if (!candidate) return res.status(404).json({ error: 'Candidate not found' });
+    const c = db.prepare("SELECT * FROM users WHERE id = ? AND role = 'candidate'").get(req.params.id);
+    if (!c) return res.status(404).json({ error: 'Candidate not found' });
 
     db.prepare("DELETE FROM test_permissions WHERE candidate_id = ?").run(req.params.id);
     db.prepare("DELETE FROM test_sessions WHERE candidate_id = ?").run(req.params.id);
@@ -536,7 +773,9 @@ app.delete('/api/super/candidates/:id', authMiddleware, requireRole('super_admin
 
     logAudit(db, {
       actorId: req.user.id, actorRole: 'super_admin',
-      action: 'delete_user', targetType: 'user', targetId: req.params.id, details: {}
+      action: 'delete_candidate', targetType: 'user', targetId: req.params.id,
+      details: `Deleted candidate ${c.name} (${c.email})`,
+      deletedData: JSON.stringify(c)
     });
 
     res.json({ success: true });
@@ -549,7 +788,7 @@ app.delete('/api/super/candidates/:id', authMiddleware, requireRole('super_admin
 // DELETE super admin — permanently remove an admin account
 app.delete('/api/super/admins/:id', authMiddleware, requireRole('super_admin'), (req, res) => {
   try {
-    const admin = db.prepare("SELECT id FROM users WHERE id = ? AND role = 'admin'").get(req.params.id);
+    const admin = db.prepare("SELECT * FROM users WHERE id = ? AND role = 'admin'").get(req.params.id);
     if (!admin) return res.status(404).json({ error: 'Admin not found' });
 
     // Remove all candidates created by this admin first
@@ -563,7 +802,9 @@ app.delete('/api/super/admins/:id', authMiddleware, requireRole('super_admin'), 
 
     logAudit(db, {
       actorId: req.user.id, actorRole: 'super_admin',
-      action: 'delete_admin', targetType: 'user', targetId: req.params.id, details: {}
+      action: 'delete_admin', targetType: 'user', targetId: req.params.id,
+      details: `Deleted admin ${admin.name} (${admin.email})`,
+      deletedData: JSON.stringify(admin)
     });
 
     res.json({ success: true });
@@ -588,10 +829,12 @@ app.post('/api/super/permissions', authMiddleware, requireRole('super_admin'), (
       VALUES (?, ?, ?, ?, ?)
     `).run(id, candidateId, testId, maxAttempts || 1, req.user.id);
 
+    const tN = db.prepare('SELECT name FROM tests WHERE id = ?').get(testId);
+    const cN = db.prepare('SELECT name, email FROM users WHERE id = ?').get(candidateId);
     logAudit(db, {
       actorId: req.user.id, actorRole: 'super_admin',
       action: 'grant_permission', targetType: 'test_permission', targetId: id,
-      details: { candidateId, testId, maxAttempts: maxAttempts || 1 }
+      details: `Granted access to test "${tN?.name || testId}" for candidate ${cN?.name || candidateId} (${cN?.email || ''})`
     });
 
     res.status(201).json({ id, candidateId, testId, status: 'granted' });
@@ -603,10 +846,13 @@ app.post('/api/super/permissions', authMiddleware, requireRole('super_admin'), (
 
 app.put('/api/super/permissions/:id/revoke', authMiddleware, requireRole('super_admin'), (req, res) => {
   try {
+    const info = db.prepare(`SELECT tp.candidate_id, tp.test_id, t.name AS test_name, u.name AS cand_name, u.email AS cand_email
+      FROM test_permissions tp LEFT JOIN tests t ON t.id=tp.test_id LEFT JOIN users u ON u.id=tp.candidate_id WHERE tp.id = ?`).get(req.params.id);
     db.prepare("UPDATE test_permissions SET status = 'revoked' WHERE id = ?").run(req.params.id);
     logAudit(db, {
       actorId: req.user.id, actorRole: 'super_admin',
-      action: 'revoke_permission', targetType: 'test_permission', targetId: req.params.id, details: {}
+      action: 'revoke_permission', targetType: 'test_permission', targetId: req.params.id,
+      details: info ? `Revoked access to test "${info.test_name}" from candidate ${info.cand_name} (${info.cand_email})` : 'Revoked permission'
     });
     res.json({ success: true });
   } catch (err) {
@@ -825,7 +1071,15 @@ function buildTestsForDropdown(filterByAdminId) {
   const rows = filterByAdminId ? db.prepare(baseSql).all(filterByAdminId) : db.prepare(baseSql).all();
   const regular = [], interviewPrep = [];
   for (const t of rows) {
-    const item = { id: t.id, name: t.name, test_type: t.test_type, is_custom: t.is_custom, created_by_name: t.creator_name || 'System' };
+    const item = {
+      id: t.id,
+      name: t.name,
+      test_type: t.test_type,
+      is_custom: t.is_custom,
+      is_interview_prep: t.is_interview_prep ? 1 : 0,
+      total_questions: t.total_questions || 0,
+      created_by_name: t.creator_name || 'System'
+    };
     if (t.is_interview_prep) interviewPrep.push(item); else regular.push(item);
   }
   // Also include external interview_tests (from interview_tests table) for super admin only
@@ -833,7 +1087,7 @@ function buildTestsForDropdown(filterByAdminId) {
     try {
       const iTests = db.prepare(`SELECT id, name FROM interview_tests WHERE is_active = 1 ORDER BY name`).all();
       for (const t of iTests) {
-        interviewPrep.push({ id: `interview:${t.id}`, name: t.name, test_type: 'interview', is_custom: 0, created_by_name: 'System' });
+        interviewPrep.push({ id: `interview:${t.id}`, name: t.name, test_type: 'interview', is_custom: 0, is_interview_prep: 1, total_questions: 0, created_by_name: 'System' });
       }
     } catch (e) { /* table may not exist */ }
   }
@@ -1097,8 +1351,9 @@ app.delete('/api/super/design-test/:testId/hard', authMiddleware, requireRole('s
 
     logAudit(db, {
       actorId: req.user.id, actorRole: req.user.role,
-      action: 'delete_custom_test', targetType: 'test', targetId: testId,
-      details: { name: test.name, submittedSessionsDeleted: submittedCount }
+      action: 'delete_test', targetType: 'test', targetId: testId,
+      details: `Deleted test "${test.name}"`,
+      deletedData: JSON.stringify(test)
     });
 
     res.json({ success: true, deletedSessions: submittedCount });
@@ -1109,17 +1364,59 @@ app.delete('/api/super/design-test/:testId/hard', authMiddleware, requireRole('s
 
 app.get('/api/super/results', authMiddleware, requireRole('super_admin'), (req, res) => {
   try {
-    const results = db.prepare(`
-      SELECT ts.id, ts.candidate_id, ts.test_id, ts.status, ts.start_time, ts.end_time,
-             ts.score, ts.total_questions, ts.percentage, ts.passed, ts.grade, ts.time_taken,
-             u.name as candidate_name, u.email as candidate_email,
-             t.name as test_name
+    const { testId, batchId, sessionId, search, status, dateFrom, dateTo, page, limit, sortBy, sortOrder } = req.query;
+    const hasFilters = testId || batchId || sessionId || search || status || dateFrom || dateTo || page || limit || sortBy || sortOrder;
+    let where = "ts.status = 'submitted'";
+    const params = [];
+    if (testId) { where += ' AND ts.test_id = ?'; params.push(testId); }
+    if (batchId) { where += ' AND u.batch_id = ?'; params.push(batchId); }
+    if (sessionId) { where += ' AND ts.session_id = ?'; params.push(sessionId); }
+    if (search) {
+      where += ' AND (LOWER(u.name) LIKE ? OR LOWER(u.email) LIKE ?)';
+      const q = `%${String(search).toLowerCase()}%`;
+      params.push(q, q);
+    }
+    if (status === 'pass') where += ' AND ts.passed = 1';
+    else if (status === 'fail') where += ' AND (ts.passed = 0 OR ts.passed IS NULL)';
+    if (dateFrom) { where += ' AND ts.end_time >= ?'; params.push(dateFrom); }
+    if (dateTo) { where += ' AND ts.end_time <= ?'; params.push(dateTo + ' 23:59:59'); }
+
+    const SORT_COLS = {
+      date: 'ts.end_time', percentage: 'ts.percentage', score: 'ts.score',
+      candidate: 'u.name', test: 't.name', time: 'ts.time_taken',
+    };
+    const sortCol = SORT_COLS[sortBy] || 'ts.end_time';
+    const sortDir = String(sortOrder).toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+
+    const baseSelect = `
+      SELECT ts.id, ts.id as session_id, ts.candidate_id, ts.test_id, ts.status,
+             ts.start_time, ts.start_time as started_at, ts.end_time, ts.end_time as submitted_at,
+             ts.score, ts.total_questions, ts.percentage, ts.passed, ts.grade,
+             ts.time_taken, ts.time_taken as time_taken_seconds,
+             ts.session_id as drive_session_id, s.session_code, s.name AS session_name,
+             u.name as candidate_name, u.email as candidate_email, u.batch_id,
+             b.name as batch_name, b.code as batch_code,
+             t.name as test_name, t.passing_percentage
       FROM test_sessions ts
       JOIN users u ON ts.candidate_id = u.id
       JOIN tests t ON ts.test_id = t.id
-      WHERE ts.status = 'submitted'
-      ORDER BY ts.end_time DESC
-    `).all();
+      LEFT JOIN batches b ON b.id = u.batch_id
+      LEFT JOIN sessions s ON s.id = ts.session_id
+      WHERE ${where}
+      ORDER BY ${sortCol} ${sortDir}
+    `;
+
+    if (hasFilters && (page || limit)) {
+      const p = Math.max(1, parseInt(page) || 1);
+      const l = Math.min(500, parseInt(limit) || 50);
+      const offset = (p - 1) * l;
+      const total = db.prepare(`SELECT COUNT(*) as c FROM test_sessions ts JOIN users u ON ts.candidate_id = u.id JOIN tests t ON ts.test_id = t.id WHERE ${where}`).get(...params).c;
+      const results = db.prepare(baseSelect + ' LIMIT ? OFFSET ?').all(...params, l, offset);
+      return res.json({ results, total, page: p, limit: l });
+    }
+
+    const results = db.prepare(baseSelect).all(...params);
+    if (hasFilters) return res.json({ results, total: results.length });
     res.json(results);
   } catch (err) {
     console.error(err);
@@ -1242,11 +1539,13 @@ app.get('/api/admin/candidates', authMiddleware, requireRole('admin'), (req, res
   try {
     const candidates = db.prepare(`
       SELECT u.id, u.name, u.email, u.is_active, u.created_at, u.last_login,
+             u.batch_id, b.name as batch_name, b.code as batch_code,
              (SELECT COUNT(*) FROM test_permissions WHERE candidate_id = u.id) as permissions_count,
              (SELECT COUNT(*) FROM test_sessions WHERE candidate_id = u.id AND status = 'submitted') as completed_tests,
              (SELECT ROUND(AVG(percentage),1) FROM test_sessions WHERE candidate_id = u.id AND status = 'submitted') as avg_score,
              (SELECT MAX(percentage) FROM test_sessions WHERE candidate_id = u.id AND status = 'submitted') as best_score
       FROM users u
+      LEFT JOIN batches b ON b.id = u.batch_id
       WHERE u.role = 'candidate' AND u.created_by = ?
       ORDER BY u.created_at DESC
     `).all(req.user.id);
@@ -1259,7 +1558,7 @@ app.get('/api/admin/candidates', authMiddleware, requireRole('admin'), (req, res
 
 app.post('/api/admin/candidates', authMiddleware, requireRole('admin'), (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, batch_id } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Name, email and password required' });
     }
@@ -1268,24 +1567,57 @@ app.post('/api/admin/candidates', authMiddleware, requireRole('admin'), (req, re
     }
     const safeName = sanitizeHtml(name.trim());
 
-    const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)').get(email);
-    if (existing) return res.status(409).json({ error: 'Email already exists' });
+    const existing = db.prepare(`
+      SELECT u.id, u.name, u.email, u.batch_id, b.code AS batch_code
+      FROM users u
+      LEFT JOIN batches b ON u.batch_id = b.id
+      WHERE LOWER(u.email) = LOWER(?)
+    `).get(email);
+    if (existing) {
+      const sameName  = (existing.name || '') === safeName;
+      const existingBatch = existing.batch_id || null;
+      const newBatch = batch_id || null;
+      const sameBatch = String(existingBatch || '') === String(newBatch || '');
+      const existingCandidate = {
+        id: existing.id, name: existing.name, email: existing.email,
+        batchCode: existing.batch_code || null,
+      };
+      if (sameName && sameBatch) {
+        return res.status(409).json({
+          error: 'DUPLICATE_CANDIDATE',
+          message: 'A candidate with this name, email and batch already exists',
+          existingCandidate,
+        });
+      }
+      return res.status(409).json({
+        error: 'EMAIL_EXISTS',
+        message: 'An account with this email already exists',
+        existingCandidate,
+      });
+    }
+
+    let resolvedBatchId = null, resolvedBatchCode = null;
+    if (batch_id) {
+      const b = db.prepare('SELECT id, code FROM batches WHERE id = ?').get(batch_id);
+      if (!b) return res.status(400).json({ error: 'Batch not found' });
+      resolvedBatchId = b.id; resolvedBatchCode = b.code;
+    }
 
     const id = uuidv4();
     const hashed = hashPassword(password);
 
     db.prepare(`
-      INSERT INTO users (id, name, email, password, role, created_by)
-      VALUES (?, ?, ?, ?, 'candidate', ?)
-    `).run(id, safeName, email, hashed, req.user.id);
+      INSERT INTO users (id, name, email, password, role, created_by, batch_id)
+      VALUES (?, ?, ?, ?, 'candidate', ?, ?)
+    `).run(id, safeName, email, hashed, req.user.id, resolvedBatchId);
 
     logAudit(db, {
       actorId: req.user.id, actorRole: 'admin',
       action: 'create_candidate', targetType: 'user', targetId: id,
-      details: { name: safeName, email }
+      details: `Created candidate account for ${safeName} (${email}) in batch ${resolvedBatchCode || 'none'}`
     });
 
-    res.status(201).json({ id, name: safeName, email, role: 'candidate' });
+    res.status(201).json({ id, name: safeName, email, role: 'candidate', batch_id: resolvedBatchId });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -1322,6 +1654,19 @@ app.get('/api/admin/candidates/:id', authMiddleware, requireRole('admin'), (req,
   }
 });
 
+app.get('/api/admin/candidates/:id/performance', authMiddleware, requireRole('admin'), (req, res) => {
+  try {
+    const owns = db.prepare("SELECT id FROM users WHERE id = ? AND role = 'candidate' AND created_by = ?").get(req.params.id, req.user.id);
+    if (!owns) return res.status(404).json({ error: 'Candidate not found' });
+    const data = buildCandidatePerformance(req.params.id);
+    if (!data) return res.status(404).json({ error: 'Candidate not found' });
+    res.json(data);
+  } catch (err) {
+    console.error('[admin/candidates/:id/performance]', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 app.put('/api/admin/candidates/:id/revoke', authMiddleware, requireRole('admin'), (req, res) => {
   try {
     const candidate = db.prepare("SELECT id FROM users WHERE id = ? AND role = 'candidate' AND created_by = ?").get(req.params.id, req.user.id);
@@ -1343,8 +1688,8 @@ app.put('/api/admin/candidates/:id/revoke', authMiddleware, requireRole('admin')
 // DELETE admin candidate permanently (only their own candidates)
 app.delete('/api/admin/candidates/:id', authMiddleware, requireRole('admin'), (req, res) => {
   try {
-    const candidate = db.prepare("SELECT id FROM users WHERE id = ? AND role = 'candidate' AND created_by = ?").get(req.params.id, req.user.id);
-    if (!candidate) return res.status(404).json({ error: 'Candidate not found' });
+    const c = db.prepare("SELECT * FROM users WHERE id = ? AND role = 'candidate' AND created_by = ?").get(req.params.id, req.user.id);
+    if (!c) return res.status(404).json({ error: 'Candidate not found' });
 
     db.prepare("DELETE FROM test_permissions WHERE candidate_id = ?").run(req.params.id);
     db.prepare("DELETE FROM test_sessions WHERE candidate_id = ?").run(req.params.id);
@@ -1352,7 +1697,9 @@ app.delete('/api/admin/candidates/:id', authMiddleware, requireRole('admin'), (r
 
     logAudit(db, {
       actorId: req.user.id, actorRole: 'admin',
-      action: 'delete_candidate', targetType: 'user', targetId: req.params.id, details: {}
+      action: 'delete_candidate', targetType: 'user', targetId: req.params.id,
+      details: `Deleted candidate ${c.name} (${c.email})`,
+      deletedData: JSON.stringify(c)
     });
 
     res.json({ success: true });
@@ -1379,10 +1726,12 @@ app.post('/api/admin/permissions', authMiddleware, requireRole('admin'), (req, r
       VALUES (?, ?, ?, ?, ?)
     `).run(id, candidateId, testId, maxAttempts || 1, req.user.id);
 
+    const tN2 = db.prepare('SELECT name FROM tests WHERE id = ?').get(testId);
+    const cN2 = db.prepare('SELECT name, email FROM users WHERE id = ?').get(candidateId);
     logAudit(db, {
       actorId: req.user.id, actorRole: 'admin',
       action: 'grant_permission', targetType: 'test_permission', targetId: id,
-      details: { candidateId, testId, maxAttempts: maxAttempts || 1 }
+      details: `Granted access to test "${tN2?.name || testId}" for candidate ${cN2?.name || candidateId} (${cN2?.email || ''})`
     });
 
     res.status(201).json({ id, candidateId, testId, status: 'granted' });
@@ -1401,10 +1750,13 @@ app.put('/api/admin/permissions/:id/revoke', authMiddleware, requireRole('admin'
     `).get(req.params.id, req.user.id, req.user.id);
     if (!perm) return res.status(404).json({ error: 'Permission not found' });
 
+    const infoA = db.prepare(`SELECT tp.candidate_id, tp.test_id, t.name AS test_name, u.name AS cand_name, u.email AS cand_email
+      FROM test_permissions tp LEFT JOIN tests t ON t.id=tp.test_id LEFT JOIN users u ON u.id=tp.candidate_id WHERE tp.id = ?`).get(req.params.id);
     db.prepare("UPDATE test_permissions SET status = 'revoked' WHERE id = ?").run(req.params.id);
     logAudit(db, {
       actorId: req.user.id, actorRole: 'admin',
-      action: 'revoke_permission', targetType: 'test_permission', targetId: req.params.id, details: {}
+      action: 'revoke_permission', targetType: 'test_permission', targetId: req.params.id,
+      details: infoA ? `Revoked access to test "${infoA.test_name}" from candidate ${infoA.cand_name} (${infoA.cand_email})` : 'Revoked permission'
     });
     res.json({ success: true });
   } catch (err) {
@@ -1665,17 +2017,59 @@ app.get('/api/admin/dashboard', authMiddleware, requireRole('admin'), (req, res)
 
 app.get('/api/admin/results', authMiddleware, requireRole('admin'), (req, res) => {
   try {
-    const results = db.prepare(`
-      SELECT ts.id, ts.candidate_id, ts.test_id, ts.status, ts.start_time, ts.end_time,
-             ts.score, ts.total_questions, ts.percentage, ts.passed, ts.grade, ts.time_taken,
-             u.name as candidate_name, u.email as candidate_email,
-             t.name as test_name
+    const { testId, batchId, sessionId, search, status, dateFrom, dateTo, page, limit, sortBy, sortOrder } = req.query;
+    const hasFilters = testId || batchId || sessionId || search || status || dateFrom || dateTo || page || limit || sortBy || sortOrder;
+    let where = "ts.status = 'submitted' AND u.created_by = ?";
+    const params = [req.user.id];
+    if (testId) { where += ' AND ts.test_id = ?'; params.push(testId); }
+    if (batchId) { where += ' AND u.batch_id = ?'; params.push(batchId); }
+    if (sessionId) { where += ' AND ts.session_id = ?'; params.push(sessionId); }
+    if (search) {
+      where += ' AND (LOWER(u.name) LIKE ? OR LOWER(u.email) LIKE ?)';
+      const q = `%${String(search).toLowerCase()}%`;
+      params.push(q, q);
+    }
+    if (status === 'pass') where += ' AND ts.passed = 1';
+    else if (status === 'fail') where += ' AND (ts.passed = 0 OR ts.passed IS NULL)';
+    if (dateFrom) { where += ' AND ts.end_time >= ?'; params.push(dateFrom); }
+    if (dateTo) { where += ' AND ts.end_time <= ?'; params.push(dateTo + ' 23:59:59'); }
+
+    const SORT_COLS = {
+      date: 'ts.end_time', percentage: 'ts.percentage', score: 'ts.score',
+      candidate: 'u.name', test: 't.name', time: 'ts.time_taken',
+    };
+    const sortCol = SORT_COLS[sortBy] || 'ts.end_time';
+    const sortDir = String(sortOrder).toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+
+    const baseSelect = `
+      SELECT ts.id, ts.id as session_id, ts.candidate_id, ts.test_id, ts.status,
+             ts.start_time, ts.start_time as started_at, ts.end_time, ts.end_time as submitted_at,
+             ts.score, ts.total_questions, ts.percentage, ts.passed, ts.grade,
+             ts.time_taken, ts.time_taken as time_taken_seconds,
+             ts.session_id as drive_session_id, s.session_code, s.name AS session_name,
+             u.name as candidate_name, u.email as candidate_email, u.batch_id,
+             b.name as batch_name, b.code as batch_code,
+             t.name as test_name, t.passing_percentage
       FROM test_sessions ts
       JOIN users u ON ts.candidate_id = u.id
       JOIN tests t ON ts.test_id = t.id
-      WHERE ts.status = 'submitted' AND u.created_by = ?
-      ORDER BY ts.end_time DESC
-    `).all(req.user.id);
+      LEFT JOIN batches b ON b.id = u.batch_id
+      LEFT JOIN sessions s ON s.id = ts.session_id
+      WHERE ${where}
+      ORDER BY ${sortCol} ${sortDir}
+    `;
+
+    if (hasFilters && (page || limit)) {
+      const p = Math.max(1, parseInt(page) || 1);
+      const l = Math.min(500, parseInt(limit) || 50);
+      const offset = (p - 1) * l;
+      const total = db.prepare(`SELECT COUNT(*) as c FROM test_sessions ts JOIN users u ON ts.candidate_id = u.id JOIN tests t ON ts.test_id = t.id WHERE ${where}`).get(...params).c;
+      const results = db.prepare(baseSelect + ' LIMIT ? OFFSET ?').all(...params, l, offset);
+      return res.json({ results, total, page: p, limit: l });
+    }
+
+    const results = db.prepare(baseSelect).all(...params);
+    if (hasFilters) return res.json({ results, total: results.length });
     res.json(results);
   } catch (err) {
     console.error(err);
@@ -1730,7 +2124,11 @@ app.get('/api/admin/live', authMiddleware, requireRole('admin'), (req, res) => {
 app.get('/api/candidate/dashboard', authMiddleware, requireRole('candidate'), (req, res) => {
   try {
     const candidateId = req.user.id;
-    const fullUser = db.prepare('SELECT id, name, email FROM users WHERE id = ?').get(candidateId);
+    const fullUser = db.prepare(`
+      SELECT u.id, u.name, u.email, u.batch_id, b.name as batch_name, b.code as batch_code
+      FROM users u LEFT JOIN batches b ON b.id = u.batch_id
+      WHERE u.id = ?
+    `).get(candidateId);
 
     const permissions = db.prepare(`
       SELECT tp.*, t.name as test_name, t.description as test_description,
@@ -1804,11 +2202,40 @@ app.get('/api/candidate/dashboard', authMiddleware, requireRole('candidate'), (r
     const regular_tests = tests.filter(t => !t.isInterviewPrep);
     const interview_prep_tests = tests.filter(t => t.isInterviewPrep);
 
+    // Drive session: most-recent active session the candidate is attached to
+    let activeSession = null;
+    try {
+      const s = db.prepare(`
+        SELECT s.id, s.session_code, s.name, s.date_from, s.date_to, s.tunnel_url, s.status
+        FROM sessions s
+        JOIN test_permissions tp ON tp.session_id = s.id
+        WHERE tp.candidate_id = ? AND s.status = 'active'
+        ORDER BY s.date_from DESC LIMIT 1
+      `).get(candidateId);
+      if (s) {
+        const now = Date.now();
+        const from = parseDbTime(s.date_from);
+        const to = parseDbTime(s.date_to);
+        let derived = 'active';
+        if (now < from) derived = 'upcoming';
+        else if (now > to) derived = 'expired';
+        activeSession = {
+          sessionCode: s.session_code,
+          sessionName: s.name,
+          dateFrom: s.date_from,
+          dateTo: s.date_to,
+          tunnelUrl: s.tunnel_url || null,
+          status: derived,
+        };
+      }
+    } catch (e) { console.error('activeSession fetch error:', e); }
+
     res.json({
-      candidate: { id: fullUser?.id || candidateId, name: fullUser?.name || req.user.name, email: fullUser?.email || req.user.email },
+      candidate: { id: fullUser?.id || candidateId, name: fullUser?.name || req.user.name, email: fullUser?.email || req.user.email, batch_id: fullUser?.batch_id || null, batch_name: fullUser?.batch_name || null, batch_code: fullUser?.batch_code || null },
       tests,
       regular_tests,
-      interview_prep_tests
+      interview_prep_tests,
+      activeSession
     });
   } catch (err) {
     console.error(err);
@@ -2985,18 +3412,54 @@ let ngrokProcess = null;
 let ngrokUrl = null;
 let ngrokRunning = false;
 
-app.get('/api/tunnel/status', (req, res) => {
+const probeNgrokApi = () => new Promise((resolve) => {
+  const http = require('http');
+  const req = http.get('http://127.0.0.1:4040/api/tunnels', { timeout: 1500 }, (resp) => {
+    let data = ''; resp.on('data', c => data += c);
+    resp.on('end', () => {
+      try {
+        const parsed = JSON.parse(data);
+        const tunnel = parsed.tunnels?.find(t => t.proto === 'https') || parsed.tunnels?.[0];
+        resolve(tunnel?.public_url || null);
+      } catch { resolve(null); }
+    });
+  });
+  req.on('error', () => resolve(null));
+  req.on('timeout', () => { req.destroy(); resolve(null); });
+});
+
+app.get('/api/tunnel/status', async (req, res) => {
   try {
     const lanIp = getLanIp();
     const stored = db.prepare("SELECT value FROM config WHERE key = 'ngrok_url'").get();
-    const url = ngrokUrl || stored?.value || null;
+    const live = await probeNgrokApi();
+    if (live) {
+      ngrokUrl = live;
+      ngrokRunning = true;
+      if (!stored || stored.value !== live) {
+        db.prepare("INSERT OR REPLACE INTO config (key, value, updated_at) VALUES ('ngrok_url', ?, strftime('%Y-%m-%dT%H:%M:%f','now','localtime'))").run(live);
+      }
+    } else if (!ngrokProcess) {
+      ngrokRunning = false;
+      ngrokUrl = null;
+    }
+    const url = ngrokUrl || (live ? live : null);
+    let activeSession = null;
+    try {
+      const sidRow = db.prepare("SELECT value FROM config WHERE key = 'ngrok_session_id'").get();
+      if (sidRow && sidRow.value) {
+        const s = db.prepare('SELECT id, session_code, name, tunnel_url FROM sessions WHERE id = ?').get(sidRow.value);
+        if (s) activeSession = { id: s.id, code: s.session_code, name: s.name, tunnelUrl: s.tunnel_url || url };
+      }
+    } catch (e) {}
     res.json({
       lanIp,
       lanUrl: `http://${lanIp}:${PORT}`,
       ngrokUrl: url,
       ngrokRunning,
       url,
-      status: ngrokRunning ? 'running' : 'stopped'
+      status: ngrokRunning ? 'running' : 'stopped',
+      activeSession
     });
   } catch (err) {
     console.error(err);
@@ -3011,6 +3474,17 @@ app.get('/api/tunnel/lan', (req, res) => {
 app.post('/api/tunnel/ngrok/start', authMiddleware, requireRole('super_admin', 'admin'), (req, res) => {
   try {
     if (ngrokProcess) return res.status(400).json({ error: 'ngrok already running' });
+
+    const { sessionId } = req.body || {};
+    let sessionRow = null;
+    if (sessionId) {
+      sessionRow = db.prepare("SELECT id, session_code, name, status FROM sessions WHERE id = ?").get(sessionId);
+      if (!sessionRow) return res.status(404).json({ error: 'Session not found' });
+      if (sessionRow.status !== 'active') return res.status(400).json({ error: 'Session is not active' });
+      db.prepare("INSERT OR REPLACE INTO config (key, value, updated_at) VALUES ('ngrok_session_id', ?, strftime('%Y-%m-%dT%H:%M:%f','now','localtime'))").run(sessionId);
+    } else {
+      try { db.prepare("DELETE FROM config WHERE key = 'ngrok_session_id'").run(); } catch(e){}
+    }
 
     ngrokProcess = spawn('ngrok', ['http', String(PORT)], { detached: true, stdio: 'ignore', shell: true });
     ngrokRunning = true;
@@ -3047,6 +3521,12 @@ app.post('/api/tunnel/ngrok/start', authMiddleware, requireRole('super_admin', '
           try {
             db.prepare("INSERT OR REPLACE INTO config (key, value, updated_at) VALUES ('ngrok_url', ?, strftime('%Y-%m-%dT%H:%M:%f','now','localtime'))").run(ngrokUrl);
           } catch(e) { console.error('config save error', e); }
+          if (sessionRow) {
+            try {
+              db.prepare('UPDATE sessions SET tunnel_url = ? WHERE id = ?').run(ngrokUrl, sessionRow.id);
+              logAudit(db, { actorId: req.user.id, actorRole: req.user.role, action: `Started ngrok tunnel for session ${sessionRow.session_code}: ${ngrokUrl}`, targetType: 'session', targetId: sessionRow.id, details: { code: sessionRow.session_code, url: ngrokUrl } });
+            } catch(e) { console.error('session tunnel update error', e); }
+          }
           return ngrokUrl;
         }
       }
@@ -3181,6 +3661,285 @@ app.post('/api/candidate/run-code', authMiddleware, requireRole('candidate'), (r
 });
 
 // ============================================================
+// BATCHES
+// ============================================================
+const BATCH_CODE_RE = /^[A-Z0-9-]+$/;
+
+function listBatchesFor(scope, adminId) {
+  const where = scope === 'admin' ? 'WHERE b.created_by = ?' : '';
+  const params = scope === 'admin' ? [adminId] : [];
+  return db.prepare(`
+    SELECT b.id, b.name, b.code, b.description, b.is_active as isActive,
+           b.created_by as createdBy, b.created_at as createdAt,
+           (SELECT name FROM users WHERE id = b.created_by) as createdByName,
+           (SELECT COUNT(*) FROM users WHERE batch_id = b.id AND role = 'candidate') as candidateCount,
+           (SELECT COUNT(DISTINCT tp.test_id)
+              FROM test_permissions tp
+              JOIN users u ON u.id = tp.candidate_id
+              WHERE u.batch_id = b.id) as assignedTestsCount
+    FROM batches b ${where}
+    ORDER BY b.created_at DESC
+  `).all(...params);
+}
+
+function createBatchHandler(req, res, role) {
+  try {
+    const { name, description } = req.body;
+    let { code } = req.body;
+    if (!name || !code) return res.status(400).json({ error: 'Name and code are required' });
+    code = String(code).trim().toUpperCase();
+    if (!BATCH_CODE_RE.test(code)) return res.status(400).json({ error: 'Code must contain only uppercase letters, numbers, and hyphens' });
+    const existing = db.prepare('SELECT id FROM batches WHERE code = ?').get(code);
+    if (existing) return res.status(409).json({ error: 'Batch code already exists' });
+    const id = 'batch_' + require('crypto').randomBytes(6).toString('hex');
+    db.prepare(`INSERT INTO batches (id, name, code, description, is_active, created_by) VALUES (?, ?, ?, ?, 1, ?)`)
+      .run(id, String(name).trim(), code, description ? String(description).trim() : null, req.user.id);
+    logAudit(db, { actorId: req.user.id, actorRole: role, action: `Created batch ${code} - ${name}`, targetType: 'batch', targetId: id, details: { code, name } });
+    res.status(201).json({ id, name, code, description, isActive: 1 });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+}
+
+function updateBatchHandler(req, res, role) {
+  try {
+    const { name, description, isActive } = req.body;
+    const batch = db.prepare('SELECT * FROM batches WHERE id = ?').get(req.params.id);
+    if (!batch) return res.status(404).json({ error: 'Batch not found' });
+    if (role === 'admin' && batch.created_by !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
+    const newName = name != null ? String(name).trim() : batch.name;
+    const newDesc = description != null ? String(description).trim() : batch.description;
+    const newActive = isActive != null ? (isActive ? 1 : 0) : batch.is_active;
+    db.prepare('UPDATE batches SET name = ?, description = ?, is_active = ? WHERE id = ?')
+      .run(newName, newDesc, newActive, req.params.id);
+    logAudit(db, { actorId: req.user.id, actorRole: role, action: `Updated batch ${batch.code}`, targetType: 'batch', targetId: req.params.id, details: { name: newName, isActive: newActive } });
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+}
+
+function deleteBatchHandler(req, res, role) {
+  try {
+    const batch = db.prepare('SELECT * FROM batches WHERE id = ?').get(req.params.id);
+    if (!batch) return res.status(404).json({ error: 'Batch not found' });
+    if (role === 'admin' && batch.created_by !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
+    const count = db.prepare("SELECT COUNT(*) as c FROM users WHERE batch_id = ?").get(req.params.id).c;
+    if (count > 0) return res.status(400).json({ error: 'Cannot delete batch with assigned candidates' });
+    db.prepare('DELETE FROM batches WHERE id = ?').run(req.params.id);
+    logAudit(db, { actorId: req.user.id, actorRole: role, action: 'delete_batch', targetType: 'batch', targetId: req.params.id,
+      details: `Deleted batch ${batch.code} - ${batch.name}`,
+      deletedData: JSON.stringify(batch) });
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+}
+
+app.get('/api/super/batches', authMiddleware, requireRole('super_admin'), (req, res) => {
+  try { res.json(listBatchesFor('super', req.user.id)); } catch (e) { res.status(500).json({ error: 'Server error' }); }
+});
+app.get('/api/admin/batches', authMiddleware, requireRole('admin'), (req, res) => {
+  try { res.json(listBatchesFor('admin', req.user.id)); } catch (e) { res.status(500).json({ error: 'Server error' }); }
+});
+app.post('/api/super/batches', authMiddleware, requireRole('super_admin'), (req, res) => createBatchHandler(req, res, 'super_admin'));
+app.post('/api/admin/batches', authMiddleware, requireRole('admin'), (req, res) => createBatchHandler(req, res, 'admin'));
+app.put('/api/super/batches/:id', authMiddleware, requireRole('super_admin'), (req, res) => updateBatchHandler(req, res, 'super_admin'));
+app.put('/api/admin/batches/:id', authMiddleware, requireRole('admin'), (req, res) => updateBatchHandler(req, res, 'admin'));
+app.delete('/api/super/batches/:id', authMiddleware, requireRole('super_admin'), (req, res) => deleteBatchHandler(req, res, 'super_admin'));
+app.delete('/api/admin/batches/:id', authMiddleware, requireRole('admin'), (req, res) => deleteBatchHandler(req, res, 'admin'));
+
+// ---------- Assign Tests to Batch ----------
+function assignTestsToBatchHandler(req, res, role) {
+  try {
+    const { testIds, maxAttempts, availableFrom, availableUntil } = req.body || {};
+    if (!Array.isArray(testIds) || testIds.length === 0) {
+      return res.status(400).json({ error: 'testIds is required' });
+    }
+    const maxAtt = Math.max(1, parseInt(maxAttempts, 10) || 1);
+    const batch = db.prepare('SELECT * FROM batches WHERE id = ?').get(req.params.id);
+    if (!batch) return res.status(404).json({ error: 'Batch not found' });
+    if (role === 'admin' && batch.created_by !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
+
+    // Validate all tests exist
+    const tests = [];
+    for (const tid of testIds) {
+      const t = db.prepare('SELECT id, name FROM tests WHERE id = ?').get(tid);
+      if (!t) return res.status(400).json({ error: `Test not found: ${tid}` });
+      tests.push(t);
+    }
+
+    const candidates = db.prepare("SELECT id FROM users WHERE batch_id = ? AND role = 'candidate'").all(req.params.id);
+    const crypto = require('crypto');
+
+    const existsStmt = db.prepare('SELECT id FROM test_permissions WHERE candidate_id = ? AND test_id = ?');
+    const insertStmt = db.prepare(`
+      INSERT INTO test_permissions (id, candidate_id, test_id, status, max_attempts, attempt_count, available_from, available_until, granted_by, granted_at)
+      VALUES (?, ?, ?, 'granted', ?, 0, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%f','now','localtime'))
+    `);
+
+    let totalAssigned = 0, totalSkipped = 0;
+    const details = [];
+
+    const tx = db.transaction(() => {
+      for (const t of tests) {
+        let assigned = 0, skipped = 0;
+        for (const c of candidates) {
+          const existing = existsStmt.get(c.id, t.id);
+          if (existing) { skipped++; continue; }
+          const tpId = 'tp_' + crypto.randomBytes(8).toString('hex');
+          insertStmt.run(tpId, c.id, t.id, maxAtt, availableFrom || null, availableUntil || null, req.user.id);
+          assigned++;
+        }
+        totalAssigned += assigned;
+        totalSkipped += skipped;
+        details.push({ testId: t.id, testName: t.name, assigned, skipped });
+      }
+    });
+    tx();
+
+    logAudit(db, {
+      actorId: req.user.id, actorRole: role,
+      action: `Assigned ${tests.length} tests to batch ${batch.code} for ${candidates.length} candidates (${totalAssigned} permissions created, ${totalSkipped} skipped)`,
+      targetType: 'batch', targetId: batch.id,
+      details: { testIds, maxAttempts: maxAtt, totalAssigned, skipped: totalSkipped }
+    });
+
+    res.json({
+      success: true,
+      totalCandidates: candidates.length,
+      totalTests: tests.length,
+      totalAssigned,
+      skipped: totalSkipped,
+      details
+    });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+}
+
+function getAssignedTestsForBatchHandler(req, res, role) {
+  try {
+    const batch = db.prepare('SELECT * FROM batches WHERE id = ?').get(req.params.id);
+    if (!batch) return res.status(404).json({ error: 'Batch not found' });
+    if (role === 'admin' && batch.created_by !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
+
+    const rows = db.prepare(`
+      SELECT tp.test_id as testId,
+             t.name as testName,
+             t.test_type as testType,
+             COUNT(DISTINCT tp.candidate_id) as candidatesAssigned
+      FROM test_permissions tp
+      JOIN users u ON u.id = tp.candidate_id
+      JOIN tests t ON t.id = tp.test_id
+      WHERE u.batch_id = ?
+      GROUP BY tp.test_id, t.name, t.test_type
+      ORDER BY t.name
+    `).all(req.params.id);
+
+    const completedStmt = db.prepare(`
+      SELECT COUNT(DISTINCT ts.candidate_id) as completed,
+             SUM(CASE WHEN ts.passed = 1 THEN 1 ELSE 0 END) as passed,
+             COUNT(*) as totalSubmissions
+      FROM test_sessions ts
+      JOIN users u ON u.id = ts.candidate_id
+      WHERE u.batch_id = ? AND ts.test_id = ? AND ts.status IN ('submitted','timed_out')
+    `);
+
+    const out = rows.map(r => {
+      const stats = completedStmt.get(req.params.id, r.testId) || { completed: 0, passed: 0, totalSubmissions: 0 };
+      const completed = stats.completed || 0;
+      const passed = stats.passed || 0;
+      const passRate = completed > 0 ? Math.round((passed / completed) * 100) : 0;
+      return {
+        testId: r.testId,
+        testName: r.testName,
+        testType: r.testType,
+        candidatesAssigned: r.candidatesAssigned,
+        candidatesCompleted: completed,
+        passRate
+      };
+    });
+    res.json(out);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+}
+
+function revokeTestFromBatchHandler(req, res, role) {
+  try {
+    const { testId } = req.body || {};
+    if (!testId) return res.status(400).json({ error: 'testId is required' });
+    const batch = db.prepare('SELECT * FROM batches WHERE id = ?').get(req.params.id);
+    if (!batch) return res.status(404).json({ error: 'Batch not found' });
+    if (role === 'admin' && batch.created_by !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
+    const test = db.prepare('SELECT id, name FROM tests WHERE id = ?').get(testId);
+    if (!test) return res.status(400).json({ error: 'Test not found' });
+
+    const allPerms = db.prepare(`
+      SELECT tp.id, tp.status, tp.attempt_count
+      FROM test_permissions tp
+      JOIN users u ON u.id = tp.candidate_id
+      WHERE u.batch_id = ? AND tp.test_id = ?
+    `).all(req.params.id, testId);
+
+    const eligible = allPerms.filter(p => p.status === 'granted' && (p.attempt_count || 0) === 0);
+    const skipped = allPerms.length - eligible.length;
+    const delStmt = db.prepare('DELETE FROM test_permissions WHERE id = ?');
+    const tx = db.transaction(() => { for (const p of eligible) delStmt.run(p.id); });
+    tx();
+
+    logAudit(db, {
+      actorId: req.user.id, actorRole: role,
+      action: `Revoked test ${test.name} from batch ${batch.code} (${eligible.length} permissions revoked)`,
+      targetType: 'batch', targetId: batch.id,
+      details: { testId, revoked: eligible.length, skipped }
+    });
+
+    res.json({ revoked: eligible.length, skipped });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+}
+
+app.post('/api/super/batches/:id/assign-tests', authMiddleware, requireRole('super_admin'), (req, res) => assignTestsToBatchHandler(req, res, 'super_admin'));
+app.post('/api/admin/batches/:id/assign-tests', authMiddleware, requireRole('admin'), (req, res) => assignTestsToBatchHandler(req, res, 'admin'));
+app.get('/api/super/batches/:id/assigned-tests', authMiddleware, requireRole('super_admin'), (req, res) => getAssignedTestsForBatchHandler(req, res, 'super_admin'));
+app.get('/api/admin/batches/:id/assigned-tests', authMiddleware, requireRole('admin'), (req, res) => getAssignedTestsForBatchHandler(req, res, 'admin'));
+app.delete('/api/super/batches/:id/revoke-test', authMiddleware, requireRole('super_admin'), (req, res) => revokeTestFromBatchHandler(req, res, 'super_admin'));
+app.delete('/api/admin/batches/:id/revoke-test', authMiddleware, requireRole('admin'), (req, res) => revokeTestFromBatchHandler(req, res, 'admin'));
+
+// Candidate update (with batch assignment) — used by batch management flows
+function updateCandidateHandler(req, res, role) {
+  try {
+    const scope = role === 'admin' ? ' AND created_by = ?' : '';
+    const scopeParams = role === 'admin' ? [req.user.id] : [];
+    const candidate = db.prepare(`SELECT id, name, batch_id FROM users WHERE id = ? AND role = 'candidate'${scope}`).get(req.params.id, ...scopeParams);
+    if (!candidate) return res.status(404).json({ error: 'Candidate not found' });
+    const { name, email, batch_id } = req.body;
+    const updates = [];
+    const params = [];
+    if (name != null) { updates.push('name = ?'); params.push(String(name).trim()); }
+    if (email != null) { updates.push('email = ?'); params.push(String(email).trim()); }
+    let oldBatchCode = null, newBatchCode = null, newBatchIdResolved = undefined;
+    if (batch_id !== undefined) {
+      const normalized = batch_id === '' || batch_id == null ? null : batch_id;
+      if (normalized) {
+        const b = db.prepare('SELECT id, code FROM batches WHERE id = ?').get(normalized);
+        if (!b) return res.status(400).json({ error: 'Batch not found' });
+        newBatchCode = b.code;
+        newBatchIdResolved = b.id;
+      } else {
+        newBatchIdResolved = null;
+      }
+      updates.push('batch_id = ?');
+      params.push(newBatchIdResolved);
+      if (candidate.batch_id) {
+        const old = db.prepare('SELECT code FROM batches WHERE id = ?').get(candidate.batch_id);
+        oldBatchCode = old?.code || null;
+      }
+    }
+    if (updates.length === 0) return res.json({ success: true });
+    params.push(req.params.id);
+    db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+    if (batch_id !== undefined && (candidate.batch_id || null) !== (newBatchIdResolved || null)) {
+      logAudit(db, { actorId: req.user.id, actorRole: role, action: `Moved candidate ${candidate.name} from batch ${oldBatchCode || 'none'} to batch ${newBatchCode || 'none'}`, targetType: 'user', targetId: req.params.id, details: { oldBatchCode, newBatchCode } });
+    }
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+}
+app.put('/api/super/candidates/:id', authMiddleware, requireRole('super_admin'), (req, res) => updateCandidateHandler(req, res, 'super_admin'));
+app.put('/api/admin/candidates/:id', authMiddleware, requireRole('admin'), (req, res) => updateCandidateHandler(req, res, 'admin'));
+
+// ============================================================
 // BULK CANDIDATE IMPORT
 // ============================================================
 
@@ -3192,25 +3951,35 @@ app.post('/api/super/candidates/bulk-import', authMiddleware, requireRole('super
     }
     const results = { created: [], skipped: [], errors: [] };
     const insertMany = db.transaction(() => {
-      for (const c of candidates) {
+      candidates.forEach((c, idx) => {
+        const rowNum = idx + 1;
         if (!c.name || !c.email || !c.password) {
-          results.errors.push({ email: c.email || 'unknown', reason: 'Missing name, email or password' });
-          continue;
+          results.errors.push({ row: rowNum, email: c.email || 'unknown', reason: 'Missing name, email or password' });
+          return;
+        }
+        let batchId = null;
+        const rawCode = (c.batchCode || '').toString().trim().toUpperCase();
+        if (rawCode) {
+          const b = db.prepare('SELECT id, code FROM batches WHERE code = ?').get(rawCode);
+          if (!b) { results.errors.push({ row: rowNum, email: c.email, reason: `Batch code ${rawCode} not found` }); return; }
+          batchId = b.id;
         }
         const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)').get(c.email);
-        if (existing) { results.skipped.push({ email: c.email, reason: 'Email already exists' }); continue; }
+        if (existing) { results.skipped.push({ row: rowNum, email: c.email, reason: 'Email already exists' }); return; }
         const id = uuidv4();
         const hashed = hashPassword(c.password);
-        db.prepare(`INSERT INTO users (id, name, email, password, role, created_by) VALUES (?, ?, ?, ?, 'candidate', ?)`)
-          .run(id, c.name.trim(), c.email.trim(), hashed, req.user.id);
-        results.created.push({ id, name: c.name, email: c.email });
-      }
+        db.prepare(`INSERT INTO users (id, name, email, password, role, created_by, batch_id) VALUES (?, ?, ?, ?, 'candidate', ?, ?)`)
+          .run(id, c.name.trim(), c.email.trim(), hashed, req.user.id, batchId);
+        results.created.push({ id, name: c.name, email: c.email, batch_id: batchId });
+      });
     });
     insertMany();
+    results.success = results.created.length;
+    const firstBatchCodeS = (candidates.find(c => c.batchCode)?.batchCode || '').toString().trim().toUpperCase() || 'none';
     logAudit(db, {
       actorId: req.user.id, actorRole: 'super_admin',
       action: 'bulk_import_candidates', targetType: 'user', targetId: null,
-      details: { created: results.created.length, skipped: results.skipped.length, errors: results.errors.length }
+      details: `Bulk imported ${results.created.length} candidates into batch ${firstBatchCodeS} (${results.skipped.length} skipped)`
     });
     res.json(results);
   } catch (err) {
@@ -3227,25 +3996,35 @@ app.post('/api/admin/candidates/bulk-import', authMiddleware, requireRole('admin
     }
     const results = { created: [], skipped: [], errors: [] };
     const insertMany = db.transaction(() => {
-      for (const c of candidates) {
+      candidates.forEach((c, idx) => {
+        const rowNum = idx + 1;
         if (!c.name || !c.email || !c.password) {
-          results.errors.push({ email: c.email || 'unknown', reason: 'Missing name, email or password' });
-          continue;
+          results.errors.push({ row: rowNum, email: c.email || 'unknown', reason: 'Missing name, email or password' });
+          return;
+        }
+        let batchId = null;
+        const rawCode = (c.batchCode || '').toString().trim().toUpperCase();
+        if (rawCode) {
+          const b = db.prepare('SELECT id, code FROM batches WHERE code = ?').get(rawCode);
+          if (!b) { results.errors.push({ row: rowNum, email: c.email, reason: `Batch code ${rawCode} not found` }); return; }
+          batchId = b.id;
         }
         const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)').get(c.email);
-        if (existing) { results.skipped.push({ email: c.email, reason: 'Email already exists' }); continue; }
+        if (existing) { results.skipped.push({ row: rowNum, email: c.email, reason: 'Email already exists' }); return; }
         const id = uuidv4();
         const hashed = hashPassword(c.password);
-        db.prepare(`INSERT INTO users (id, name, email, password, role, created_by) VALUES (?, ?, ?, ?, 'candidate', ?)`)
-          .run(id, c.name.trim(), c.email.trim(), hashed, req.user.id);
-        results.created.push({ id, name: c.name, email: c.email });
-      }
+        db.prepare(`INSERT INTO users (id, name, email, password, role, created_by, batch_id) VALUES (?, ?, ?, ?, 'candidate', ?, ?)`)
+          .run(id, c.name.trim(), c.email.trim(), hashed, req.user.id, batchId);
+        results.created.push({ id, name: c.name, email: c.email, batch_id: batchId });
+      });
     });
     insertMany();
+    results.success = results.created.length;
+    const firstBatchCodeA = (candidates.find(c => c.batchCode)?.batchCode || '').toString().trim().toUpperCase() || 'none';
     logAudit(db, {
       actorId: req.user.id, actorRole: 'admin',
       action: 'bulk_import_candidates', targetType: 'user', targetId: null,
-      details: { created: results.created.length, skipped: results.skipped.length, errors: results.errors.length }
+      details: `Bulk imported ${results.created.length} candidates into batch ${firstBatchCodeA} (${results.skipped.length} skipped)`
     });
     res.json(results);
   } catch (err) {
@@ -3470,11 +4249,11 @@ app.put('/api/super/users/:id/password', authMiddleware, requireRole('super_admi
   try {
     const newPassword = req.body.newPassword || req.body.password;
     if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
-    const user = db.prepare('SELECT id, name FROM users WHERE id = ?').get(req.params.id);
+    const user = db.prepare('SELECT id, name, email FROM users WHERE id = ?').get(req.params.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
     db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashPassword(newPassword), req.params.id);
     logAudit(db, { actorId: req.user.id, actorRole: 'super_admin', action: 'reset_password',
-      targetType: 'user', targetId: req.params.id, details: { targetName: user.name } });
+      targetType: 'user', targetId: req.params.id, details: `Reset password for candidate ${user.name} (${user.email})` });
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
@@ -3483,11 +4262,11 @@ function adminResetPassword(req, res) {
   try {
     const newPassword = req.body.newPassword || req.body.password;
     if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
-    const candidate = db.prepare("SELECT id, name FROM users WHERE id = ? AND role = 'candidate'").get(req.params.id);
+    const candidate = db.prepare("SELECT id, name, email FROM users WHERE id = ? AND role = 'candidate'").get(req.params.id);
     if (!candidate) return res.status(404).json({ error: 'Candidate not found' });
     db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashPassword(newPassword), req.params.id);
     logAudit(db, { actorId: req.user.id, actorRole: 'admin', action: 'reset_password',
-      targetType: 'user', targetId: req.params.id, details: { targetName: candidate.name } });
+      targetType: 'user', targetId: req.params.id, details: `Reset password for candidate ${candidate.name} (${candidate.email})` });
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 }
@@ -3702,11 +4481,21 @@ function buildAuditLogResponse(req, restrictAdminId) {
     LIMIT ? OFFSET ?
   `).all(...params, limit, offset).map(a => {
     const detailsObj = a.details ? (() => { try { return JSON.parse(a.details); } catch(e) { return {}; } })() : {};
+    // If details is a plain string (new humanized format), keep it as string; else JSON obj.
+    let detailsOut = detailsObj;
+    let detailsStr = a.details || '';
+    if (typeof a.details === 'string') {
+      try { JSON.parse(a.details); } catch (e) { detailsOut = a.details; }
+    }
     return {
       ...a,
-      details: detailsObj,
+      details: detailsOut,
+      deleted_data: a.deleted_data || null,
+      is_reverted: a.is_reverted ? 1 : 0,
+      reverted_at: a.reverted_at || null,
+      reverted_by: a.reverted_by || null,
       timestamp_ist: formatToIST(a.timestamp),
-      message: describeAudit({ ...a, details: detailsObj }),
+      message: (typeof detailsOut === 'string' && detailsOut) ? detailsOut : describeAudit({ ...a, details: (typeof detailsOut === 'object' ? detailsOut : {}) }),
       category: categorizeAudit(a.action),
       performed_by: a.actor_name ? `${a.actor_name}${a.actor_email ? ' (' + a.actor_email + ')' : ''}` : null,
     };
@@ -3724,6 +4513,71 @@ app.get('/api/admin/audit-log', authMiddleware, requireRole('admin'), (req, res)
   try { res.json(buildAuditLogResponse(req, req.user.id)); }
   catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
+
+// ---------- REVERT AUDIT ENTRY ----------
+const bcryptLib = require('bcryptjs');
+function revertAuditEntry(req, res, scope) {
+  try {
+    const entry = db.prepare('SELECT * FROM audit_log WHERE id = ?').get(req.params.id);
+    if (!entry) return res.status(404).json({ error: 'Audit entry not found' });
+    if (scope === 'admin' && entry.actor_id !== req.user.id) {
+      return res.status(403).json({ error: 'You may only revert your own deletions' });
+    }
+    if (entry.is_reverted) return res.status(400).json({ error: 'Already reverted' });
+    if (!entry.deleted_data) return res.status(400).json({ error: 'Nothing to revert' });
+
+    let data;
+    try { data = JSON.parse(entry.deleted_data); }
+    catch (e) { return res.status(400).json({ error: 'Corrupted deleted data' }); }
+
+    const revertedBy = req.user.name || req.user.id;
+    const now = nowLocalIso();
+    let message = '';
+    let auditMsg = '';
+
+    const tx = db.transaction(() => {
+      if (entry.action === 'delete_candidate') {
+        const clash = db.prepare('SELECT id FROM users WHERE id = ? OR LOWER(email) = LOWER(?)').get(data.id, data.email || '');
+        if (clash) { const e = new Error('A user with this id or email already exists'); e.status = 409; throw e; }
+        const restoredPw = bcryptLib.hashSync('Restored@123', 10);
+        db.prepare(`INSERT INTO users (id, name, email, password, role, is_active, created_by, created_at, last_login, batch_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+          data.id, data.name, data.email, restoredPw, data.role || 'candidate',
+          data.is_active != null ? data.is_active : 1,
+          data.created_by || null, data.created_at || now, data.last_login || null, data.batch_id || null
+        );
+        message = `Candidate ${data.name} restored successfully. Temporary password: Restored@123`;
+        auditMsg = `Reverted deletion of candidate ${data.name} (${data.email})`;
+      } else if (entry.action === 'delete_test') {
+        const clash = db.prepare('SELECT id FROM tests WHERE id = ?').get(data.id);
+        if (clash) { const e = new Error('A test with this id already exists'); e.status = 409; throw e; }
+        const cols = ['id','name','description','port','duration_minutes','passing_percentage','total_questions','is_active','created_at','test_type','created_by','subjects_json','difficulty_json','type_quotas_json','is_custom','coding_problem_count','available_from','available_until','is_interview_prep'];
+        const vals = cols.map(c => data[c] != null ? data[c] : null);
+        db.prepare(`INSERT INTO tests (${cols.join(',')}) VALUES (${cols.map(()=>'?').join(',')})`).run(...vals);
+        message = `Test "${data.name}" restored successfully`;
+        auditMsg = `Reverted deletion of test "${data.name}"`;
+      } else {
+        const e = new Error('This action type cannot be reverted'); e.status = 400; throw e;
+      }
+      db.prepare('UPDATE audit_log SET is_reverted = 1, reverted_at = ?, reverted_by = ? WHERE id = ?')
+        .run(now, revertedBy, entry.id);
+      logAudit(db, {
+        actorId: req.user.id, actorRole: req.user.role,
+        action: 'revert_' + entry.action, targetType: entry.target_type, targetId: entry.target_id,
+        details: auditMsg
+      });
+    });
+    try { tx(); }
+    catch (e) { return res.status(e.status || 500).json({ error: e.message || 'Revert failed' }); }
+
+    res.json({ success: true, message });
+  } catch (err) {
+    console.error('Revert audit error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+app.post('/api/super/audit-log/:id/revert', authMiddleware, requireRole('super_admin'), (req, res) => revertAuditEntry(req, res, 'super'));
+app.post('/api/admin/audit-log/:id/revert', authMiddleware, requireRole('admin'), (req, res) => revertAuditEntry(req, res, 'admin'));
 
 // ============================================================
 // INTERVIEW MODULE
@@ -4338,6 +5192,202 @@ app.get('/api/super/backup', authMiddleware, requireRole('super_admin'), (req, r
 // ============================================================
 // CATCH-ALL: serve frontend (MUST be last — after all API routes)
 // ============================================================
+
+// ============================================================
+// DRIVE SESSIONS
+// ============================================================
+
+function buildSessionCode(batchCode, dateFrom) {
+  const d = new Date(dateFrom);
+  const pad = n => String(n).padStart(2, '0');
+  return `SES-${batchCode}-${pad(d.getDate())}${pad(d.getMonth() + 1)}${d.getFullYear()}`;
+}
+
+function ensureUniqueSessionCode(base) {
+  let code = base;
+  let n = 2;
+  while (db.prepare('SELECT 1 FROM sessions WHERE session_code = ?').get(code)) {
+    code = `${base}-${n}`;
+    n++;
+  }
+  return code;
+}
+
+function computeSessionStats(sessionId) {
+  const totalCandidates = db.prepare('SELECT COUNT(*) as c FROM test_permissions WHERE session_id = ?').get(sessionId).c;
+  const appeared = db.prepare('SELECT COUNT(*) as c FROM test_sessions WHERE session_id = ?').get(sessionId).c;
+  const passed = db.prepare("SELECT COUNT(*) as c FROM test_sessions WHERE session_id = ? AND passed = 1 AND status IN ('submitted','timed_out')").get(sessionId).c;
+  const completed = db.prepare("SELECT COUNT(*) as c FROM test_sessions WHERE session_id = ? AND status IN ('submitted','timed_out')").get(sessionId).c;
+  const failed = Math.max(0, completed - passed);
+  const avgRow = db.prepare("SELECT AVG(percentage) as a FROM test_sessions WHERE session_id = ? AND status IN ('submitted','timed_out')").get(sessionId);
+  const avgScore = avgRow.a != null ? Math.round(avgRow.a * 10) / 10 : null;
+  return { totalCandidates, appeared, passed, failed, avgScore };
+}
+
+function serializeSession(row) {
+  const stats = computeSessionStats(row.id);
+  const now = Date.now();
+  const to = parseDbTime(row.date_to);
+  let derivedStatus = row.status;
+  if (row.status === 'active' && to && now > to) derivedStatus = 'expired';
+  return {
+    id: row.id,
+    sessionCode: row.session_code,
+    name: row.name,
+    batchId: row.batch_id,
+    batchCode: row.batch_code,
+    batchName: row.batch_name,
+    testId: row.test_id,
+    testName: row.test_name,
+    dateFrom: row.date_from,
+    dateTo: row.date_to,
+    tunnelType: row.tunnel_type,
+    tunnelUrl: row.tunnel_url,
+    notes: row.notes,
+    status: derivedStatus,
+    storedStatus: row.status,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    ...stats,
+  };
+}
+
+function listSessionsFor(scope, adminId) {
+  const where = scope === 'admin' ? 'WHERE b.created_by = ?' : '';
+  const params = scope === 'admin' ? [adminId] : [];
+  const rows = db.prepare(`
+    SELECT s.*, b.code as batch_code, b.name as batch_name, t.name as test_name
+    FROM sessions s
+    JOIN batches b ON b.id = s.batch_id
+    JOIN tests t ON t.id = s.test_id
+    ${where}
+    ORDER BY s.created_at DESC
+  `).all(...params);
+  return rows.map(serializeSession);
+}
+
+function createSessionHandler(req, res, role) {
+  try {
+    const { name, batchId, testId, dateFrom, dateTo, tunnelType, notes } = req.body || {};
+    if (!name || !batchId || !testId || !dateFrom || !dateTo) {
+      return res.status(400).json({ error: 'name, batchId, testId, dateFrom, dateTo are required' });
+    }
+    const batch = db.prepare('SELECT id, code, created_by FROM batches WHERE id = ?').get(batchId);
+    if (!batch) return res.status(404).json({ error: 'Batch not found' });
+    if (role === 'admin' && batch.created_by !== req.user.id) return res.status(403).json({ error: 'Not authorized for this batch' });
+    const test = db.prepare('SELECT id, name FROM tests WHERE id = ?').get(testId);
+    if (!test) return res.status(404).json({ error: 'Test not found' });
+
+    const id = 'session_' + Date.now() + require('crypto').randomBytes(3).toString('hex');
+    const baseCode = buildSessionCode(batch.code, dateFrom);
+    const sessionCode = ensureUniqueSessionCode(baseCode);
+    const tType = tunnelType === 'ngrok' ? 'ngrok' : 'lan';
+
+    db.prepare(`
+      INSERT INTO sessions (id, session_code, name, batch_id, test_id, date_from, date_to, tunnel_type, tunnel_url, notes, status, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, 'active', ?)
+    `).run(id, sessionCode, String(name).trim(), batchId, testId, dateFrom, dateTo, tType, notes ? String(notes).trim() : null, req.user.id);
+
+    // Bulk grant permissions
+    const candidates = db.prepare("SELECT id FROM users WHERE batch_id = ? AND role = 'candidate' AND is_active = 1").all(batchId);
+    const existsStmt = db.prepare('SELECT 1 FROM test_permissions WHERE candidate_id = ? AND test_id = ?');
+    const insertStmt = db.prepare(`
+      INSERT INTO test_permissions (id, candidate_id, test_id, session_id, max_attempts, attempt_count, status, granted_by, granted_at, available_from, available_until)
+      VALUES (?, ?, ?, ?, 1, 0, 'granted', ?, strftime('%Y-%m-%dT%H:%M:%f','now','localtime'), ?, ?)
+    `);
+    let assignedCount = 0;
+    const tx = db.transaction(() => {
+      for (const c of candidates) {
+        if (existsStmt.get(c.id, testId)) continue;
+        const permId = 'perm_' + require('crypto').randomBytes(8).toString('hex');
+        insertStmt.run(permId, c.id, testId, id, req.user.id, dateFrom, dateTo);
+        assignedCount++;
+      }
+    });
+    tx();
+
+    logAudit(db, { actorId: req.user.id, actorRole: role, action: `Created session ${sessionCode} - ${name} with ${assignedCount} candidates assigned to test ${test.name}`, targetType: 'session', targetId: id, details: { code: sessionCode, name, batchId, testId, assignedCount } });
+
+    const row = db.prepare(`
+      SELECT s.*, b.code as batch_code, b.name as batch_name, t.name as test_name
+      FROM sessions s JOIN batches b ON b.id = s.batch_id JOIN tests t ON t.id = s.test_id
+      WHERE s.id = ?
+    `).get(id);
+    res.status(201).json({ ...serializeSession(row), assignedCount });
+  } catch (err) {
+    console.error('createSession error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+function updateSessionHandler(req, res, role) {
+  try {
+    const { name, dateFrom, dateTo, status, notes } = req.body || {};
+    const s = db.prepare(`
+      SELECT s.*, b.created_by as batch_created_by
+      FROM sessions s JOIN batches b ON b.id = s.batch_id
+      WHERE s.id = ?
+    `).get(req.params.id);
+    if (!s) return res.status(404).json({ error: 'Session not found' });
+    if (role === 'admin' && s.batch_created_by !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
+
+    const newName = name != null ? String(name).trim() : s.name;
+    const newFrom = dateFrom != null ? dateFrom : s.date_from;
+    const newTo = dateTo != null ? dateTo : s.date_to;
+    const newNotes = notes != null ? String(notes).trim() : s.notes;
+    const allowedStatus = ['active', 'completed', 'expired', 'cancelled'];
+    const newStatus = status != null && allowedStatus.includes(status) ? status : s.status;
+
+    db.prepare('UPDATE sessions SET name = ?, date_from = ?, date_to = ?, notes = ?, status = ? WHERE id = ?')
+      .run(newName, newFrom, newTo, newNotes, newStatus, req.params.id);
+
+    let actionText = `Updated session ${s.session_code}`;
+    if (newStatus === 'completed' && s.status !== 'completed') {
+      db.prepare("UPDATE test_permissions SET status = 'completed' WHERE session_id = ?").run(req.params.id);
+      actionText = `Completed session ${s.session_code}`;
+    }
+    logAudit(db, { actorId: req.user.id, actorRole: role, action: actionText, targetType: 'session', targetId: req.params.id, details: { code: s.session_code, status: newStatus } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('updateSession error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+function deleteSessionHandler(req, res, role) {
+  try {
+    const s = db.prepare(`
+      SELECT s.*, b.created_by as batch_created_by
+      FROM sessions s JOIN batches b ON b.id = s.batch_id
+      WHERE s.id = ?
+    `).get(req.params.id);
+    if (!s) return res.status(404).json({ error: 'Session not found' });
+    if (role === 'admin' && s.batch_created_by !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
+    if (s.status !== 'active') return res.status(400).json({ error: 'Only active sessions can be deleted' });
+    const usedCount = db.prepare('SELECT COUNT(*) as c FROM test_sessions WHERE session_id = ?').get(req.params.id).c;
+    if (usedCount > 0) return res.status(400).json({ error: 'Cannot delete: candidates have already attempted tests in this session' });
+    db.prepare('DELETE FROM test_permissions WHERE session_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM sessions WHERE id = ?').run(req.params.id);
+    logAudit(db, { actorId: req.user.id, actorRole: role, action: `Deleted session ${s.session_code}`, targetType: 'session', targetId: req.params.id, details: { code: s.session_code } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('deleteSession error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+app.get('/api/super/sessions', authMiddleware, requireRole('super_admin'), (req, res) => {
+  try { res.json(listSessionsFor('super', req.user.id)); } catch (e) { console.error(e); res.status(500).json({ error: 'Server error' }); }
+});
+app.get('/api/admin/sessions', authMiddleware, requireRole('admin'), (req, res) => {
+  try { res.json(listSessionsFor('admin', req.user.id)); } catch (e) { console.error(e); res.status(500).json({ error: 'Server error' }); }
+});
+app.post('/api/super/sessions', authMiddleware, requireRole('super_admin'), (req, res) => createSessionHandler(req, res, 'super_admin'));
+app.post('/api/admin/sessions', authMiddleware, requireRole('admin'), (req, res) => createSessionHandler(req, res, 'admin'));
+app.put('/api/super/sessions/:id', authMiddleware, requireRole('super_admin'), (req, res) => updateSessionHandler(req, res, 'super_admin'));
+app.put('/api/admin/sessions/:id', authMiddleware, requireRole('admin'), (req, res) => updateSessionHandler(req, res, 'admin'));
+app.delete('/api/super/sessions/:id', authMiddleware, requireRole('super_admin'), (req, res) => deleteSessionHandler(req, res, 'super_admin'));
+app.delete('/api/admin/sessions/:id', authMiddleware, requireRole('admin'), (req, res) => deleteSessionHandler(req, res, 'admin'));
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'frontend', 'build', 'index.html'));

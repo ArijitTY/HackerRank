@@ -1,24 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../../api';
 import { formatIST } from '../../utils/dateUtils';
+import ConfirmModal from '../../components/ConfirmModal';
 
-const ACTION_COLORS = {
-  login:          { bg: 'rgba(59,130,246,0.12)',  border: 'rgba(59,130,246,0.3)',  text: '#60a5fa',  icon: '🔐' },
-  logout:         { bg: 'rgba(100,116,139,0.1)',  border: 'rgba(100,116,139,0.2)', text: '#94a3b8',  icon: '🚪' },
-  create_user:    { bg: 'rgba(16,185,129,0.1)',   border: 'rgba(16,185,129,0.25)', text: '#34d399',  icon: '👤' },
-  assign_test:    { bg: 'rgba(139,92,246,0.1)',   border: 'rgba(139,92,246,0.25)', text: '#a78bfa',  icon: '📋' },
-  revoke_test:    { bg: 'rgba(239,68,68,0.08)',   border: 'rgba(239,68,68,0.25)',  text: '#f87171',  icon: '🚫' },
-  submit_test:    { bg: 'rgba(245,158,11,0.08)',  border: 'rgba(245,158,11,0.25)', text: '#fbbf24',  icon: '✅' },
-  start_test:     { bg: 'rgba(6,182,212,0.08)',   border: 'rgba(6,182,212,0.25)',  text: '#22d3ee',  icon: '▶️' },
-  bulk_import:    { bg: 'rgba(16,185,129,0.08)',  border: 'rgba(16,185,129,0.2)',  text: '#6ee7b7',  icon: '📥' },
-  reset_password: { bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)', text: '#fcd34d',  icon: '🔑' },
-};
 const formatAction = (action) => (action || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
 const getActionBadgeColor = (action) => {
   const a = action || '';
   if (/login|logout/.test(a))                          return { bg: '#EAF3DE', color: '#3B6D11' };
-  if (/grant|assign|restore/.test(a))                  return { bg: '#E6F1FB', color: '#185FA5' };
+  if (/grant|assign|restore|revert/.test(a))           return { bg: '#E6F1FB', color: '#185FA5' };
   if (/revoke|delete|remove|auto_submit|failed/.test(a)) return { bg: '#FCEBEB', color: '#A32D2D' };
   if (/create|update|edit|reset/.test(a))              return { bg: '#FAEEDA', color: '#854F0B' };
   if (/bulk|import/.test(a))                           return { bg: '#EEEDFE', color: '#534AB7' };
@@ -47,6 +37,9 @@ export default function AuditLogPage({ apiPrefix = '/super' }) {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [confirmTarget, setConfirmTarget] = useState(null);
+  const [reverting, setReverting] = useState(false);
+  const [toast, setToast] = useState(null);
   const limit = 50;
 
   const fetchLogs = useCallback(() => {
@@ -61,9 +54,31 @@ export default function AuditLogPage({ apiPrefix = '/super' }) {
       .then(r => { setLogs(r.data.logs || []); setTotal(r.data.total || 0); })
       .catch(e => setError(e.response?.data?.error || 'Failed to load audit log'))
       .finally(() => setLoading(false));
-  }, [page, filterAction, filterCategory, dateFrom, dateTo, search]);
+  }, [page, filterAction, filterCategory, dateFrom, dateTo, search, apiPrefix]);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
+
+  const doRevert = () => {
+    if (!confirmTarget) return;
+    setReverting(true);
+    api.post(`${apiPrefix}/audit-log/${confirmTarget.id}/revert`)
+      .then(r => {
+        setToast({ kind: 'success', text: r.data?.message || 'Reverted successfully' });
+        setConfirmTarget(null);
+        fetchLogs();
+      })
+      .catch(e => {
+        setToast({ kind: 'error', text: e.response?.data?.error || 'Revert failed' });
+        setConfirmTarget(null);
+      })
+      .finally(() => setReverting(false));
+  };
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 4500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const totalPages = Math.ceil(total / limit);
 
@@ -75,7 +90,9 @@ export default function AuditLogPage({ apiPrefix = '/super' }) {
     'create_interview_test','assign_interview','evaluate_interview','approve_interview',
   ];
 
-  const labelStyle = { display: 'block', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 };
+  const labelStyle = { display: 'block', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 };
+  const inputStyle = { height: 40, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', fontSize: 13, boxSizing: 'border-box', color: 'rgba(255,255,255,0.9)', padding: '0 12px', width: '100%', fontFamily: 'inherit' };
+  const fieldCol = { display: 'flex', flexDirection: 'column' };
 
   return (
     <div className="page-enter">
@@ -92,19 +109,32 @@ export default function AuditLogPage({ apiPrefix = '/super' }) {
 
       {error && <div className="login-error">{error}</div>}
 
+      {toast && (
+        <div style={{
+          position: 'fixed', top: 24, right: 24, zIndex: 3000,
+          padding: '12px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+          background: toast.kind === 'success' ? 'rgba(83,74,183,0.95)' : 'rgba(163,45,45,0.95)',
+          color: '#fff', boxShadow: '0 8px 24px rgba(0,0,0,0.4)', maxWidth: 420,
+        }}>{toast.text}</div>
+      )}
+
       <div className="table-container">
-        <div className="table-toolbar" style={{ flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
-          <div>
-            <label style={labelStyle}>Search by name, email or action details</label>
-            <div className="search-input-wrap">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input className="search-input" placeholder="Search by actor name, email or details..." value={search}
-                onChange={e => { setSearch(e.target.value); setPage(1); }} style={{ width: 260 }} />
-            </div>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '2fr 1.2fr 1.2fr 1fr 1fr',
+          gap: 16, padding: '1.25rem', borderRadius: 12,
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.06)',
+          marginBottom: 16,
+        }}>
+          <div style={fieldCol}>
+            <label style={labelStyle}>Search</label>
+            <input style={inputStyle} placeholder="Search by actor name, email or details..." value={search}
+              onChange={e => { setSearch(e.target.value); setPage(1); }} />
           </div>
-          <div>
-            <label style={labelStyle}>Filter by category</label>
-            <select className="form-select" value={filterCategory} onChange={e => { setFilterCategory(e.target.value); setPage(1); }}>
+          <div style={fieldCol}>
+            <label style={labelStyle}>Category</label>
+            <select style={inputStyle} value={filterCategory} onChange={e => { setFilterCategory(e.target.value); setPage(1); }}>
               <option value="">All Categories</option>
               <option value="login">Login &amp; Auth</option>
               <option value="permission">Permission Management</option>
@@ -113,24 +143,25 @@ export default function AuditLogPage({ apiPrefix = '/super' }) {
               <option value="interview">Interview Management</option>
             </select>
           </div>
-          <div>
-            <label style={labelStyle}>Filter by action</label>
-            <select className="form-select" value={filterAction} onChange={e => { setFilterAction(e.target.value); setPage(1); }}>
+          <div style={fieldCol}>
+            <label style={labelStyle}>Action</label>
+            <select style={inputStyle} value={filterAction} onChange={e => { setFilterAction(e.target.value); setPage(1); }}>
               <option value="">All Actions</option>
               {ACTION_OPTIONS.map(a => <option key={a} value={a}>{formatAction(a)}</option>)}
             </select>
           </div>
-          <div>
-            <label style={labelStyle}>From date</label>
-            <input type="date" className="form-input" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1); }} style={{ width: 150 }} />
+          <div style={fieldCol}>
+            <label style={labelStyle}>From Date</label>
+            <input type="date" style={inputStyle} value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1); }} />
           </div>
-          <div>
-            <label style={labelStyle}>To date</label>
-            <input type="date" className="form-input" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1); }} style={{ width: 150 }} />
+          <div style={fieldCol}>
+            <label style={labelStyle}>To Date</label>
+            <input type="date" style={inputStyle} value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1); }} />
           </div>
-          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginLeft: 'auto', alignSelf: 'center' }}>
-            Page {page} of {totalPages || 1} · {total} entries
-          </span>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>
+          Page {page} of {totalPages || 1} · {total} entries
         </div>
 
         <div className="leaderboard-scroll-wrapper table-scroll-wrapper" style={{ width:'100%', overflowX:'auto', display:'block' }}>
@@ -141,7 +172,7 @@ export default function AuditLogPage({ apiPrefix = '/super' }) {
               <th style={{ whiteSpace: 'nowrap' }}>Actor</th>
               <th style={{ whiteSpace: 'nowrap' }}>Action</th>
               <th>Details</th>
-              <th style={{ whiteSpace: 'nowrap' }}>IP</th>
+              <th style={{ whiteSpace: 'nowrap', width: 120 }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -156,37 +187,59 @@ export default function AuditLogPage({ apiPrefix = '/super' }) {
                   </div>
                 </td>
               </tr>
-            ) : logs.map((log, i) => (
-              <tr key={log.id || i}>
-                <td style={{ whiteSpace: 'nowrap' }}>
-                  <div style={{ fontSize: 12, fontFamily: 'monospace', color: 'rgba(255,255,255,0.6)' }}>
-                    {log.timestamp_ist || formatIST(log.timestamp) || '—'}
-                  </div>
-                </td>
-                <td style={{ whiteSpace: 'nowrap' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#7c3aed,#2563eb)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: 'white', flexShrink: 0 }}>
-                      {(log.actor_name || log.actor_email || '?')[0].toUpperCase()}
+            ) : logs.map((log, i) => {
+              const isDelete = /delete/i.test(log.action || '');
+              const canRevert = isDelete && Number(log.is_reverted) === 0 && !!log.deleted_data;
+              const isReverted = Number(log.is_reverted) === 1;
+              return (
+                <tr key={log.id || i}>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: 12, fontFamily: 'monospace', color: 'rgba(255,255,255,0.6)' }}>
+                      {log.timestamp_ist || formatIST(log.timestamp) || '—'}
                     </div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.85)' }}>{log.actor_name || '—'}</div>
-                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', fontFamily: 'monospace' }}>{log.actor_email}</div>
-                      {log.actor_role && <div style={{ fontSize: 10, color: '#a78bfa', marginTop: 2, fontWeight: 600 }}>{ROLE_LABEL[log.actor_role] || log.actor_role}</div>}
+                  </td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#7c3aed,#2563eb)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                        {(log.actor_name || log.actor_email || '?')[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.85)' }}>{log.actor_name || '—'}</div>
+                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', fontFamily: 'monospace' }}>{log.actor_email}</div>
+                        {log.actor_role && <div style={{ fontSize: 10, color: '#a78bfa', marginTop: 2, fontWeight: 600 }}>{ROLE_LABEL[log.actor_role] || log.actor_role}</div>}
+                      </div>
                     </div>
-                  </div>
-                </td>
-                <td style={{ whiteSpace: 'nowrap' }}><ActionBadge action={log.action} /></td>
-                <td style={{ whiteSpace: 'normal', minWidth: 250, maxWidth: 400, wordBreak: 'break-word' }}>
-                  {(() => {
-                    const d = log.details;
-                    const raw = d && typeof d === 'object' ? Object.entries(d).map(([k,v]) => `${k}: ${v}`).join(' · ') : (d || '');
-                    const primary = log.message || raw || '—';
-                    return <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)' }} title={raw || primary}>{primary}</span>;
-                  })()}
-                </td>
-                <td style={{ whiteSpace: 'nowrap' }}><span style={{ fontSize: 12, fontFamily: 'monospace', color: 'rgba(255,255,255,0.35)' }}>{log.ip_address || '—'}</span></td>
-              </tr>
-            ))}
+                  </td>
+                  <td style={{ whiteSpace: 'nowrap' }}><ActionBadge action={log.action} /></td>
+                  <td style={{ whiteSpace: 'normal', wordBreak: 'break-word', maxWidth: 350 }}>
+                    {(() => {
+                      const d = log.details;
+                      const raw = d && typeof d === 'object' ? Object.entries(d).map(([k,v]) => `${k}: ${v}`).join(' · ') : (d || '');
+                      const primary = log.message || raw || '—';
+                      return <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)' }} title={raw || primary}>{primary}</span>;
+                    })()}
+                  </td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    {canRevert ? (
+                      <button
+                        onClick={() => setConfirmTarget(log)}
+                        style={{
+                          padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                          background: 'rgba(83,74,183,0.15)', border: '1px solid rgba(83,74,183,0.4)',
+                          color: '#a78bfa', cursor: 'pointer', fontFamily: 'inherit',
+                        }}
+                      >Revert</button>
+                    ) : isReverted ? (
+                      <span style={{
+                        display: 'inline-block', padding: '4px 12px', borderRadius: 99,
+                        background: 'rgba(148,163,184,0.15)', color: 'rgba(148,163,184,0.9)',
+                        fontSize: 11, fontWeight: 600,
+                      }}>Reverted</span>
+                    ) : null}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         </div>
@@ -208,6 +261,20 @@ export default function AuditLogPage({ apiPrefix = '/super' }) {
           </div>
         )}
       </div>
+
+      {confirmTarget && (
+        <ConfirmModal
+          open
+          title="Revert This Action?"
+          message="This will restore the deleted item back to the system."
+          confirmText="Yes, Revert"
+          cancelText="Cancel"
+          confirmColor="#534AB7"
+          loading={reverting}
+          onConfirm={doRevert}
+          onCancel={() => { if (!reverting) setConfirmTarget(null); }}
+        />
+      )}
     </div>
   );
 }

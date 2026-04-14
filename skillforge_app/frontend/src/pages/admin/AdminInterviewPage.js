@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { formatIST, formatISTDate, nowLocalIso } from '../../utils/dateUtils';
 import api from '../../api';
+import ConfirmModal from '../../components/ConfirmModal';
 
 // ─── Styles ────────────────────────────────────────────────────────────────
 const S = {
@@ -153,13 +154,14 @@ function TestModal({ onClose, onSaved, editTest }) {
   const totalScore = questions.reduce((s, q) => s + (q.maxScore || 10), 0);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', padding: '24px 16px' }}>
-      <div style={{ background: '#0d1117', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, width: '100%', maxWidth: 760, padding: 28 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div style={{ background: '#0d1117', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, width: '100%', maxWidth: 760, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 28px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
           <h2 style={{ color: 'white', fontSize: 18, margin: 0 }}>{editTest ? '✏️ Edit Interview Test' : '📄 Create Interview Test'}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 22, cursor: 'pointer' }}>×</button>
         </div>
 
+        <div className="modal-body" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '20px 28px' }}>
         {error && <div style={S.error}>{error}</div>}
 
         {/* Name & Description */}
@@ -209,7 +211,7 @@ function TestModal({ onClose, onSaved, editTest }) {
               </span>
               <button onClick={addQuestion} style={S.btn('rgba(124,58,237,0.2)', '#a78bfa')}>+ Add Question</button>
             </div>
-            <div style={{ maxHeight: 400, overflowY: 'auto', paddingRight: 4 }}>
+            <div className="dropdown-scroll" style={{ maxHeight: 400, overflowY: 'auto', paddingRight: 4 }}>
               {questions.map((q, i) => <QuestionRow key={i} q={q} idx={i} onChange={changeQ} onRemove={removeQ} />)}
               {questions.length === 0 && (
                 <div style={{ textAlign: 'center', padding: 24, color: 'rgba(255,255,255,0.2)' }}>
@@ -220,7 +222,6 @@ function TestModal({ onClose, onSaved, editTest }) {
           </>
         )}
 
-        {/* Footer actions */}
         {!editTest && step === 'upload' && (
           <div style={{ marginTop: 16, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 16 }}>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', marginBottom: 10 }}>Don't have a PDF? Add questions manually:</div>
@@ -229,9 +230,10 @@ function TestModal({ onClose, onSaved, editTest }) {
             </button>
           </div>
         )}
+        </div>
 
         {(step === 'questions' || editTest) && (
-          <div style={{ display: 'flex', gap: 10, marginTop: 18, justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', padding: '16px 28px', borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
             <button onClick={onClose} style={S.btn('rgba(255,255,255,0.05)', 'rgba(255,255,255,0.5)')}>Cancel</button>
             <button onClick={save} disabled={saving} style={S.btn()}>
               {saving ? '⏳ Saving...' : '💾 Save Interview Test'}
@@ -273,15 +275,16 @@ function AssignModal({ test, onClose }) {
   const filtered = candidates.filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.email.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ background: '#0d1117', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, width: '100%', maxWidth: 520, padding: 26 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div style={{ background: '#0d1117', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, width: '100%', maxWidth: 520, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '20px 26px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
           <h3 style={{ color: 'white', margin: 0 }}>Assign: {test.name}</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 22, cursor: 'pointer' }}>×</button>
         </div>
+        <div className="modal-body" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '20px 26px' }}>
         {msg && <div style={msg.startsWith('✅') ? S.success : S.error}>{msg}</div>}
         <input style={{ ...S.input, marginBottom: 12 }} placeholder="Search candidates..." value={search} onChange={e => setSearch(e.target.value)} />
-        <div style={{ maxHeight: 280, overflowY: 'auto', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)', marginBottom: 14 }}>
+        <div className="dropdown-scroll" style={{ maxHeight: 280, overflowY: 'auto', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)', marginBottom: 14 }}>
           {filtered.map(c => (
             <div key={c.id} onClick={() => toggle(c.id)}
               style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.04)', background: selected.has(c.id) ? 'rgba(124,58,237,0.1)' : 'transparent' }}>
@@ -296,7 +299,8 @@ function AssignModal({ test, onClose }) {
           ))}
           {filtered.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>No candidates found</div>}
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 26px', borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
           <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{selected.size} selected</span>
           <button onClick={assign} disabled={assigning} style={S.btn()}>
             {assigning ? '⏳ Assigning...' : `✔ Assign to ${selected.size} Candidate${selected.size !== 1 ? 's' : ''}`}
@@ -307,7 +311,7 @@ function AssignModal({ test, onClose }) {
   );
 }
 
-// ─── Prep Edit Modal ─
+// ─── Prep Edit Modal (edits fields of an interview-prep test in `tests` table) ─
 function PrepEditModal({ test, role, onClose, onSaved }) {
   const [name, setName] = useState(test.name || '');
   const [description, setDescription] = useState(test.description || '');
@@ -331,12 +335,13 @@ function PrepEditModal({ test, role, onClose, onSaved }) {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ background: '#0d1117', border: '1px solid rgba(168,85,247,0.3)', borderRadius: 14, width: '100%', maxWidth: 520, padding: 26 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div style={{ background: '#0d1117', border: '1px solid rgba(168,85,247,0.3)', borderRadius: 14, width: '100%', maxWidth: 520, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '20px 26px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
           <h3 style={{ color: 'white', margin: 0 }}>✏️ Edit: {test.name}</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 22, cursor: 'pointer' }}>×</button>
         </div>
+        <div className="modal-body" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '20px 26px' }}>
         {msg && <div style={msg.startsWith('✅') ? S.success : S.error}>{msg}</div>}
         <div style={{ marginBottom: 12 }}>
           <label style={S.label}>Test Name</label>
@@ -356,7 +361,8 @@ function PrepEditModal({ test, role, onClose, onSaved }) {
             <input type="number" min={0} max={100} step="0.1" style={S.input} value={passing} onChange={e => setPassing(e.target.value)} />
           </div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '16px 26px', borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
           <button onClick={onClose} style={S.btn('rgba(255,255,255,0.05)', 'rgba(255,255,255,0.6)')}>Cancel</button>
           <button onClick={save} disabled={saving} style={S.btn('#a855f7')}>{saving ? '⏳ Saving...' : '💾 Save'}</button>
         </div>
@@ -402,15 +408,16 @@ function PrepAssignModal({ test, role, onClose }) {
   const filtered = candidates.filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.email.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ background: '#0d1117', border: '1px solid rgba(168,85,247,0.3)', borderRadius: 14, width: '100%', maxWidth: 520, padding: 26 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div style={{ background: '#0d1117', border: '1px solid rgba(168,85,247,0.3)', borderRadius: 14, width: '100%', maxWidth: 520, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '20px 26px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
           <h3 style={{ color: 'white', margin: 0 }}>🎯 Assign: {test.name}</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 22, cursor: 'pointer' }}>×</button>
         </div>
+        <div className="modal-body" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '20px 26px' }}>
         {msg && <div style={msg.startsWith('✅') ? S.success : S.error}>{msg}</div>}
         <input style={{ ...S.input, marginBottom: 12 }} placeholder="Search candidates..." value={search} onChange={e => setSearch(e.target.value)} />
-        <div style={{ maxHeight: 280, overflowY: 'auto', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)', marginBottom: 14 }}>
+        <div className="dropdown-scroll" style={{ maxHeight: 280, overflowY: 'auto', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)', marginBottom: 14 }}>
           {loading ? <div style={{ padding: 20, textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>Loading candidates...</div> : filtered.map(c => {
             const isAssigned = assigned.has(c.id);
             const isSelected = selected.has(c.id);
@@ -430,7 +437,8 @@ function PrepAssignModal({ test, role, onClose }) {
           })}
           {!loading && filtered.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>No candidates found</div>}
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 26px', borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
           <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{selected.size} selected · {candidates.length} total · {assigned.size} already assigned</span>
           <button onClick={assign} disabled={assigning || selected.size === 0} style={{ ...S.btn('#a855f7'), opacity: selected.size === 0 ? 0.5 : 1 }}>
             {assigning ? '⏳ Assigning...' : `✔ Assign to ${selected.size} Candidate${selected.size !== 1 ? 's' : ''}`}
@@ -505,7 +513,7 @@ function ReviewModal({ sessionId, onClose, onApproved }) {
   };
 
   if (!data) return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
       <div style={{ color: 'rgba(255,255,255,0.4)' }}>Loading...</div>
     </div>
   );
@@ -517,10 +525,10 @@ function ReviewModal({ sessionId, onClose, onApproved }) {
   const hasAiScores = answers.some(a => a.ai_score !== null);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.82)', zIndex: 200, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', padding: '20px 16px' }}>
-      <div style={{ background: '#0d1117', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, width: '100%', maxWidth: 860, padding: 28, marginBottom: 24 }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.82)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div style={{ background: '#0d1117', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, width: '100%', maxWidth: 860, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '22px 28px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
           <div>
             <h2 style={{ color: 'white', margin: '0 0 4px', fontSize: 18 }}>📋 {session.test_name}</h2>
             <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>
@@ -530,6 +538,7 @@ function ReviewModal({ sessionId, onClose, onApproved }) {
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 24, cursor: 'pointer' }}>×</button>
         </div>
 
+        <div className="modal-body" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '20px 28px' }}>
         {msg.text && <div style={msg.type === 'error' ? S.error : S.success}>{msg.text}</div>}
 
         {/* Score summary */}
@@ -642,6 +651,7 @@ function ReviewModal({ sessionId, onClose, onApproved }) {
         {session.status === 'reviewed' && (
           <div style={S.success}>✅ This interview has been reviewed and approved.</div>
         )}
+        </div>
       </div>
     </div>
   );
@@ -660,6 +670,7 @@ export default function InterviewPage() {
   const [prepTests, setPrepTests] = useState([]);
   const [assignPrep, setAssignPrep] = useState(null);
   const [editPrep, setEditPrep] = useState(null);
+  const [deactivateConfirm, setDeactivateConfirm] = useState(null);
 
   const loadTests = useCallback(() => {
     api.get('/admin/interview-tests').then(r => setTests(r.data.tests || [])).finally(() => setLoading(false));
@@ -677,10 +688,17 @@ export default function InterviewPage() {
     setEditTest(r.data);
   };
 
-  const deleteTest = async (id, name) => {
-    if (!window.confirm(`Deactivate interview test "${name}"?`)) return;
-    await api.delete(`/admin/interview-tests/${id}`);
-    loadTests();
+  const deleteTest = (id, name) => {
+    setDeactivateConfirm({ id, name });
+  };
+  const doDeactivate = async () => {
+    if (!deactivateConfirm) return;
+    try {
+      await api.delete(`/admin/interview-tests/${deactivateConfirm.id}`);
+    } finally {
+      setDeactivateConfirm(null);
+      loadTests();
+    }
   };
 
   return (
@@ -748,8 +766,8 @@ export default function InterviewPage() {
       )}
 
       {/* Interview Prep Tests (hybrid tests flagged as interview prep) */}
-      {assignPrep && <PrepAssignModal test={assignPrep} role="admin" onClose={() => setAssignPrep(null)} />}
-      {editPrep && <PrepEditModal test={editPrep} role="admin" onClose={() => setEditPrep(null)} onSaved={loadTests} />}
+      {assignPrep && <PrepAssignModal test={assignPrep} role="super" onClose={() => setAssignPrep(null)} />}
+      {editPrep && <PrepEditModal test={editPrep} role="super" onClose={() => setEditPrep(null)} onSaved={loadTests} />}
       {tab === 'tests' && prepTests.length > 0 && (
         <div style={{ marginTop: 36 }}>
           <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom: 16, fontSize: 12, fontWeight: 700, color:'#c084fc', letterSpacing: 1 }}>
@@ -833,6 +851,17 @@ export default function InterviewPage() {
           </div>
         )
       )}
+
+      <ConfirmModal
+        open={!!deactivateConfirm}
+        title="Deactivate Test"
+        message="Are you sure you want to deactivate this interview test? It will no longer be available for new assignments."
+        itemName={deactivateConfirm?.name || ''}
+        confirmText="Yes, Deactivate Test"
+        confirmColor="#BA7517"
+        onCancel={() => setDeactivateConfirm(null)}
+        onConfirm={doDeactivate}
+      />
     </div>
   );
 }

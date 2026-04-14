@@ -4,6 +4,9 @@ import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import api from '../../api';
 import { useToast } from '../../context/ToastContext';
+import CandidatePerformance from '../../components/CandidatePerformance';
+import ConfirmModal from '../../components/ConfirmModal';
+import DuplicateWarningModal from '../../components/DuplicateWarningModal';
 
 // Convert parsed rows (array of arrays or array of objects) to "Name,Email,Password" CSV text.
 function rowsToCsvText(rows) {
@@ -18,13 +21,16 @@ function rowsToCsvText(rows) {
   };
   return rows.map(r => {
     if (isObj) {
+      const batchCode = pickField(r, ['batchcode','batch code','batch_code','batch']);
       const name = pickField(r, ['name','full name','fullname','candidate']);
       const email = pickField(r, ['email','email address','e-mail']);
       const password = pickField(r, ['password','pass','pwd']);
-      return `${name},${email},${password}`;
+      return `${batchCode},${name},${email},${password}`;
     }
     const cells = r.map(c => String(c == null ? '' : c).trim());
-    return cells.slice(0, 3).join(',');
+    // If 4+ cols assume BatchCode,Name,Email,Password; else 3-col legacy
+    if (cells.length >= 4) return cells.slice(0, 4).join(',');
+    return ',' + cells.slice(0, 3).join(',');
   }).filter(line => line.replace(/,/g,'').trim()).join('\n');
 }
 
@@ -37,7 +43,7 @@ async function parseUploadedFile(file) {
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }).filter(r => r.some(c => String(c).trim()));
     if (rows.length === 0) return '';
     const header = rows[0].map(c => String(c).toLowerCase().trim());
-    const hasHeader = header.some(h => h === 'name' || h === 'email' || h === 'password' || h === 'full name');
+    const hasHeader = header.some(h => h === 'name' || h === 'email' || h === 'password' || h === 'full name' || h === 'batchcode' || h === 'batch code');
     return rowsToCsvText(hasHeader ? rows.slice(1) : rows);
   }
   // CSV / TSV
@@ -49,7 +55,7 @@ async function parseUploadedFile(file) {
         const rows = result.data;
         if (rows.length === 0) return resolve('');
         const header = (rows[0] || []).map(c => String(c).toLowerCase().trim());
-        const hasHeader = header.some(h => h === 'name' || h === 'email' || h === 'password' || h === 'full name');
+        const hasHeader = header.some(h => h === 'name' || h === 'email' || h === 'password' || h === 'full name' || h === 'batchcode' || h === 'batch code');
         resolve(rowsToCsvText(hasHeader ? rows.slice(1) : rows));
       },
     });
@@ -57,12 +63,67 @@ async function parseUploadedFile(file) {
 }
 
 function downloadTemplateCsv() {
-  const csv = 'Name,Email,Password\nAlice Smith,alice@company.com,Pass@123\nBob Jones,bob@company.com,Pass@456\n';
+  const csv = 'BatchCode,Name,Email,Password\nQ1-2026-PY,Alice Smith,alice@company.com,Pass@123\nQ1-2026-PY,Bob Jones,bob@company.com,Pass@456\n,Charlie No-Batch,charlie@company.com,Pass@789\n';
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = 'candidates_template.csv'; document.body.appendChild(a); a.click();
   document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+const batchBadgeStyle = {
+  display: 'inline-block', padding: '2px 8px', borderRadius: 5,
+  background: 'rgba(124,58,237,0.18)', color: '#a78bfa',
+  fontFamily: 'monospace', fontSize: 11, fontWeight: 700,
+};
+
+function BulkImportSummary({ result }) {
+  const [showSkipped, setShowSkipped] = useState(false);
+  const [showErrors, setShowErrors] = useState(false);
+  const created = result.created?.length || 0;
+  const skipped = result.skipped || [];
+  const errors  = result.errors || [];
+  return (
+    <div style={{ marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ padding: '10px 14px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 8, fontSize: 13, color: '#34d399', fontWeight: 600 }}>
+        ✅ {created} imported successfully
+      </div>
+      {skipped.length > 0 && (
+        <div style={{ padding: '10px 14px', background: 'rgba(186,117,23,0.08)', border: '1px solid rgba(186,117,23,0.35)', borderRadius: 8, fontSize: 13 }}>
+          <div onClick={() => setShowSkipped(s => !s)} style={{ cursor: 'pointer', color: '#F0B429', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>⚠ {skipped.length} skipped — already exist</span>
+            <span style={{ fontSize: 11 }}>{showSkipped ? '▲ Hide' : '▼ Show'}</span>
+          </div>
+          {showSkipped && (
+            <div style={{ maxHeight: 140, overflowY: 'auto', marginTop: 8, fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>
+              {skipped.map((s, i) => (
+                <div key={i} style={{ padding: '2px 0', fontFamily: 'monospace' }}>
+                  Row {s.row || '?'}: {s.email}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {errors.length > 0 && (
+        <div style={{ padding: '10px 14px', background: 'rgba(226,75,74,0.1)', border: '1px solid rgba(226,75,74,0.35)', borderRadius: 8, fontSize: 13 }}>
+          <div onClick={() => setShowErrors(s => !s)} style={{ cursor: 'pointer', color: '#f87171', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>✗ {errors.length} failed</span>
+            <span style={{ fontSize: 11 }}>{showErrors ? '▲ Hide' : '▼ Show'}</span>
+          </div>
+          {showErrors && (
+            <div style={{ maxHeight: 160, overflowY: 'auto', marginTop: 8, fontSize: 12, color: '#fca5a5' }}>
+              {errors.map((e, i) => (
+                <div key={i} style={{ padding: '2px 0', fontFamily: 'monospace' }}>
+                  row {e.row || '?'}: {e.reason}{e.email ? ` (${e.email})` : ''}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function CustomSelect({ value, onChange, options, placeholder, emptyMsg, navigate, navigateTo }) {
@@ -113,16 +174,20 @@ function CustomSelect({ value, onChange, options, placeholder, emptyMsg, navigat
 
 export default function CandidatesPage() {
   const [candidates, setCandidates] = useState([]);
+  const [perfCandidateId, setPerfCandidateId] = useState(null);
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [showAssign, setShowAssign] = useState(null);
   const [showResetPwd, setShowResetPwd] = useState(null); // candidateId
   const [resetPwdForm, setResetPwdForm] = useState({ password: '', confirm: '' });
   const [resetPwdError, setResetPwdError] = useState('');
-  const [confirmRevoke, setConfirmRevoke] = useState(null); // candidateId
-  const [confirmDelete, setConfirmDelete] = useState(null); // candidate object {id, name}
+  const [confirmRevoke, setConfirmRevoke] = useState(null); // candidate {id, name, email}
+  const [confirmDelete, setConfirmDelete] = useState(null); // candidate object {id, name, email}
+  const [duplicateInfo, setDuplicateInfo] = useState(null); // { errorCode, message, existingCandidate }
   const [tests, setTests] = useState([]);
-  const [form, setForm] = useState({ name: '', email: '', password: '', testId: '', maxAttempts: 1 });
+  const [batches, setBatches] = useState([]);
+  const [filterBatch, setFilterBatch] = useState('');
+  const [form, setForm] = useState({ name: '', email: '', password: '', testId: '', maxAttempts: 1, batch_id: '' });
   const [assignForm, setAssignForm] = useState({ testId: '', maxAttempts: 1 });
   const [error, setError] = useState('');
   const [assignError, setAssignError] = useState('');
@@ -166,19 +231,24 @@ export default function CandidatesPage() {
       .then(r => setOnlineStatus(r.data || {}))
       .catch(() => {});
   };
-  useEffect(() => { fetchCandidates(); fetchTests(); fetchOnlineStatus(); }, []);
+  const fetchBatches = () => {
+    api.get('/super/batches').then(r => setBatches(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+  };
+  useEffect(() => { fetchCandidates(); fetchTests(); fetchBatches(); fetchOnlineStatus(); }, []);
   useEffect(() => {
     const id = setInterval(fetchOnlineStatus, 30000);
     return () => clearInterval(id);
   }, []);
 
-  const filtered = candidates.filter(c =>
-    (c.name || '').toLowerCase().includes(search.toLowerCase()) ||
-    (c.email || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = candidates.filter(c => {
+    if (filterBatch && String(c.batch_id || '') !== String(filterBatch)) return false;
+    const q = search.toLowerCase();
+    return (c.name || '').toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q);
+  });
 
   const createCandidate = async (e) => {
     e.preventDefault();
+    setError('');
     try {
       await api.post('/super/candidates', {
         name: form.name,
@@ -186,12 +256,22 @@ export default function CandidatesPage() {
         password: form.password,
         testId: form.testId || undefined,
         maxAttempts: form.testId ? parseInt(form.maxAttempts) : undefined,
+        batch_id: form.batch_id || null,
       });
       setShowCreate(false);
-      setForm({ name: '', email: '', password: '', testId: '', maxAttempts: 1 });
+      setForm({ name: '', email: '', password: '', testId: '', maxAttempts: 1, batch_id: '' });
       fetchCandidates();
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to create candidate');
+      const data = err.response?.data || {};
+      if (err.response?.status === 409 && (data.error === 'DUPLICATE_CANDIDATE' || data.error === 'EMAIL_EXISTS')) {
+        setDuplicateInfo({
+          errorCode: data.error,
+          message: data.message,
+          existingCandidate: data.existingCandidate || null,
+        });
+        return;
+      }
+      setError(data.error || data.message || 'Failed to create candidate');
     }
   };
 
@@ -216,9 +296,18 @@ export default function CandidatesPage() {
 
   const parseBulkCsv = (text) => {
     const lines = text.trim().split('\n').filter(l => l.trim());
-    return lines.map(line => {
+    if (lines.length === 0) return [];
+    // detect header
+    const firstCols = lines[0].split(',').map(c => c.trim());
+    const hasHeader = /^batch/i.test(firstCols[0] || '') || firstCols.some(c => /^(name|email|password|batchcode)$/i.test(c));
+    const dataLines = hasHeader ? lines.slice(1) : lines;
+    return dataLines.map(line => {
       const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, '').trim());
-      return cols.length >= 3 ? { name: cols[0], email: cols[1], password: cols[2] } : null;
+      // 4-col format: BatchCode,Name,Email,Password
+      if (cols.length >= 4) return { batchCode: cols[0], name: cols[1], email: cols[2], password: cols[3] };
+      // legacy 3-col: Name,Email,Password
+      if (cols.length >= 3) return { batchCode: '', name: cols[0], email: cols[1], password: cols[2] };
+      return null;
     }).filter(Boolean);
   };
 
@@ -252,11 +341,6 @@ export default function CandidatesPage() {
     try {
       const { data } = await api.post('/super/candidates/bulk-import', { candidates });
       setBulkResult(data);
-      const created = data.created?.length || 0;
-      const skipped = data.skipped?.length || 0;
-      const errs = data.errors?.length || 0;
-      if (created > 0) toast.success(`${created} candidate${created!==1?'s':''} imported${skipped?`, ${skipped} skipped (already exist)`:''}${errs?`, ${errs} errors`:''}`);
-      else if (skipped > 0) toast.info(`No new candidates — ${skipped} already exist`);
       fetchCandidates();
     } catch (err) {
       setBulkError(err.response?.data?.error || 'Bulk import failed');
@@ -265,9 +349,10 @@ export default function CandidatesPage() {
     }
   };
 
-  const revokeAll = async (id) => {
+  const revokeAll = async () => {
+    if (!confirmRevoke) return;
     try {
-      await api.put(`/super/candidates/${id}/revoke`);
+      await api.put(`/super/candidates/${confirmRevoke.id}/revoke`);
       fetchCandidates();
       setConfirmRevoke(null);
       toast.success('All test access revoked.');
@@ -318,7 +403,7 @@ export default function CandidatesPage() {
           <button className="btn btn-outline" onClick={() => { setShowBulkImport(true); setBulkCsvText(''); setBulkPreview([]); setBulkResult(null); setBulkError(''); }}>
             📥 Bulk Import
           </button>
-          <button className="btn btn-primary" onClick={() => { setForm({ name:'', email:'', password:'', testId:'', maxAttempts:1 }); setShowCreate(true); }}>
+          <button className="btn btn-primary" onClick={() => { setForm({ name:'', email:'', password:'', testId:'', maxAttempts:1, batch_id:'' }); setShowCreate(true); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Create Candidate
           </button>
@@ -328,16 +413,18 @@ export default function CandidatesPage() {
       {error && <div className="login-error">{error}</div>}
 
       <div className="table-container">
-        <div className="table-toolbar">
-          <div className="search-input-wrap">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input
-              className="search-input"
-              placeholder="Search by name or email..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12, alignItems: 'center', marginBottom: '1rem' }}>
+          <input
+            placeholder="Search by name or email..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ width: '100%', height: 40, padding: '10px 16px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', boxSizing: 'border-box', fontSize: 13, outline: 'none' }}
+          />
+          <select value={filterBatch} onChange={e => setFilterBatch(e.target.value)}
+            style={{ width: '100%', height: 40, padding: '10px 16px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', boxSizing: 'border-box', fontSize: 13, outline: 'none' }}>
+            <option value="">All Batches</option>
+            {batches.map(b => <option key={b.id} value={b.id}>{b.code} — {b.name}</option>)}
+          </select>
         </div>
 
         <div className="table-scroll-wrapper" style={{ width:'100%', overflowX:'auto', display:'block' }}>
@@ -346,6 +433,7 @@ export default function CandidatesPage() {
             <tr>
               <th>Candidate</th>
               <th>Created By</th>
+              <th>Batch</th>
               <th>Tests</th>
               <th>Status</th>
               <th>Actions</th>
@@ -353,7 +441,11 @@ export default function CandidatesPage() {
           </thead>
           <tbody>
             {filtered.map(c => (
-              <tr key={c.id}>
+              <tr
+                key={c.id}
+                onClick={(e) => { if (e.target.closest('button') || e.target.closest('input') || e.target.closest('a')) return; setPerfCandidateId(c.id); }}
+                style={{ cursor: 'pointer' }}
+              >
                 <td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg, #2563eb, #059669)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: '#fff', flexShrink: 0 }}>
@@ -366,6 +458,7 @@ export default function CandidatesPage() {
                   </div>
                 </td>
                 <td>{c.created_by_name || c.created_by || '-'}</td>
+                <td>{c.batch_code ? <span style={batchBadgeStyle}>{c.batch_code}</span> : <span style={{ color: 'rgba(255,255,255,0.25)' }}>-</span>}</td>
                 <td><span className="badge badge-count">{c.permissions_count ?? c.test_count ?? 0}</span></td>
                 <td>
                   {(() => {
@@ -385,14 +478,14 @@ export default function CandidatesPage() {
                     <button className="btn btn-sm btn-outline" onClick={() => navigate(`/super/candidates/${c.id}`)}>View</button>
                     <button className="btn btn-sm btn-primary" onClick={() => setShowAssign(c.id)}>Assign Test</button>
                     <button className="btn btn-sm btn-outline" onClick={() => { setShowResetPwd(c.id); setResetPwdForm({ password: '', confirm: '' }); setResetPwdError(''); }}>Reset Pwd</button>
-                    <button className="btn btn-sm btn-danger" onClick={() => setConfirmRevoke(c.id)}>Revoke All</button>
-                    <button className="btn btn-sm btn-danger" style={{ background: 'rgba(220,38,38,0.15)', borderColor: 'rgba(220,38,38,0.4)' }} onClick={() => setConfirmDelete({ id: c.id, name: c.name })}>Delete</button>
+                    <button className="btn btn-sm btn-danger" onClick={() => setConfirmRevoke({ id: c.id, name: c.name, email: c.email })}>Revoke All</button>
+                    <button className="btn btn-sm btn-danger" style={{ background: 'rgba(220,38,38,0.15)', borderColor: 'rgba(220,38,38,0.4)' }} onClick={() => setConfirmDelete({ id: c.id, name: c.name, email: c.email })}>Delete</button>
                   </div>
                 </td>
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan="5" className="table-empty">No candidates found</td></tr>
+              <tr><td colSpan="6" className="table-empty">No candidates found</td></tr>
             )}
           </tbody>
         </table>
@@ -406,7 +499,8 @@ export default function CandidatesPage() {
               <h3 className="modal-title">Create Candidate</h3>
               <button className="modal-close" onClick={() => setShowCreate(false)}>&times;</button>
             </div>
-            <form onSubmit={createCandidate} autoComplete="off">
+            <form onSubmit={createCandidate} autoComplete="off" style={{ display: 'contents' }}>
+              <div className="modal-body">
               <input type="text" style={{display:'none'}} aria-hidden="true" autoComplete="username" readOnly tabIndex={-1}/>
               <input type="password" style={{display:'none'}} aria-hidden="true" autoComplete="current-password" readOnly tabIndex={-1}/>
               <div className="form-group">
@@ -420,6 +514,13 @@ export default function CandidatesPage() {
               <div className="form-group">
                 <label className="form-label">Password</label>
                 <input className="form-input" type="password" required value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Secure password" autoComplete="new-password" name="new-candidate-password" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Batch <span style={{ color: 'rgba(255,255,255,0.4)', fontWeight: 400 }}>(optional)</span></label>
+                <select className="form-select" value={form.batch_id} onChange={e => setForm({ ...form, batch_id: e.target.value })} style={{ width: '100%' }}>
+                  <option value="">-- No batch --</option>
+                  {batches.filter(b => b.isActive).map(b => <option key={b.id} value={b.id}>{b.code} — {b.name}</option>)}
+                </select>
               </div>
               <div className="form-group">
                 <label className="form-label">Assign Test <span style={{ color: 'rgba(255,255,255,0.4)', fontWeight: 400 }}>(optional)</span></label>
@@ -439,6 +540,7 @@ export default function CandidatesPage() {
                   <input className="form-input" type="number" min="1" value={form.maxAttempts} onChange={e => setForm({ ...form, maxAttempts: e.target.value })} />
                 </div>
               )}
+              </div>
               <div className="modal-actions">
                 <button type="button" className="btn btn-outline" onClick={() => setShowCreate(false)}>Cancel</button>
                 <button type="submit" className="btn btn-primary">Create Candidate</button>
@@ -455,9 +557,10 @@ export default function CandidatesPage() {
               <h3 className="modal-title">Assign Test</h3>
               <button className="modal-close" onClick={() => { setShowAssign(null); setAssignError(''); setAssignSuccess(''); }}>&times;</button>
             </div>
-            {assignError && <div className="alert alert-error" style={{ margin: '0 0 12px', fontSize: 13 }}>{assignError}</div>}
-            {assignSuccess && <div style={{ padding: '10px 14px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 8, color: '#34d399', fontSize: 13, marginBottom: 12 }}>{assignSuccess}</div>}
-            <form onSubmit={assignTest}>
+            <form onSubmit={assignTest} style={{ display: 'contents' }}>
+              <div className="modal-body">
+              {assignError && <div className="alert alert-error" style={{ margin: '0 0 12px', fontSize: 13 }}>{assignError}</div>}
+              {assignSuccess && <div style={{ padding: '10px 14px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 8, color: '#34d399', fontSize: 13, marginBottom: 12 }}>{assignSuccess}</div>}
               <div className="form-group">
                 <label className="form-label">Test</label>
                 <CustomSelect
@@ -474,6 +577,7 @@ export default function CandidatesPage() {
                 <label className="form-label">Max Attempts</label>
                 <input className="form-input" type="number" min="1" value={assignForm.maxAttempts} onChange={e => setAssignForm({ ...assignForm, maxAttempts: e.target.value })} />
               </div>
+              </div>
               <div className="modal-actions">
                 <button type="button" className="btn btn-outline" onClick={() => { setShowAssign(null); setAssignError(''); setAssignSuccess(''); }}>Cancel</button>
                 <button type="submit" className="btn btn-primary">Assign Test</button>
@@ -484,23 +588,16 @@ export default function CandidatesPage() {
       )}
 
       {/* Confirm Revoke Modal */}
-      {confirmRevoke && (
-        <div className="modal-overlay" onClick={() => setConfirmRevoke(null)}>
-          <div className="modal-content" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">⚠️ Revoke All Access</h3>
-              <button className="modal-close" onClick={() => setConfirmRevoke(null)}>&times;</button>
-            </div>
-            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, lineHeight: 1.6, marginBottom: 20 }}>
-              This will remove all test assignments for this candidate. They will no longer be able to access any tests. This action cannot be undone.
-            </p>
-            <div className="modal-actions">
-              <button className="btn btn-outline" onClick={() => setConfirmRevoke(null)}>Cancel</button>
-              <button className="btn btn-danger" onClick={() => revokeAll(confirmRevoke)}>Revoke All Access</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        open={!!confirmRevoke}
+        title="Revoke All Access"
+        message="Are you sure? This will remove all test assignments for this candidate. They will no longer be able to access any tests. This action cannot be undone."
+        itemName={confirmRevoke ? `${confirmRevoke.name} · ${confirmRevoke.email || ''}` : ''}
+        confirmText="Yes, Revoke All Access"
+        confirmColor="#BA7517"
+        onCancel={() => setConfirmRevoke(null)}
+        onConfirm={revokeAll}
+      />
 
       {/* Reset Password Modal */}
       {showResetPwd && (
@@ -510,8 +607,9 @@ export default function CandidatesPage() {
               <h3 className="modal-title">🔑 Reset Password</h3>
               <button className="modal-close" onClick={() => setShowResetPwd(null)}>&times;</button>
             </div>
-            {resetPwdError && <div className="login-error" style={{ margin: '0 0 12px', fontSize: 13 }}>{resetPwdError}</div>}
-            <form onSubmit={resetPassword} autoComplete="off">
+            <form onSubmit={resetPassword} autoComplete="off" style={{ display: 'contents' }}>
+              <div className="modal-body">
+              {resetPwdError && <div className="login-error" style={{ margin: '0 0 12px', fontSize: 13 }}>{resetPwdError}</div>}
               <div className="form-group">
                 <label className="form-label">New Password</label>
                 <input className="form-input" type="password" required value={resetPwdForm.password} onChange={e => setResetPwdForm({ ...resetPwdForm, password: e.target.value })} placeholder="Min. 6 characters" autoComplete="new-password" />
@@ -519,6 +617,7 @@ export default function CandidatesPage() {
               <div className="form-group">
                 <label className="form-label">Confirm Password</label>
                 <input className="form-input" type="password" required value={resetPwdForm.confirm} onChange={e => setResetPwdForm({ ...resetPwdForm, confirm: e.target.value })} placeholder="Repeat password" autoComplete="new-password" />
+              </div>
               </div>
               <div className="modal-actions">
                 <button type="button" className="btn btn-outline" onClick={() => setShowResetPwd(null)}>Cancel</button>
@@ -530,25 +629,26 @@ export default function CandidatesPage() {
       )}
 
       {/* Permanent Delete Confirmation Modal */}
-      {confirmDelete && (
-        <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
-          <div className="modal-content" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">🗑️ Delete Candidate Permanently</h3>
-              <button className="modal-close" onClick={() => setConfirmDelete(null)}>&times;</button>
-            </div>
-            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, lineHeight: 1.6, marginBottom: 8 }}>
-              You are about to permanently delete <strong style={{ color: '#f87171' }}>{confirmDelete.name}</strong>.
-            </p>
-            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, lineHeight: 1.6, marginBottom: 20 }}>
-              This will remove the candidate, all their test assignments, and all session history. <strong style={{ color: '#fca5a5' }}>This cannot be undone.</strong>
-            </p>
-            <div className="modal-actions">
-              <button className="btn btn-outline" onClick={() => setConfirmDelete(null)}>Cancel</button>
-              <button className="btn btn-danger" onClick={deleteCandidate}>Delete Permanently</button>
-            </div>
-          </div>
-        </div>
+      <ConfirmModal
+        open={!!confirmDelete}
+        title="Delete Candidate"
+        message="Are you sure you want to delete this candidate? This action cannot be undone and will remove all their test data."
+        itemName={confirmDelete ? `${confirmDelete.name} · ${confirmDelete.email || ''}` : ''}
+        confirmText="Yes, Delete Candidate"
+        confirmColor="#E24B4A"
+        onCancel={() => setConfirmDelete(null)}
+        onConfirm={deleteCandidate}
+      />
+
+      {/* Duplicate Warning Modal (intercepts 409 from Create flow) */}
+      {duplicateInfo && (
+        <DuplicateWarningModal
+          errorCode={duplicateInfo.errorCode}
+          message={duplicateInfo.message}
+          existingCandidate={duplicateInfo.existingCandidate}
+          onGoBack={() => setDuplicateInfo(null)}
+          onDismiss={() => { setDuplicateInfo(null); setShowCreate(false); }}
+        />
       )}
 
       {/* Bulk Import Modal */}
@@ -559,9 +659,10 @@ export default function CandidatesPage() {
               <h3 className="modal-title">📥 Bulk Import Candidates</h3>
               <button className="modal-close" onClick={() => setShowBulkImport(false)}>&times;</button>
             </div>
+            <div className="modal-body">
             <div style={{ marginBottom: 12, padding: '10px 14px', background: 'rgba(99,102,241,0.08)', borderRadius: 8, fontSize: 13, color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(99,102,241,0.2)' }}>
-              CSV format (one per line): <code style={{ color: '#818cf8' }}>Full Name, email@example.com, Password123</code><br />
-              No header row needed. Existing emails will be skipped.
+              CSV format: <code style={{ color: '#818cf8' }}>BatchCode,Name,Email,Password</code><br />
+              Header row is auto-detected. BatchCode is optional (leave empty for unassigned). Unknown batch codes are rejected. Existing emails are skipped.
             </div>
             {bulkError && <div className="login-error" style={{ margin: '0 0 12px' }}>{bulkError}</div>}
 
@@ -604,25 +705,36 @@ export default function CandidatesPage() {
                 onChange={e => handleBulkCsvChange(e.target.value)}
               />
             </div>
-            {bulkPreview.length > 0 && !bulkResult && (
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>{bulkPreview.length} candidate(s) ready to import:</div>
-                <div style={{ maxHeight: 120, overflowY: 'auto', background: 'rgba(0,0,0,0.2)', borderRadius: 6, padding: '6px 10px' }}>
-                  {bulkPreview.slice(0, 10).map((c, i) => (
-                    <div key={i} style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', padding: '2px 0' }}>{c.name} — {c.email}</div>
-                  ))}
-                  {bulkPreview.length > 10 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>...and {bulkPreview.length - 10} more</div>}
+            {bulkPreview.length > 0 && !bulkResult && (() => {
+              const knownCodes = new Set(batches.map(b => b.code));
+              const validCount = bulkPreview.filter(c => !c.batchCode || knownCodes.has(c.batchCode.toUpperCase())).length;
+              const unknownCount = bulkPreview.length - validCount;
+              return (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}>
+                    <span style={{ color: '#34d399' }}>{validCount} valid row{validCount!==1?'s':''}</span>
+                    {unknownCount > 0 && <span style={{ color: '#f87171' }}>, {unknownCount} row{unknownCount!==1?'s':''} with unknown batch codes</span>}
+                  </div>
+                  <div className="dropdown-scroll" style={{ maxHeight: 160, overflowY: 'auto', background: 'rgba(0,0,0,0.2)', borderRadius: 6, padding: '6px 10px' }}>
+                    {bulkPreview.slice(0, 20).map((c, i) => {
+                      const unknown = c.batchCode && !knownCodes.has(c.batchCode.toUpperCase());
+                      return (
+                        <div key={i} style={{ fontSize: 12, color: unknown ? '#f87171' : 'rgba(255,255,255,0.7)', padding: '2px 0', background: unknown ? 'rgba(239,68,68,0.08)' : 'transparent' }}>
+                          {c.batchCode ? <span style={batchBadgeStyle}>{c.batchCode.toUpperCase()}</span> : <span style={{ color: 'rgba(255,255,255,0.3)' }}>(no batch)</span>}
+                          {' '}{c.name} — {c.email}
+                          {unknown && ' ⚠ unknown batch'}
+                        </div>
+                      );
+                    })}
+                    {bulkPreview.length > 20 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>...and {bulkPreview.length - 20} more</div>}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
             {bulkResult && (
-              <div style={{ marginBottom: 12, padding: '12px 14px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8, fontSize: 13 }}>
-                <div style={{ color: '#34d399', fontWeight: 700, marginBottom: 6 }}>Import Complete</div>
-                <div style={{ color: 'rgba(255,255,255,0.7)' }}>✅ Created: {bulkResult.created?.length || 0}</div>
-                <div style={{ color: 'rgba(255,255,255,0.5)' }}>⏭ Skipped: {bulkResult.skipped?.length || 0}</div>
-                {bulkResult.errors?.length > 0 && <div style={{ color: '#f87171' }}>❌ Errors: {bulkResult.errors.length}</div>}
-              </div>
+              <BulkImportSummary result={bulkResult} />
             )}
+            </div>
             <div className="modal-actions">
               <button className="btn btn-outline" onClick={() => setShowBulkImport(false)}>Close</button>
               {!bulkResult && (
@@ -633,6 +745,13 @@ export default function CandidatesPage() {
             </div>
           </div>
         </div>
+      )}
+      {perfCandidateId && (
+        <CandidatePerformance
+          candidateId={perfCandidateId}
+          apiPrefix="/super"
+          onClose={() => setPerfCandidateId(null)}
+        />
       )}
     </div>
   );

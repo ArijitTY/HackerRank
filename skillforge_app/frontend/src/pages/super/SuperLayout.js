@@ -4,13 +4,13 @@ import AdminsPage from './AdminsPage';
 import CandidatesPage from './CandidatesPage';
 import CandidateDetail from './CandidateDetail';
 import ResultsPage from './ResultsPage';
-import LeaderboardPage from './LeaderboardPage';
 import LiveMonitor from './LiveMonitor';
 import NetworkPage from './NetworkPage';
 import DesignTestPage from './DesignTestPage';
 import AuditLogPage from './AuditLogPage';
 import InterviewPage from './InterviewPage';
 import SettingsPage from './SettingsPage';
+import BatchesPage from './BatchesPage';
 
 const navItems = [
   {
@@ -20,6 +20,10 @@ const navItems = [
   {
     path: '/super/admins', label: 'Admins',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+  },
+  {
+    path: '/super/batches', label: 'Batches',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
   },
   {
     path: '/super/candidates', label: 'Candidates',
@@ -32,10 +36,6 @@ const navItems = [
   {
     path: '/super/results', label: 'Results',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-  },
-  {
-    path: '/super/leaderboard', label: 'Leaderboard',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M17 3H7l-2 7h14z"/><path d="M3 10h18"/></svg>
   },
   {
     path: '/super/live', label: 'Live Monitor', live: true,
@@ -126,11 +126,11 @@ export default function SuperLayout({ user, onLogout }) {
         <Routes>
           <Route index element={<Dashboard />} />
           <Route path="admins" element={<AdminsPage />} />
+          <Route path="batches" element={<BatchesPage />} />
           <Route path="candidates" element={<CandidatesPage />} />
           <Route path="candidates/:id" element={<CandidateDetail />} />
           <Route path="design-test" element={<DesignTestPage />} />
           <Route path="results" element={<ResultsPage />} />
-          <Route path="leaderboard" element={<LeaderboardPage />} />
           <Route path="live" element={<LiveMonitor />} />
           <Route path="network" element={<NetworkPage />} />
           <Route path="audit-log" element={<AuditLogPage />} />

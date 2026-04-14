@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { formatIST, formatISTDate, nowLocalIso } from '../../utils/dateUtils';
+import { formatIST, formatISTDate, nowLocalIso, formatDateTime } from '../../utils/dateUtils';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api';
 import PerformanceAnalytics from '../../components/PerformanceAnalytics';
@@ -44,6 +44,7 @@ const STATUS_META = {
 export default function CandidateDashboard({ user }) {
   const [tests, setTests] = useState([]);
   const [candidate, setCandidate] = useState(null);
+  const [activeSession, setActiveSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState(null);
@@ -54,7 +55,7 @@ export default function CandidateDashboard({ user }) {
   const fetchDashboard = () => {
     setLoading(true);
     api.get('/candidate/dashboard')
-      .then(r => { setTests((r.data.tests || []).filter(t => (t.testType || t.test_type || 'mcq') !== 'interview')); setCandidate(r.data.candidate || null); })
+      .then(r => { setTests((r.data.tests || []).filter(t => (t.testType || t.test_type || 'mcq') !== 'interview')); setCandidate(r.data.candidate || null); setActiveSession(r.data.activeSession || null); })
       .catch(e => setError(e.response?.data?.error || 'Failed to load'))
       .finally(() => setLoading(false));
   };
@@ -129,9 +130,20 @@ export default function CandidateDashboard({ user }) {
           <div>
             <h1 style={{fontSize:24,fontWeight:800,color:'#f8fafc',letterSpacing:-0.4,margin:0}}>Welcome back, {userName}!</h1>
             <p style={{fontSize:13,color:'rgba(255,255,255,0.35)',margin:0}}>{candidate?.email}</p>
+            {candidate?.batch_code && (
+              <div style={{ marginTop: 4 }}>
+                <span style={{ display:'inline-block', padding:'2px 10px', borderRadius:6, background:'rgba(124,58,237,0.18)', color:'#a78bfa', fontFamily:'monospace', fontSize:11, fontWeight:700 }}>
+                  Batch: {candidate.batch_code}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {activeSession && (
+        <ActiveSessionCard session={activeSession} />
+      )}
 
       {/* Stats */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:28}}>
@@ -400,6 +412,37 @@ export default function CandidateDashboard({ user }) {
 
       {/* Performance Analytics Section */}
       <PerformanceAnalytics />
+    </div>
+  );
+}
+
+function ActiveSessionCard({ session }) {
+  const pillMap = {
+    active:   { bg: 'rgba(52,211,153,0.18)', color: '#34d399', label: 'Active' },
+    upcoming: { bg: 'rgba(148,163,184,0.18)', color: '#cbd5e1', label: 'Upcoming' },
+    expired:  { bg: 'rgba(248,113,113,0.18)', color: '#f87171', label: 'Expired' },
+  };
+  const pill = pillMap[session.status] || pillMap.active;
+  const copyUrl = () => { if (session.tunnelUrl) navigator.clipboard.writeText(session.tunnelUrl).catch(() => {}); };
+  return (
+    <div style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.12), rgba(37,99,235,0.08))', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 14, padding: 18, marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <span style={{ padding: '3px 12px', borderRadius: 20, background: pill.bg, color: pill.color, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{pill.label}</span>
+        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, color: '#a78bfa', fontWeight: 700 }}>
+          Session: {session.sessionCode}
+        </span>
+      </div>
+      <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>Drive: {session.sessionName}</div>
+      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>
+        Available: {formatDateTime(session.dateFrom)} — {formatDateTime(session.dateTo)}
+      </div>
+      {session.tunnelUrl && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'rgba(0,0,0,0.3)', borderRadius: 8, marginTop: 4 }}>
+          <span style={{ fontSize: 11, textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)' }}>Access URL:</span>
+          <code style={{ flex: 1, fontSize: 12, color: '#7c3aed', fontFamily: 'monospace', wordBreak: 'break-all' }}>{session.tunnelUrl}</code>
+          <button onClick={copyUrl} style={{ padding: '4px 10px', background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.4)', color: '#a78bfa', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>Copy</button>
+        </div>
+      )}
     </div>
   );
 }

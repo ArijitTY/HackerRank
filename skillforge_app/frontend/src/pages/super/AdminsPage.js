@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { formatIST, formatISTDate, nowLocalIso } from '../../utils/dateUtils';
 import api from '../../api';
+import ConfirmModal from '../../components/ConfirmModal';
 
 export default function AdminsPage() {
   const [admins, setAdmins] = useState([]);
@@ -167,7 +168,7 @@ export default function AdminsPage() {
                     <button
                       className="btn btn-sm btn-danger"
                       style={{ background: 'rgba(220,38,38,0.15)', borderColor: 'rgba(220,38,38,0.4)' }}
-                      onClick={() => setConfirmDelete({ id: a.id, name: a.name })}
+                      onClick={() => setConfirmDelete({ id: a.id, name: a.name, email: a.email })}
                     >
                       Delete
                     </button>
@@ -184,26 +185,16 @@ export default function AdminsPage() {
       </div>
 
       {/* Permanent Delete Confirmation Modal */}
-      {confirmDelete && (
-        <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
-          <div className="modal-content" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">🗑️ Delete Admin Permanently</h3>
-              <button className="modal-close" onClick={() => setConfirmDelete(null)}>&times;</button>
-            </div>
-            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, lineHeight: 1.6, marginBottom: 8 }}>
-              You are about to permanently delete admin <strong style={{ color: '#f87171' }}>{confirmDelete.name}</strong>.
-            </p>
-            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, lineHeight: 1.6, marginBottom: 20 }}>
-              This will also delete all candidates created by this admin along with their test history. <strong style={{ color: '#fca5a5' }}>This cannot be undone.</strong>
-            </p>
-            <div className="modal-actions">
-              <button className="btn btn-outline" onClick={() => setConfirmDelete(null)}>Cancel</button>
-              <button className="btn btn-danger" onClick={deleteAdmin}>Delete Permanently</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        open={!!confirmDelete}
+        title="Delete Admin"
+        message="Are you sure you want to delete this admin? This will also delete all candidates created by this admin along with their test history. This action cannot be undone."
+        itemName={confirmDelete ? `${confirmDelete.name} · ${confirmDelete.email || ''}` : ''}
+        confirmText="Yes, Delete Admin"
+        confirmColor="#E24B4A"
+        onCancel={() => setConfirmDelete(null)}
+        onConfirm={deleteAdmin}
+      />
 
       {/* Reset Password Modal */}
       {showResetPwd && (
@@ -213,8 +204,9 @@ export default function AdminsPage() {
               <h3 className="modal-title">Reset Admin Password</h3>
               <button className="modal-close" onClick={() => setShowResetPwd(null)}>&times;</button>
             </div>
-            {resetPwdError && <div className="login-error" style={{ margin: '0 0 16px' }}>{resetPwdError}</div>}
-            <form onSubmit={resetPassword} autoComplete="off">
+            <form onSubmit={resetPassword} autoComplete="off" style={{ display: 'contents' }}>
+              <div className="modal-body">
+              {resetPwdError && <div className="login-error" style={{ margin: '0 0 16px' }}>{resetPwdError}</div>}
               <div className="form-group">
                 <label className="form-label">New Password</label>
                 <input
@@ -239,6 +231,7 @@ export default function AdminsPage() {
                   autoComplete="new-password"
                 />
               </div>
+              </div>
               <div className="modal-actions">
                 <button type="button" className="btn btn-outline" onClick={() => setShowResetPwd(null)}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={resetPwdLoading}>
@@ -257,7 +250,8 @@ export default function AdminsPage() {
               <h3 className="modal-title">Create Admin</h3>
               <button className="modal-close" onClick={() => setShowCreate(false)}>&times;</button>
             </div>
-            <form onSubmit={createAdmin} autoComplete="off">
+            <form onSubmit={createAdmin} autoComplete="off" style={{ display: 'contents' }}>
+              <div className="modal-body">
               <input type="text" style={{display:'none'}} aria-hidden="true" autoComplete="username" readOnly tabIndex={-1}/>
               <input type="password" style={{display:'none'}} aria-hidden="true" autoComplete="current-password" readOnly tabIndex={-1}/>
               <div className="form-group">
@@ -271,6 +265,7 @@ export default function AdminsPage() {
               <div className="form-group">
                 <label className="form-label">Password</label>
                 <input className="form-input" type="password" required value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Secure password" autoComplete="new-password" name="new-admin-password" />
+              </div>
               </div>
               <div className="modal-actions">
                 <button type="button" className="btn btn-outline" onClick={() => setShowCreate(false)}>Cancel</button>

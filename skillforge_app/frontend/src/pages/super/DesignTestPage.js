@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../api';
+import ConfirmModal from '../../components/ConfirmModal';
 
 const SUBJECT_COLORS = {
   Python: '#3b82f6', Python_Selenium: '#8b5cf6', Pytest: '#10b981',
@@ -26,6 +27,7 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
   const [diffLocked, setDiffLocked] = useState(new Set());
   const [typeLocked, setTypeLocked] = useState(new Set());
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deactivateConfirm, setDeactivateConfirm] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState({
     name: '', description: '',
@@ -56,13 +58,19 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
     }
   };
 
-  const handleDelete = async (testId, testName) => {
-    if (!window.confirm(`Deactivate test "${testName}"? It will no longer be available for new assignments.`)) return;
+  const handleDelete = (testId, testName) => {
+    setDeactivateConfirm({ id: testId, name: testName });
+  };
+
+  const doDeactivate = async () => {
+    if (!deactivateConfirm) return;
     try {
-      await api.delete(`${apiPrefix}/design-test/${testId}`);
+      await api.delete(`${apiPrefix}/design-test/${deactivateConfirm.id}`);
+      setDeactivateConfirm(null);
       fetchData();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to deactivate test');
+      setDeactivateConfirm(null);
     }
   };
 
@@ -272,26 +280,33 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
       {success && <div style={S.success}>{success}</div>}
 
       {/* ── Delete Confirmation Modal ─────────────────────────────── */}
-      {deleteConfirm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => !deleting && setDeleteConfirm(null)}>
-          <div style={{ background: '#0d1117', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 16, padding: 32, maxWidth: 440, width: '90%', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: 'white', marginBottom: 8 }}>Delete "{deleteConfirm.name}"?</div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', lineHeight: 1.7, marginBottom: 8 }}>
-              This will <strong style={{ color: '#f87171' }}>permanently delete</strong> the test and all its data — including questions, candidate sessions, and results.
-            </div>
-            {deleteConfirm.submittedCount > 0 && (
-              <div style={{ padding: '8px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 8, fontSize: 12, color: '#fbbf24', marginBottom: 16 }}>
-                ⚠️ {deleteConfirm.submittedCount} submitted session{deleteConfirm.submittedCount > 1 ? 's' : ''} will also be deleted.
-              </div>
-            )}
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', marginBottom: 24 }}>This action <strong>cannot be undone</strong>.</div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-              <button onClick={() => setDeleteConfirm(null)} disabled={deleting} style={{ padding: '10px 24px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }}>Cancel</button>
-              <button onClick={handleHardDelete} disabled={deleting} style={{ padding: '10px 24px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: deleting ? 'wait' : 'pointer', fontFamily: 'inherit', background: deleting ? 'rgba(239,68,68,0.3)' : 'rgba(239,68,68,0.85)', border: 'none', color: 'white' }}>{deleting ? 'Deleting...' : 'Yes, Delete'}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        open={!!deleteConfirm}
+        title="Delete Test"
+        message={
+          deleteConfirm && deleteConfirm.submittedCount > 0
+            ? `Are you sure? This will permanently delete the test and all its data. ${deleteConfirm.submittedCount} submitted session${deleteConfirm.submittedCount > 1 ? 's' : ''} will also be deleted. This action cannot be undone.`
+            : 'Are you sure? This will permanently delete the test and all its data — including questions, candidate sessions, and results. This action cannot be undone.'
+        }
+        itemName={deleteConfirm?.name || ''}
+        confirmText="Yes, Delete Test"
+        confirmColor="#E24B4A"
+        loading={deleting}
+        onCancel={() => setDeleteConfirm(null)}
+        onConfirm={handleHardDelete}
+      />
+
+      {/* ── Deactivate Confirmation Modal ─────────────────────────── */}
+      <ConfirmModal
+        open={!!deactivateConfirm}
+        title="Deactivate Test"
+        message="Are you sure you want to deactivate this test? It will no longer be available for new assignments, but existing data will be preserved."
+        itemName={deactivateConfirm?.name || ''}
+        confirmText="Yes, Deactivate Test"
+        confirmColor="#BA7517"
+        onCancel={() => setDeactivateConfirm(null)}
+        onConfirm={doDeactivate}
+      />
 
       {/* ===== CREATE FORM ===== */}
       {showCreate && (

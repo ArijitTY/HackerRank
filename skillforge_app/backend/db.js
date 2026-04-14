@@ -249,6 +249,57 @@ try { db.exec(`ALTER TABLE test_sessions ADD COLUMN hybrid_problem_ids_json TEXT
 try { db.exec(`ALTER TABLE test_sessions ADD COLUMN tab_violations INTEGER DEFAULT 0`); } catch (e) {}
 try { db.exec(`ALTER TABLE test_sessions ADD COLUMN violation_log_json TEXT DEFAULT '[]'`); } catch (e) {}
 
+// Add audit_log revert/restore columns
+try { db.exec(`ALTER TABLE audit_log ADD COLUMN deleted_data TEXT`); } catch (e) {}
+try { db.exec(`ALTER TABLE audit_log ADD COLUMN is_reverted INTEGER DEFAULT 0`); } catch (e) {}
+try { db.exec(`ALTER TABLE audit_log ADD COLUMN reverted_at TEXT`); } catch (e) {}
+try { db.exec(`ALTER TABLE audit_log ADD COLUMN reverted_by TEXT`); } catch (e) {}
+
+// ========== BATCHES ==========
+db.exec(`
+  CREATE TABLE IF NOT EXISTS batches (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    code TEXT UNIQUE NOT NULL,
+    description TEXT,
+    is_active INTEGER DEFAULT 1,
+    created_by TEXT,
+    created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', 'localtime')),
+    FOREIGN KEY (created_by) REFERENCES users(id)
+  );
+`);
+try { db.exec(`ALTER TABLE users ADD COLUMN batch_id TEXT`); } catch (e) {}
+try { db.exec(`CREATE INDEX IF NOT EXISTS idx_users_batch_id ON users(batch_id)`); } catch (e) {}
+
+// ========== DRIVE SESSIONS ==========
+db.exec(`
+  CREATE TABLE IF NOT EXISTS sessions (
+    id TEXT PRIMARY KEY,
+    session_code TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    batch_id TEXT NOT NULL,
+    test_id TEXT NOT NULL,
+    date_from TEXT NOT NULL,
+    date_to TEXT NOT NULL,
+    tunnel_type TEXT DEFAULT 'lan' CHECK(tunnel_type IN ('lan','ngrok')),
+    tunnel_url TEXT,
+    notes TEXT,
+    status TEXT DEFAULT 'active' CHECK(status IN ('active','completed','expired','cancelled')),
+    created_by TEXT,
+    created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', 'localtime')),
+    FOREIGN KEY (batch_id) REFERENCES batches(id),
+    FOREIGN KEY (test_id) REFERENCES tests(id),
+    FOREIGN KEY (created_by) REFERENCES users(id)
+  );
+`);
+try { db.exec(`ALTER TABLE test_permissions ADD COLUMN session_id TEXT`); } catch (e) {}
+try { db.exec(`ALTER TABLE test_permissions ADD COLUMN available_from TEXT`); } catch (e) {}
+try { db.exec(`ALTER TABLE test_permissions ADD COLUMN available_until TEXT`); } catch (e) {}
+try { db.exec(`ALTER TABLE test_sessions ADD COLUMN session_id TEXT`); } catch (e) {}
+try { db.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_batch_id ON sessions(batch_id)`); } catch (e) {}
+try { db.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_test_id ON sessions(test_id)`); } catch (e) {}
+try { db.exec(`CREATE INDEX IF NOT EXISTS idx_test_permissions_session_id ON test_permissions(session_id)`); } catch (e) {}
+
 // Add test scheduling columns
 try { db.exec(`ALTER TABLE tests ADD COLUMN available_from TEXT`); } catch (e) {}
 try { db.exec(`ALTER TABLE tests ADD COLUMN available_until TEXT`); } catch (e) {}
