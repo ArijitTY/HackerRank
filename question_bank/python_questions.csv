@@ -1,0 +1,1136 @@
+"id","subject","topic","difficulty","type","question","option_a","option_b","option_c","option_d","correct_answer","explanation","code_snippet"
+"1","Python","Data Types","Easy","mcq","Which of the following is an immutable data type in Python?","tuple","list","dict","set","A","Tuples are immutable sequences in Python. Once created, their elements cannot be changed, unlike lists, dicts, and sets.",""
+"2","Python","Data Types","Easy","mcq","What is the result of type(3.14) in Python?","<class 'float'>","<class 'int'>","<class 'decimal'>","<class 'double'>","A","Python uses float for decimal numbers. There is no built-in double type; Decimal is in the decimal module.",""
+"3","Python","Data Types","Easy","mcq","Which function converts a string '42' to an integer?","int()","str()","float()","chr()","A","int('42') parses the string and returns the integer 42. str() converts to string, float() to float, chr() to character.",""
+"4","Python","Data Types","Medium","mcq","What is the result of bool([]) in Python?","False","True","None","TypeError","A","Empty containers are falsy in Python. An empty list evaluates to False when converted to bool.",""
+"5","Python","Data Types","Medium","mcq","Which data type would you use to store a binary flag that is either on or off?","bool","int","str","bytes","A","bool is the natural choice for binary flags with values True/False. While int works, bool is semantically correct.",""
+"6","Python","Data Types","Hard","mcq","What is the output of isinstance(True, int) in Python?","True","False","TypeError","None","A","In Python, bool is a subclass of int. True is 1 and False is 0, so isinstance(True, int) returns True.",""
+"7","Python","Data Types","Easy","mcq","Which of the following creates a complex number in Python?","3 + 4j","3 + 4i","complex(3, 4i)","3.4j","A","Python uses j (not i) for the imaginary part of complex numbers. 3 + 4j creates the complex number (3+4j).",""
+"8","Python","Data Types","Medium","mcq","What does sys.getsizeof(0) return relative to sys.getsizeof(2**30)?","A smaller value","The same value","A larger value","It raises an error","A","Python integers have variable size. Larger integers require more memory, so getsizeof(0) < getsizeof(2**30).",""
+"9","Python","Strings","Easy","mcq","Which method converts all characters of a string to uppercase?","upper()","capitalize()","title()","swapcase()","A","str.upper() converts all characters to uppercase. capitalize() only capitalizes the first character.",""
+"10","Python","Strings","Easy","mcq","What does 'hello'.replace('l', 'r') return?","'herro'","'herlo'","'hello'","'rerro'","A","replace() replaces ALL occurrences of the substring. Both 'l' characters are replaced with 'r'.",""
+"11","Python","Strings","Medium","mcq","Which string method splits a string into a list based on a delimiter?","split()","partition()","slice()","divide()","A","str.split() splits a string by the given delimiter (whitespace by default) and returns a list of substrings.",""
+"12","Python","Strings","Medium","mcq","What is the output of 'python'[::-1]?","'nohtyp'","'python'","'pytho'","Error","A","The slice [::-1] reverses a string. Each character is taken in reverse order.",""
+"13","Python","Strings","Hard","mcq","Which of the following is true about Python string interning?","Small strings and identifiers may be interned automatically","All strings are interned","Strings are never interned","Only empty strings are interned","A","CPython automatically interns small strings and strings that look like identifiers for performance optimization.",""
+"14","Python","Strings","Easy","mcq","What does the strip() method do?","Removes leading and trailing whitespace","Removes all whitespace","Removes the first character","Removes the last character","A","strip() removes leading and trailing whitespace (or specified characters) from a string.",""
+"15","Python","Strings","Medium","mcq","What is an f-string in Python?","A formatted string literal prefixed with f","A frozen string","A file string","A function string","A","F-strings (f'...') allow embedding expressions inside string literals using curly braces, introduced in Python 3.6.",""
+"16","Python","Strings","Hard","mcq","What does 'abc'.encode('utf-8') return?","b'abc'","'abc'","[97, 98, 99]","('a', 'b', 'c')","A","encode() converts a string to bytes. For ASCII characters, the bytes literal looks like b'abc'.",""
+"17","Python","Lists","Easy","mcq","Which method adds an element to the end of a list?","append()","add()","insert()","push()","A","list.append(x) adds element x to the end of the list. insert() requires an index, and lists have no add() or push().",""
+"18","Python","Lists","Easy","mcq","What does len([1, 2, 3]) return?","3","2","4","1","A","len() returns the number of elements in a container. The list [1, 2, 3] has 3 elements.",""
+"19","Python","Lists","Medium","mcq","What is the difference between list.sort() and sorted(list)?","sort() modifies in-place and returns None; sorted() returns a new list","They are identical","sorted() modifies in-place","sort() returns a new list","A","list.sort() sorts in-place and returns None. sorted() creates and returns a new sorted list, leaving the original unchanged.",""
+"20","Python","Lists","Medium","mcq","What does [1, 2, 3] + [4, 5] produce?","[1, 2, 3, 4, 5]","[5, 7, 3]","Error","[[1,2,3],[4,5]]","A","The + operator concatenates two lists, creating a new list with all elements from both lists.",""
+"21","Python","Lists","Hard","mcq","What is the time complexity of list.pop(0) in Python?","O(n)","O(1)","O(log n)","O(n^2)","A","Removing the first element requires shifting all remaining elements, making it O(n). Use collections.deque for O(1) popleft.",""
+"22","Python","Lists","Easy","mcq","How do you create an empty list in Python?","[] or list()","() or tuple()","{} or dict()","new List()","A","An empty list is created with [] literal syntax or by calling list() with no arguments.",""
+"23","Python","Lists","Medium","mcq","What does list.extend([4, 5]) do compared to list.append([4, 5])?","extend adds each element individually; append adds the list as one element","They are identical","extend adds as one element; append adds individually","Both raise errors","A","extend() iterates over the argument and adds each element. append() adds the entire argument as a single element.",""
+"24","Python","Lists","Hard","mcq","What is the result of a = [1]; b = a; b.append(2); print(a)?","[1, 2]","[1]","[2]","Error","A","b = a does not copy the list; both variables reference the same object. Modifying b also modifies a.",""
+"25","Python","Dicts","Easy","mcq","How do you access the value associated with key 'name' in a dictionary d?","d['name']","d.name","d.get_value('name')","d->name","A","Dictionary values are accessed using bracket notation d['key']. d.get('name') also works with a default.",""
+"26","Python","Dicts","Easy","mcq","Which method returns all keys of a dictionary?","keys()","values()","items()","get()","A","dict.keys() returns a view object containing all keys. values() returns values, items() returns key-value pairs.",""
+"27","Python","Dicts","Medium","mcq","What happens when you access a key that does not exist using d[key]?","KeyError is raised","None is returned","0 is returned","An empty string is returned","A","Accessing a missing key with bracket notation raises KeyError. Use d.get(key) to return None instead.",""
+"28","Python","Dicts","Medium","mcq","What does dict.setdefault('key', []) do?","Returns value if key exists, otherwise sets key to [] and returns it","Always sets the key to []","Deletes the key","Raises an error if key exists","A","setdefault returns the existing value if the key is present; otherwise it inserts the key with the default value and returns it.",""
+"29","Python","Dicts","Hard","mcq","In Python 3.7+, what is guaranteed about dictionary iteration order?","Insertion order is preserved","Keys are sorted alphabetically","Order is random","Order depends on hash values","A","Since Python 3.7, dictionaries maintain insertion order as part of the language specification (CPython did this since 3.6).",""
+"30","Python","Dicts","Easy","mcq","Which method safely retrieves a value from a dict with a default?","get()","fetch()","retrieve()","find()","A","dict.get(key, default) returns the value for key if it exists, otherwise returns the default (None if not specified).",""
+"31","Python","Dicts","Hard","mcq","What is the average time complexity of dictionary lookup in Python?","O(1)","O(n)","O(log n)","O(n^2)","A","Python dicts use hash tables, providing O(1) average-case lookup. Worst case is O(n) due to hash collisions.",""
+"32","Python","Dicts","Medium","mcq","Which of the following can NOT be used as a dictionary key?","[1, 2, 3]","(1, 2, 3)","42","'hello'","A","Lists are mutable and not hashable, so they cannot be dictionary keys. Tuples, ints, and strings are hashable.",""
+"33","Python","Sets","Easy","mcq","Which of the following correctly creates a set in Python?","{1, 2, 3}","[1, 2, 3]","(1, 2, 3)","set[1, 2, 3]","A","Curly braces with values create a set. Note: {} creates an empty dict, not an empty set; use set() for that.",""
+"34","Python","Sets","Easy","mcq","Which method adds an element to a set?","add()","append()","insert()","push()","A","set.add(x) adds element x to the set. Sets do not have append() or insert() methods.",""
+"35","Python","Sets","Medium","mcq","What does set_a & set_b return?","The intersection of set_a and set_b","The union","The difference","A boolean","A","The & operator computes the intersection of two sets, returning elements common to both.",""
+"36","Python","Sets","Medium","mcq","Can a set contain duplicate elements in Python?","No, duplicates are automatically removed","Yes, duplicates are allowed","Only if they are strings","Only with a special flag","A","Sets are collections of unique elements. Adding a duplicate element has no effect.",""
+"37","Python","Sets","Hard","mcq","What is a frozenset in Python?","An immutable version of a set","A set stored on disk","A sorted set","A set with fixed capacity","A","frozenset is an immutable set that can be used as a dictionary key or as an element of another set.",""
+"38","Python","Sets","Medium","mcq","What does set_a - set_b compute?","Elements in set_a but not in set_b","Elements in both sets","Elements in either set","The symmetric difference","A","The - operator computes the set difference: elements present in the left set but not in the right set.",""
+"39","Python","Sets","Hard","mcq","What is the time complexity of the 'in' operator for a set vs a list?","O(1) for set, O(n) for list","O(n) for both","O(1) for both","O(log n) for set, O(n) for list","A","Sets use hash tables for O(1) average membership testing. Lists require linear search, giving O(n).",""
+"40","Python","Tuples","Easy","mcq","How do you create a single-element tuple?","(1,)","(1)","[1]","tuple(1)","A","A trailing comma is required for single-element tuples. (1) is just the integer 1 in parentheses.",""
+"41","Python","Tuples","Easy","mcq","What happens if you try to modify an element of a tuple?","TypeError is raised","The element is modified","A new tuple is created","Nothing happens","A","Tuples are immutable. Attempting to assign to an index raises TypeError.",""
+"42","Python","Tuples","Medium","mcq","What is tuple unpacking?","Assigning tuple elements to multiple variables simultaneously","Converting a tuple to a list","Adding elements to a tuple","Removing elements from a tuple","A","Tuple unpacking (e.g., a, b, c = (1, 2, 3)) assigns each element to a corresponding variable.",""
+"43","Python","Tuples","Medium","mcq","Which method returns the number of occurrences of a value in a tuple?","count()","frequency()","occurrences()","tally()","A","tuple.count(x) returns the number of times x appears in the tuple. It is one of only two tuple methods (with index).",""
+"44","Python","Tuples","Hard","mcq","Why are tuples generally faster than lists in Python?","Tuples are stored more compactly and have immutability optimizations","Tuples use linked lists internally","Tuples are compiled to C code","There is no performance difference","A","Tuples have a smaller memory footprint and CPython caches small tuples. Immutability enables compiler optimizations.",""
+"45","Python","Functions","Easy","mcq","Which keyword is used to define a function in Python?","def","function","func","define","A","The 'def' keyword is used to define functions in Python, followed by the function name and parameters.",""
+"46","Python","Functions","Easy","mcq","What does a function return if there is no return statement?","None","0","Empty string","False","A","If a function has no return statement or a bare return, it implicitly returns None.",""
+"47","Python","Functions","Medium","mcq","What does *args represent in a function definition?","Variable-length positional arguments as a tuple","Variable-length keyword arguments","A required argument","A list of strings","A","*args collects extra positional arguments into a tuple, allowing the function to accept any number of positional arguments.",""
+"48","Python","Functions","Medium","mcq","What does **kwargs represent in a function definition?","Variable-length keyword arguments as a dictionary","Variable-length positional arguments","A required keyword argument","A frozen dictionary","A","**kwargs collects extra keyword arguments into a dictionary, allowing the function to accept any named arguments.",""
+"49","Python","Functions","Hard","mcq","What is the danger of using a mutable default argument in Python?","The default is shared across all calls, leading to unexpected accumulation","It causes a syntax error","It creates a new object each call","It only works with lists","A","Mutable default arguments are evaluated once at function definition time. Modifications persist across calls.",""
+"50","Python","Functions","Medium","mcq","What is a lambda function in Python?","An anonymous single-expression function","A function that runs in parallel","A recursive function","A generator function","A","Lambda functions are small anonymous functions defined with the lambda keyword, limited to a single expression.",""
+"51","Python","Functions","Hard","mcq","What is the purpose of the functools.lru_cache decorator?","It caches function results to avoid recomputation","It limits function calls per second","It logs function usage","It runs functions lazily","A","lru_cache memoizes function results based on arguments, using a Least Recently Used eviction policy.",""
+"52","Python","Functions","Easy","mcq","How do you call a function named greet with argument 'Alice'?","greet('Alice')","call greet('Alice')","greet 'Alice'","invoke greet('Alice')","A","Functions are called by their name followed by parentheses containing any arguments.",""
+"53","Python","OOP","Easy","mcq","Which keyword is used to create a class in Python?","class","Class","struct","object","A","The 'class' keyword (lowercase) is used to define a class in Python.",""
+"54","Python","OOP","Easy","mcq","What is the first parameter of an instance method in Python?","self","this","cls","instance","A","By convention, the first parameter of instance methods is 'self', referring to the instance itself.",""
+"55","Python","OOP","Medium","mcq","What is the purpose of __init__ in a Python class?","It initializes a new instance of the class","It destroys an instance","It creates a class variable","It defines the class name","A","__init__ is the constructor method called automatically when creating a new instance, used to initialize attributes.",""
+"56","Python","OOP","Medium","mcq","What is encapsulation in OOP?","Bundling data and methods together and restricting direct access","Inheriting from multiple classes","Creating abstract classes","Using global variables","A","Encapsulation bundles data (attributes) and methods within a class, using access control to protect internal state.",""
+"57","Python","OOP","Hard","mcq","What is the difference between __str__ and __repr__ in Python?","__str__ is for end-user display; __repr__ is for developers and debugging","They are identical","__repr__ is for display; __str__ is for debugging","__str__ cannot be overridden","A","__str__ returns a human-readable string, while __repr__ returns an unambiguous developer-oriented representation.",""
+"58","Python","OOP","Hard","mcq","What are Python descriptors?","Objects that define __get__, __set__, or __delete__ to customize attribute access","Functions that describe a class","Docstrings attached to methods","Type annotations","A","Descriptors implement the descriptor protocol (__get__, __set__, __delete__) to customize attribute access on classes.",""
+"59","Python","OOP","Medium","mcq","What does the @classmethod decorator do?","Binds the method to the class, receiving cls as first argument","Makes the method private","Makes the method static","Prevents method overriding","A","@classmethod binds the method to the class rather than the instance. It receives the class (cls) as its first argument.",""
+"60","Python","OOP","Medium","mcq","What does the @staticmethod decorator do?","Defines a method that does not receive self or cls","Makes the method unchangeable","Binds the method to the class","Creates a class variable","A","@staticmethod defines a method that belongs to the class namespace but does not receive self or cls automatically.",""
+"61","Python","Inheritance","Easy","mcq","How does a class Dog inherit from a class Animal in Python?","class Dog(Animal):","class Dog extends Animal:","class Dog inherits Animal:","class Dog <- Animal:","A","In Python, inheritance is specified by putting the parent class in parentheses after the class name.",""
+"62","Python","Inheritance","Medium","mcq","What is the MRO in Python?","Method Resolution Order - the order in which base classes are searched","Multiple Return Objects","Module Reference Order","Method Repeat Override","A","MRO determines the order in which methods are looked up in the class hierarchy, using the C3 linearization algorithm.",""
+"63","Python","Inheritance","Medium","mcq","What does super() do in Python?","Returns a proxy object that delegates method calls to a parent class","Creates a superclass","Overrides all parent methods","Prevents inheritance","A","super() returns a proxy object that delegates method calls to the parent class, following the MRO.",""
+"64","Python","Inheritance","Hard","mcq","What is the diamond problem in multiple inheritance?","Ambiguity when a class inherits from two classes that share a common base","A class inheriting from itself","Circular imports","A class with four parents","A","The diamond problem occurs when two parent classes share a common ancestor, creating ambiguity. Python solves this with C3 linearization.",""
+"65","Python","Inheritance","Easy","mcq","Can a Python class inherit from multiple parent classes?","Yes, Python supports multiple inheritance","No, only single inheritance is allowed","Only with a special keyword","Only abstract classes can","A","Python supports multiple inheritance. A class can list multiple parent classes separated by commas.",""
+"66","Python","Inheritance","Hard","mcq","What is an Abstract Base Class (ABC) in Python?","A class that cannot be instantiated and may have abstract methods","A class with no methods","A compiled C class","A class that only has static methods","A","ABCs from the abc module define interfaces. They cannot be instantiated directly and force subclasses to implement abstract methods.",""
+"67","Python","Decorators","Medium","mcq","What is a decorator in Python?","A function that modifies the behavior of another function","A comment style","A type annotation","A class attribute","A","Decorators are functions that take a function as input and return a modified version, applied with @decorator syntax.",""
+"68","Python","Decorators","Medium","mcq","What does @property do in Python?","Defines a method that can be accessed like an attribute","Makes an attribute private","Creates a class property file","Locks an attribute value","A","@property turns a method into a getter, allowing attribute-like access while running code behind the scenes.",""
+"69","Python","Decorators","Hard","mcq","What does functools.wraps do when writing a decorator?","Preserves the original function's metadata (name, docstring, etc.)","Wraps the function in a try-except","Makes the decorator reusable","Converts the function to a generator","A","functools.wraps copies the wrapped function's __name__, __doc__, and other attributes to the wrapper function.",""
+"70","Python","Decorators","Hard","mcq","How can a decorator accept arguments?","By using a decorator factory: a function that returns the actual decorator","Decorators cannot accept arguments","By using global variables","By modifying sys.argv","A","A decorator factory is a function that takes arguments and returns a decorator. Example: @repeat(3) uses repeat as a factory.",""
+"71","Python","Decorators","Medium","mcq","Which of the following is equivalent to @decorator on a function f?","f = decorator(f)","f = f(decorator)","decorator = f","f.decorator()","A","@decorator above a function definition is syntactic sugar for f = decorator(f) after the function is defined.",""
+"72","Python","Generators","Medium","mcq","What keyword makes a function a generator function?","yield","return","generate","next","A","The presence of yield in a function body makes it a generator function. Calling it returns a generator iterator.",""
+"73","Python","Generators","Medium","mcq","What is the main advantage of generators over lists?","They produce values lazily, saving memory","They are faster to iterate","They support indexing","They are thread-safe","A","Generators produce values one at a time on demand, avoiding storing the entire sequence in memory.",""
+"74","Python","Generators","Hard","mcq","What does the send() method do on a generator?","Sends a value into the generator, resuming it and providing the value to yield","Sends the generator to another thread","Closes the generator","Resets the generator","A","gen.send(value) resumes the generator and the yield expression evaluates to value, enabling two-way communication.",""
+"75","Python","Generators","Hard","mcq","What does 'yield from' do in Python?","Delegates to a sub-generator, forwarding sent values and exceptions","Yields a value from a list","Creates a generator from a file","Imports a generator from a module","A","'yield from iterable' delegates iteration to the sub-iterable, transparently forwarding send() and throw() calls.",""
+"76","Python","Generators","Easy","mcq","What does next() do when called on a generator?","Retrieves the next yielded value","Skips to the end","Resets the generator","Returns all remaining values","A","next(gen) resumes the generator until the next yield, returning the yielded value. Raises StopIteration when exhausted.",""
+"77","Python","Iterators","Medium","mcq","Which two methods must an iterator implement?","__iter__ and __next__","__init__ and __del__","__get__ and __set__","__enter__ and __exit__","A","The iterator protocol requires __iter__ (returning self) and __next__ (returning the next value or raising StopIteration).",""
+"78","Python","Iterators","Easy","mcq","What built-in function creates an iterator from an iterable?","iter()","next()","list()","range()","A","iter(iterable) returns an iterator object. You can then use next() to get successive elements.",""
+"79","Python","Iterators","Medium","mcq","What exception signals the end of an iterator?","StopIteration","EndOfIterator","IteratorError","IndexError","A","When an iterator is exhausted, __next__() raises StopIteration to signal there are no more elements.",""
+"80","Python","Iterators","Hard","mcq","What is the difference between an iterable and an iterator?","An iterable has __iter__ returning an iterator; an iterator also has __next__","They are the same thing","Iterables are faster","Iterators support indexing","A","An iterable implements __iter__() which returns an iterator. An iterator implements both __iter__() and __next__().",""
+"81","Python","Comprehensions","Easy","mcq","What is a list comprehension in Python?","A concise way to create lists using [expr for item in iterable]","A method to understand lists","A way to compress lists","A list sorting technique","A","List comprehensions provide a compact syntax for creating lists from existing iterables with optional filtering.",""
+"82","Python","Comprehensions","Easy","mcq","Which of the following is a valid dict comprehension?","{k: v for k, v in pairs}","[k: v for k, v in pairs]","(k: v for k, v in pairs)","<k: v for k, v in pairs>","A","Dict comprehensions use curly braces with key: value syntax inside the comprehension expression.",""
+"83","Python","Comprehensions","Medium","mcq","What does (x**2 for x in range(5)) create?","A generator expression","A tuple","A list","A set","A","Parentheses around a comprehension-like expression create a generator expression, not a tuple.",""
+"84","Python","Comprehensions","Medium","mcq","How do you add a condition to a list comprehension?","[x for x in lst if condition]","[x for x in lst where condition]","[x if condition for x in lst]","[x for x in lst when condition]","A","The if clause comes after the for clause to filter elements. [x for x in lst if x > 0] keeps only positive values.",""
+"85","Python","Comprehensions","Hard","mcq","What is a nested list comprehension?","A comprehension with multiple for clauses to handle nested iterations","A list inside a list","A comprehension that calls itself","A comprehension using recursion","A","Nested comprehensions have multiple for clauses, e.g., [x*y for x in range(3) for y in range(3)] creates a flat list.",""
+"86","Python","Exception Handling","Easy","mcq","Which keyword is used to catch exceptions in Python?","except","catch","handle","rescue","A","Python uses try/except blocks. The 'except' keyword catches specified exceptions.",""
+"87","Python","Exception Handling","Easy","mcq","What does the finally block do?","Executes code regardless of whether an exception occurred","Catches all exceptions","Raises an exception","Terminates the program","A","The finally block always executes after try/except, making it ideal for cleanup (closing files, connections).",""
+"88","Python","Exception Handling","Medium","mcq","What does the 'raise' keyword do?","Manually raises an exception","Catches an exception","Ignores an exception","Logs an exception","A","'raise' is used to explicitly throw an exception. 'raise ValueError(msg)' creates and raises a ValueError.",""
+"89","Python","Exception Handling","Medium","mcq","What is the purpose of the 'else' clause in a try/except block?","Executes only if no exception was raised in the try block","Catches remaining exceptions","Always executes","Executes if an exception was raised","A","The else clause runs only when the try block completes without raising any exception.",""
+"90","Python","Exception Handling","Hard","mcq","How do you create a custom exception class in Python?","By inheriting from Exception or a subclass of Exception","By using the error keyword","By modifying sys.exceptions","By writing a config file","A","Custom exceptions are created by subclassing Exception: class MyError(Exception): pass.",""
+"91","Python","Exception Handling","Hard","mcq","What is exception chaining in Python 3?","Using 'raise X from Y' to link a new exception to its cause","Catching multiple exceptions in one except","Raising exceptions in a loop","Using nested try blocks","A","'raise X from Y' sets Y as the __cause__ of X, preserving the chain of exceptions for debugging.",""
+"92","Python","File I/O","Easy","mcq","Which built-in function opens a file in Python?","open()","file()","read()","load()","A","open(filename, mode) is the built-in function to open files. It returns a file object.",""
+"93","Python","File I/O","Easy","mcq","What is the recommended way to handle files in Python?","Using a with statement (context manager)","Using try/finally","Calling close() manually","Using global file handles","A","The 'with' statement ensures proper resource cleanup by automatically closing the file when the block exits.",""
+"94","Python","File I/O","Medium","mcq","What mode opens a file for writing, creating it if it does not exist?","'w'","'r'","'x'","'a'","A","'w' mode opens for writing, truncating the file if it exists or creating it if it does not.",""
+"95","Python","File I/O","Medium","mcq","What is the difference between 'r' and 'rb' modes?","'r' opens in text mode; 'rb' opens in binary mode","'r' is read-only; 'rb' is read-write","'rb' is faster","There is no difference","A","'r' opens in text mode with encoding/decoding. 'rb' opens in binary mode, returning bytes objects.",""
+"96","Python","File I/O","Hard","mcq","What does the pathlib module provide over os.path?","Object-oriented filesystem paths with methods and operator overloading","Faster file operations","Network file access","Database file storage","A","pathlib provides Path objects with methods like .read_text(), operator / for joining, and cleaner cross-platform path handling.",""
+"97","Python","Modules","Easy","mcq","What keyword is used to import a module in Python?","import","include","require","using","A","The 'import' keyword loads a module. You can also use 'from module import name' for specific objects.",""
+"98","Python","Modules","Medium","mcq","What is the purpose of __init__.py in a directory?","It marks the directory as a Python package","It initializes variables","It runs first when Python starts","It is required for all directories","A","__init__.py makes a directory a Python package. In Python 3, namespace packages work without it, but it is still common.",""
+"99","Python","Modules","Medium","mcq","What does 'if __name__ == ""__main__"":' guard against?","Code running when the module is imported (it only runs when executed directly)","Syntax errors","Import errors","Name collisions","A","__name__ is '__main__' only when the script is run directly. When imported, it equals the module name.",""
+"100","Python","Modules","Hard","mcq","How does Python's module caching work?","Modules are cached in sys.modules after first import","Modules are reloaded every import","Modules are cached on disk","There is no caching","A","After a module is first imported, Python caches it in sys.modules. Subsequent imports use the cached version.",""
+"101","Python","Modules","Easy","mcq","What does 'from math import sqrt' do?","Imports only the sqrt function from the math module","Imports the entire math module","Creates a new sqrt function","Renames the math module","A","'from module import name' imports a specific object from a module directly into the current namespace.",""
+"102","Python","Regular Expressions","Easy","mcq","Which module provides regular expression support in Python?","re","regex","regexp","pattern","A","The 're' module is Python's built-in regular expression library. The third-party 'regex' module offers extended features.",""
+"103","Python","Regular Expressions","Medium","mcq","What does re.findall(pattern, string) return?","A list of all non-overlapping matches","The first match only","A boolean","A compiled pattern","A","re.findall() returns a list of all non-overlapping matches of the pattern in the string.",""
+"104","Python","Regular Expressions","Medium","mcq","What does the \d pattern match in a regular expression?","Any digit character","Any non-digit character","Any whitespace","The letter d","A","\d matches any Unicode digit (equivalent to [0-9] for ASCII). \D matches non-digits.",""
+"105","Python","Regular Expressions","Hard","mcq","What is a lookahead assertion in regex?","A pattern that matches only if followed by another pattern, without consuming it","A way to look at previous matches","A method to speed up matching","A named group","A","Lookahead (?=...) asserts that what follows matches the pattern but does not include it in the match result.",""
+"106","Python","Regular Expressions","Hard","mcq","What is the difference between re.match() and re.search()?","match() checks only at the start of the string; search() checks anywhere","They are identical","search() checks only at the start","match() is case-insensitive","A","re.match() anchors to the beginning of the string. re.search() scans through the entire string for a match.",""
+"107","Python","Multithreading","Medium","mcq","What is the GIL in Python?","Global Interpreter Lock - it prevents multiple threads from executing Python bytecode simultaneously","Global Import Lock","A garbage collection mechanism","A file locking system","A","The GIL is a mutex that protects access to Python objects, limiting true parallelism in CPython threads.",""
+"108","Python","Multithreading","Medium","mcq","Which module is used for thread-based parallelism in Python?","threading","multiprocessing","asyncio","concurrent","A","The threading module provides Thread and synchronization primitives for thread-based concurrency.",""
+"109","Python","Multithreading","Hard","mcq","When is multithreading beneficial despite the GIL?","For I/O-bound tasks where threads wait for external resources","For CPU-bound computation","Never, due to the GIL","Only with C extensions","A","The GIL is released during I/O operations, so threads can run concurrently for I/O-bound tasks like network requests.",""
+"110","Python","Multithreading","Hard","mcq","What is a race condition?","When multiple threads access shared data concurrently and the outcome depends on timing","When a thread finishes too quickly","When threads are created in order","A Python exception type","A","Race conditions occur when threads access shared state without proper synchronization, leading to unpredictable results.",""
+"111","Python","Multithreading","Medium","mcq","What does threading.Lock() provide?","A mutual exclusion lock to prevent concurrent access to shared resources","A way to lock files","A mechanism to pause threads","A thread-safe list","A","Lock() creates a mutex. Only one thread can acquire it at a time, protecting critical sections.",""
+"112","Python","Async/Await","Medium","mcq","What does the async keyword do before a function definition?","Defines a coroutine function","Makes the function run in a separate thread","Makes the function faster","Creates a daemon process","A","async def creates a coroutine function. Calling it returns a coroutine object that must be awaited.",""
+"113","Python","Async/Await","Medium","mcq","What does the await keyword do?","Suspends the coroutine until the awaited coroutine completes","Creates a new thread","Blocks the entire program","Deletes a coroutine","A","await pauses the current coroutine, allowing the event loop to run other tasks until the awaited result is ready.",""
+"114","Python","Async/Await","Hard","mcq","What is asyncio.gather() used for?","Running multiple coroutines concurrently and collecting results","Gathering thread outputs","Collecting garbage","Grouping exceptions","A","asyncio.gather(*coroutines) schedules multiple coroutines concurrently and returns their results as a list.",""
+"115","Python","Async/Await","Hard","mcq","What is the event loop in asyncio?","The central mechanism that schedules and runs coroutines","A loop that handles keyboard events","A GUI event handler","A file watcher","A","The event loop is the core of asyncio, managing the execution, scheduling, and I/O multiplexing of coroutines.",""
+"116","Python","Async/Await","Easy","mcq","Which module provides async/await support in Python's standard library?","asyncio","async","await","concurrent","A","asyncio is the standard library module for writing asynchronous code using async/await syntax.",""
+"117","Python","Built-ins","Easy","mcq","What does the map() function do?","Applies a function to each item of an iterable","Creates a dictionary","Sorts a list","Maps keys to values","A","map(func, iterable) returns an iterator that applies func to every item of the iterable.",""
+"118","Python","Built-ins","Easy","mcq","What does the filter() function do?","Returns elements from an iterable where the function returns True","Removes None values only","Sorts elements","Converts data types","A","filter(func, iterable) returns an iterator yielding elements for which func returns True.",""
+"119","Python","Built-ins","Medium","mcq","What does zip() do in Python?","Creates an iterator of tuples pairing elements from multiple iterables","Compresses files","Merges dictionaries","Concatenates strings","A","zip() pairs up elements from multiple iterables. It stops at the shortest iterable.",""
+"120","Python","Built-ins","Medium","mcq","What does enumerate() return?","An iterator of (index, value) tuples","The length of an iterable","A numbered string","A range object","A","enumerate(iterable, start=0) yields (index, element) tuples, useful for getting both index and value in a loop.",""
+"121","Python","Built-ins","Hard","mcq","What is the purpose of the __slots__ attribute in a class?","Restricts instance attributes to a fixed set, saving memory","Defines time slots for methods","Creates database slots","Limits method count","A","__slots__ replaces the per-instance __dict__ with a fixed set of attribute slots, reducing memory overhead.",""
+"122","Python","Built-ins","Easy","mcq","What does abs() return?","The absolute value of a number","The abstract class","The first element","A boolean","A","abs(x) returns the absolute value of x. For complex numbers, it returns the magnitude.",""
+"123","Python","Built-ins","Medium","mcq","What does the any() function do?","Returns True if any element in the iterable is truthy","Returns True if all elements are truthy","Picks a random element","Checks if the iterable is empty","A","any(iterable) returns True if at least one element is truthy. It short-circuits on the first True value.",""
+"124","Python","Built-ins","Hard","mcq","What does the id() function return?","The identity (memory address in CPython) of an object","A unique string identifier","The object's hash","The object's type","A","id(obj) returns a unique integer identifier for the object. In CPython, this is the memory address.",""
+"125","Python","Collections","Medium","mcq","What is collections.defaultdict?","A dict subclass that provides default values for missing keys","A read-only dictionary","A sorted dictionary","A dict that limits size","A","defaultdict takes a factory function (e.g., list, int) and uses it to create default values for missing keys.",""
+"126","Python","Collections","Medium","mcq","What is collections.Counter used for?","Counting hashable objects and returning a dict of counts","Counting loop iterations","A thread-safe counter","Counting lines in a file","A","Counter is a dict subclass for counting hashable objects. Counter('abcabc') gives Counter({'a':2,'b':2,'c':2}).",""
+"127","Python","Collections","Hard","mcq","What is collections.OrderedDict in Python 3.7+?","A dict subclass that remembers order and supports reordering operations","Identical to dict with no extra features","A dict sorted by keys","A deprecated class","A","While regular dicts maintain insertion order since 3.7, OrderedDict still offers move_to_end() and equality considers order.",""
+"128","Python","Collections","Easy","mcq","What is a namedtuple?","A tuple subclass with named fields accessible by attribute","A dictionary with ordered keys","A named variable","A tuple of names","A","namedtuple creates tuple subclasses with named fields, e.g., Point = namedtuple('Point', ['x', 'y']).",""
+"129","Python","Collections","Hard","mcq","What is collections.ChainMap?","A class that groups multiple dicts into a single view for lookups","A mapping with chained keys","A hash chain implementation","A blockchain-style dictionary","A","ChainMap groups multiple dicts and searches them in order during lookup. It is useful for scoped configurations.",""
+"130","Python","Scope","Easy","mcq","What is the LEGB rule in Python?","Local, Enclosing, Global, Built-in - the order of name lookup","Load, Execute, Generate, Build","List, Element, Group, Block","Lexical, Environmental, General, Base","A","LEGB describes Python's variable lookup order: Local scope, Enclosing function scope, Global scope, Built-in scope.",""
+"131","Python","Scope","Medium","mcq","What does the global keyword do?","Declares that a variable inside a function refers to the global scope","Creates a global function","Exports a variable to other modules","Makes a variable constant","A","The global keyword inside a function indicates that the variable refers to the module-level (global) variable.",""
+"132","Python","Scope","Medium","mcq","What does the nonlocal keyword do?","Refers to a variable in the nearest enclosing scope (not global)","Creates a variable outside any function","Deletes a local variable","Makes a variable thread-local","A","nonlocal binds a variable to the nearest enclosing function scope, enabling closures to modify outer variables.",""
+"133","Python","Scope","Hard","mcq","What happens if you assign to a variable name inside a function without global/nonlocal?","Python treats it as a local variable for the entire function","It modifies the global variable","It raises NameError","It creates both local and global variables","A","Any assignment in a function makes the name local to the entire function. Referencing before assignment raises UnboundLocalError.",""
+"134","Python","Closures","Medium","mcq","What is a closure in Python?","A nested function that remembers variables from its enclosing scope","A function that closes files","A class destructor","A locked function","A","A closure is an inner function that captures and remembers free variables from the enclosing function even after it returns.",""
+"135","Python","Closures","Medium","mcq","When is a closure created in Python?","When a nested function references a variable from its enclosing scope","When a function is imported","When a class is instantiated","When a module is loaded","A","A closure is formed when a nested function references free variables from the enclosing function scope.",""
+"136","Python","Closures","Hard","mcq","What attribute of a function object stores its closure variables?","__closure__","__vars__","__scope__","__env__","A","func.__closure__ is a tuple of cell objects containing the closed-over variables.",""
+"137","Python","Closures","Hard","mcq","What is the late binding issue with closures in loops?","Closures capture variables by reference, so loop variables share the last value","Closures cannot be used in loops","Loop closures are always eager","It only affects while loops","A","Closures capture the variable itself (not its value). In a loop, all closures share the same variable, which holds the final iteration value.",""
+"138","Python","Advanced Python","Hard","mcq","What is a metaclass in Python?","A class whose instances are classes (the class of a class)","A deprecated feature","A mixin class","An abstract class","A","Metaclasses define how classes behave. type is the default metaclass. Custom metaclasses inherit from type.",""
+"139","Python","Advanced Python","Hard","mcq","What is monkey patching in Python?","Dynamically modifying a class or module at runtime","A testing framework","A code obfuscation technique","A packaging tool","A","Monkey patching replaces attributes/methods of objects at runtime. It is powerful but can make code harder to maintain.",""
+"140","Python","Advanced Python","Medium","mcq","What is the purpose of __all__ in a module?","Defines the public interface for 'from module import *'","Lists all classes in the module","Imports all submodules","Prevents any imports","A","__all__ is a list of names that should be exported when 'from module import *' is used.",""
+"141","Python","Advanced Python","Hard","mcq","What does the weakref module provide?","References to objects that do not prevent garbage collection","Weak encryption","Thread-safe references","Compressed references","A","weakref creates references that do not increase the reference count, allowing the referenced object to be garbage collected.",""
+"142","Python","Advanced Python","Medium","mcq","What is the purpose of the __enter__ and __exit__ methods?","They implement the context manager protocol for use with 'with' statements","They control object creation and deletion","They manage imports","They handle exceptions only","A","__enter__ is called when entering a with block, __exit__ when leaving. Together they form the context manager protocol.",""
+"143","Python","Data Types","Hard","mcq","What is the difference between is and == in Python?","'is' checks identity (same object); '==' checks equality (same value)","'is' checks value; '==' checks identity","They are identical","'is' only works with strings","A","'is' compares object identity (id). '==' compares values using __eq__. Two objects can be equal but not identical.",""
+"144","Python","Strings","Hard","mcq","What is the time complexity of string concatenation in a loop using +=?","O(n^2) in the worst case because strings are immutable","O(n)","O(1)","O(n log n)","A","Each += creates a new string and copies existing content. Over n concatenations, this results in O(n^2) total work.",""
+"145","Python","Lists","Hard","mcq","What is the difference between a shallow copy and a deep copy of a list?","Shallow copy copies references to nested objects; deep copy recursively copies all objects","They are identical","Shallow copy is slower","Deep copy only works on flat lists","A","copy.copy() creates a shallow copy (nested objects are shared). copy.deepcopy() recursively copies all nested objects.",""
+"146","Python","Dicts","Hard","mcq","What does the | operator do with dictionaries in Python 3.9+?","Merges two dictionaries, with the right one taking precedence","Performs bitwise OR on values","Checks for key overlap","Creates a set from dict keys","A","In Python 3.9+, d1 | d2 merges dictionaries. If keys overlap, values from d2 take precedence.",""
+"147","Python","Functions","Hard","mcq","What are positional-only parameters in Python 3.8+?","Parameters before / in a function signature that must be passed positionally","Parameters that must be keywords","Parameters with default values","Parameters in lambda functions","A","Parameters before / in def f(a, b, /, c) must be passed as positional arguments, not keyword arguments.",""
+"148","Python","OOP","Hard","mcq","What is __new__ used for in Python?","Creating a new instance before __init__ is called","Renewing an existing instance","Creating a new module","Allocating memory manually","A","__new__ is a static method called before __init__. It actually creates the instance, while __init__ initializes it.",""
+"149","Python","Decorators","Medium","mcq","Can a class be used as a decorator in Python?","Yes, by implementing __call__","No, only functions can be decorators","Only with @classmethod","Only abstract classes","A","Any callable can be a decorator. A class with __call__ method can decorate functions by returning a callable instance.",""
+"150","Python","Generators","Medium","mcq","What is the difference between return and yield in a function?","return ends the function; yield pauses it and can resume","They are identical","yield ends the function","return pauses the function","A","return terminates the function and sends a value back. yield suspends the function, preserving state for resumption.",""
+"151","Python","Comprehensions","Hard","mcq","What is the set comprehension syntax in Python?","{expr for item in iterable}","[expr for item in iterable]","(expr for item in iterable)","<expr for item in iterable>","A","Set comprehensions use curly braces like {x**2 for x in range(5)}, creating a set of unique values.",""
+"152","Python","Exception Handling","Medium","mcq","What is the base class for all built-in exceptions in Python?","BaseException","Exception","Error","Throwable","A","BaseException is the root class. Exception is a subclass that most user-catchable exceptions derive from.",""
+"153","Python","File I/O","Hard","mcq","What is memory-mapped file I/O in Python?","Using mmap to map a file into memory for efficient random access","Reading entire files into memory","Using virtual memory for files","Caching files in RAM","A","The mmap module maps files into memory, allowing array-like access that is efficient for large files with random access patterns.",""
+"154","Python","Modules","Hard","mcq","What is a namespace package in Python 3?","A package without __init__.py that can span multiple directories","A package with named exports","A package in a namespace","A virtual package","A","Namespace packages (PEP 420) allow package portions to be split across multiple directories without __init__.py files.",""
+"155","Python","Regular Expressions","Medium","mcq","What does re.compile() return?","A compiled regular expression pattern object","A string","A boolean","A match object","A","re.compile(pattern) pre-compiles a regex for reuse, improving performance when the same pattern is used multiple times.",""
+"156","Python","Async/Await","Medium","mcq","Can you use await outside of an async function?","No, await can only be used inside an async function or at the top level of an async REPL","Yes, anywhere in the code","Yes, inside regular functions","Yes, inside class methods","A","await is only valid inside async functions (or top-level await in some environments). Using it elsewhere is a SyntaxError.",""
+"157","Python","Built-ins","Medium","mcq","What does the reversed() function return?","A reverse iterator","A reversed list","A reversed string","None","A","reversed() returns a reverse iterator. To get a list, wrap it: list(reversed(seq)).",""
+"158","Python","Collections","Medium","mcq","What is collections.deque optimized for?","Fast appends and pops from both ends","Fast random access","Sorting","Memory efficiency","A","deque (double-ended queue) provides O(1) append and pop from both ends, unlike lists which are O(n) for pop(0).",""
+"159","Python","Scope","Hard","mcq","What is name mangling in Python?","Rewriting __attr to _ClassName__attr to avoid accidental overrides in subclasses","Encrypting variable names","Removing unused variables","Renaming modules on import","A","Names starting with __ (double underscore) in a class are mangled to _ClassName__name to prevent accidental name clashes in inheritance.",""
+"160","Python","Advanced Python","Hard","mcq","What is the Global Interpreter Lock's impact on multiprocessing?","No impact - multiprocessing uses separate processes, each with its own GIL","It prevents multiprocessing entirely","It makes multiprocessing slower","It shares the GIL across processes","A","multiprocessing bypasses the GIL by using separate processes, each with its own Python interpreter and GIL.",""
+"161","Python","Data Types","Medium","mcq","What is the difference between a bytes object and a bytearray?","bytes is immutable; bytearray is mutable","They are identical","bytes is mutable; bytearray is immutable","bytearray is faster","A","bytes objects are immutable sequences of bytes. bytearray is the mutable counterpart, allowing in-place modification.",""
+"162","Python","Functions","Medium","mcq","What is a recursive function?","A function that calls itself to solve a problem","A function with multiple return statements","A function that uses generators","A function with no parameters","A","Recursive functions call themselves with modified arguments, typically with a base case to stop the recursion.",""
+"163","Python","OOP","Medium","mcq","What is polymorphism in Python?","The ability of different classes to provide their own implementation of the same method","Having multiple constructors","Using global variables in classes","Creating multiple instances","A","Polymorphism allows different classes to implement the same interface (method name) with different behaviors.",""
+"164","Python","Strings","Medium","mcq","Which method checks if a string starts with a given prefix?","begins()","startswith()","prefix()","has_start()","B","str.startswith(prefix) returns True if the string begins with the specified prefix.",""
+"165","Python","Lists","Easy","mcq","What does list.pop() return?","The first element","The last element and removes it","None","The list length","B","list.pop() removes and returns the last element. With an index argument, it removes and returns that element.",""
+"166","Python","Dicts","Medium","mcq","What does dict.pop(key, default) do when key is missing?","Raises KeyError","Returns the default value","Returns None always","Deletes the dictionary","B","dict.pop(key, default) returns and removes the value if key exists; otherwise returns default without raising an error.",""
+"167","Python","Functions","Easy","mcq","What is the correct way to define a function with a default parameter?","def f(x = 10):","def f(x=10):","def f(x:10):","def f(x->10):","B","Default parameters are defined with = in the function signature. Both x=10 and x = 10 work, but PEP 8 recommends no spaces.",""
+"168","Python","OOP","Easy","mcq","What is an instance of a class?","The class definition itself","A specific object created from the class","A method of the class","A class variable","B","An instance is a concrete object created by calling the class. Each instance has its own attribute values.",""
+"169","Python","Exception Handling","Easy","mcq","Which of these correctly catches a ValueError?","try: ... catch ValueError:","try: ... except ValueError:","try: ... handle ValueError:","try: ... rescue ValueError:","B","Python uses 'except' keyword to catch exceptions: try: ... except ValueError: ...",""
+"170","Python","Built-ins","Easy","mcq","What does round(3.7) return?","3","4","3.7","3.0","B","round(3.7) rounds to the nearest integer, returning 4. round() uses banker's rounding for .5 values.",""
+"171","Python","Tuples","Easy","mcq","Which of the following creates an empty tuple?","(,)","()","[]","{}","B","Empty parentheses () create an empty tuple. [] creates a list, {} creates a dict.",""
+"172","Python","Inheritance","Medium","mcq","If class B(A) does not define __init__, what happens when B() is called?","An error is raised","A's __init__ is called","No initialization occurs","A default __init__ is generated","B","Python follows the MRO. If B does not define __init__, it inherits and uses A's __init__.",""
+"173","Python","Iterators","Hard","mcq","What does itertools.chain() do?","Links iterators permanently","Chains multiple iterables into one sequential iterator","Creates a linked list","Chains function calls","B","itertools.chain(*iterables) concatenates iterables, yielding elements from each in sequence.",""
+"174","Python","Data Types","Easy","mcq","Which of the following is a mutable data type?","int","str","list","tuple","C","Lists are mutable in Python. Integers, strings, and tuples are all immutable.",""
+"175","Python","Strings","Easy","mcq","What is the result of 'hello' + ' ' + 'world'?","helloworld","hello world ","hello world","Error","C","String concatenation with + joins the strings as-is. The space in the middle produces 'hello world'.",""
+"176","Python","Sets","Easy","mcq","How do you create an empty set?","{}","set[]","set()","empty_set()","C","set() creates an empty set. {} creates an empty dictionary, not a set.",""
+"177","Python","Functions","Easy","mcq","What does the return keyword do in a function?","Prints a value","Pauses execution","Exits the function and optionally sends a value back","Loops through values","C","return exits the function immediately and optionally returns a value to the caller.",""
+"178","Python","File I/O","Medium","mcq","What mode appends to a file without truncating it?","'w'","'r'","'a'","'x'","C","'a' (append) mode opens the file for writing at the end. Unlike 'w', it does not truncate existing content.",""
+"179","Python","Regular Expressions","Easy","mcq","What does the + quantifier mean in regex?","Zero or more occurrences","Exactly one occurrence","One or more occurrences","Zero or one occurrence","C","+ matches one or more occurrences of the preceding element. * matches zero or more, ? matches zero or one.",""
+"180","Python","Multithreading","Medium","mcq","Which module should you use for CPU-bound parallel tasks in Python?","threading","asyncio","multiprocessing","concurrent.futures only","C","multiprocessing spawns separate processes, each with its own GIL, enabling true parallelism for CPU-bound work.",""
+"181","Python","Collections","Easy","mcq","What method returns the n most common elements from a Counter?","top(n)","frequent(n)","most_common(n)","best(n)","C","Counter.most_common(n) returns a list of the n most common elements and their counts.",""
+"182","Python","Advanced Python","Medium","mcq","What tool is commonly used for type checking in Python?","pylint","black","mypy","flake8","C","mypy is the most widely used static type checker for Python, using type annotations (PEP 484) to find type errors.",""
+"183","Python","Closures","Hard","mcq","How do you fix the late binding issue in a closure inside a loop?","Use global variables","Use a class instead","Use a default argument to capture the current value","Use threading","C","Using a default argument (lambda x=x: x) captures the current value at each iteration, avoiding late binding.",""
+"184","Python","Data Types","Medium","mcq","Which of the following evaluates to True in Python?","bool(0)","bool('')","bool([])","bool(' ')","D","A string containing a space is non-empty and therefore truthy. 0, empty string, and empty list are all falsy.",""
+"185","Python","Lists","Medium","mcq","Which of the following creates a deep copy of a list?","b = a","b = a[:]","b = list(a)","b = copy.deepcopy(a)","D","copy.deepcopy() recursively copies all nested objects. The others create shallow copies or mere references.",""
+"186","Python","Dicts","Easy","mcq","Which method removes all items from a dictionary?","delete()","remove()","pop()","clear()","D","dict.clear() removes all key-value pairs from the dictionary. pop() removes a single key.",""
+"187","Python","OOP","Medium","mcq","What denotes a 'private' attribute in Python by convention?","private keyword","protected keyword","Single underscore prefix _","Double underscore prefix __","D","Double underscore prefix triggers name mangling (_ClassName__attr), providing stronger access protection by convention.",""
+"188","Python","Modules","Medium","mcq","Which of the following is NOT a valid way to import in Python?","import os","from os import path","from os import path as p","import os.path as os","D","While syntactically valid, aliasing os.path as 'os' shadows the os module and is a problematic import practice.",""
+"189","Python","Built-ins","Easy","mcq","What does print() do by default at the end of output?","Adds a tab","Adds a space","Adds nothing","Adds a newline","D","print() adds a newline character at the end by default. Use end='' to suppress it.",""
+"190","Python","Functions","Medium","mcq","In def f(a, b, *, c), what is c?","A positional argument","A default argument","A variable-length argument","A keyword-only argument","D","Parameters after * must be passed as keyword arguments. c must be called as f(1, 2, c=3).",""
+"191","Python","Scope","Medium","mcq","What scope does a variable defined at the top level of a module have?","Local","Enclosing","Built-in","Global","D","Variables defined at module level have global scope. They are accessible throughout the module.",""
+"192","Python","Generators","Hard","mcq","What method is used to throw an exception into a generator?","raise()","error()","stop()","throw()","D","gen.throw(ExcType) throws an exception at the point where the generator is paused (at the yield expression).",""
+"193","Python","Advanced Python","Hard","mcq","Which Python module provides support for data classes?","typing","collections","abc","dataclasses","D","The dataclasses module (Python 3.7+) provides @dataclass decorator for auto-generating __init__, __repr__, etc.",""
+"194","Python","Strings","Medium","mcq","What does 'hello'.center(11, '*') return?","'***hello***'","'*hello*****'","'*****hello*'","'hello******'","A","center(width, fillchar) centers the string in a field of given width, padding with the fill character on both sides.",""
+"195","Python","Tuples","Medium","mcq","What is the result of (1, 2) + (3, 4)?","(1, 2, 3, 4)","(4, 6)","Error","((1,2),(3,4))","A","The + operator concatenates tuples, creating a new tuple with all elements from both.",""
+"196","Python","Decorators","Hard","mcq","What is a class decorator in Python?","A decorator applied to a class definition to modify or augment it","A decorator defined inside a class","A class method decorator","A decorator that returns a class","A","Class decorators are applied to class definitions using @decorator syntax. @dataclass is a common example.",""
+"197","Python","Iterators","Medium","mcq","What does itertools.islice(iterable, 5) do?","Returns the last 5 elements","Returns elements at index 5","Takes every 5th element","Returns the first 5 elements","D","itertools.islice(iterable, 5) returns an iterator over the first 5 elements, similar to iterable[:5] but for any iterator.",""
+"198","Python","File I/O","Easy","mcq","What method reads all lines of a file into a list?","read()","readline()","getlines()","readlines()","D","readlines() reads all lines and returns them as a list. read() returns the entire content as a string.",""
+"199","Python","Multithreading","Hard","mcq","What is a daemon thread in Python?","A thread that blocks other threads","A thread that runs at high priority","A thread that cannot be stopped","A background thread that dies when the main thread exits","D","Daemon threads are background threads that are terminated when the main program exits, regardless of their state.",""
+"200","Python","Async/Await","Hard","mcq","What is an async generator in Python?","A regular generator","A thread-safe generator","A generator that returns futures","A generator defined with async def and using yield","D","Async generators use 'async def' with 'yield', producing values asynchronously. Iterated with 'async for'.",""
+"201","Python","Data Types","Easy","output","What is the output of the following code?","<class 'int'>","<class 'float'>","int","42","A","type() returns the type of an object. For 42, it returns <class 'int'>.","print(type(42))"
+"202","Python","Data Types","Easy","output","What will this code print?","3","3.33","4","10","A","// is floor division. 10 // 3 = 3 (rounds down to the nearest integer).","x = 10
+y = 3
+print(x // y)"
+"203","Python","Data Types","Medium","output","What is the output?","False","True","0.3","Error","A","Due to floating-point representation, 0.1 + 0.2 is 0.30000000000000004, which is not equal to 0.3.","print(0.1 + 0.2 == 0.3)"
+"204","Python","Strings","Easy","output","What does this code output?","Pyt","Pyth","Py","Python","A","Slicing s[0:3] extracts characters at indices 0, 1, 2, giving 'Pyt'.","s = 'Python'
+print(s[0:3])"
+"205","Python","Strings","Medium","output","What is printed?","abcabcabc","abc3","abc abc abc","Error","A","The * operator repeats a string. 'abc' * 3 produces 'abcabcabc'.","print('abc' * 3)"
+"206","Python","Strings","Hard","output","What is the output?","heLlo","heLLo","HeLlo","hello","A","replace() with count=1 replaces only the first occurrence. The first 'l' becomes 'L'.","s = 'hello'
+print(s.replace('l', 'L', 1))"
+"207","Python","Lists","Easy","output","What does this code print?","5","1","4","Error","A","Negative indexing starts from the end. lst[-1] is the last element, which is 5.","lst = [1, 2, 3, 4, 5]
+print(lst[-1])"
+"208","Python","Lists","Medium","output","What is the output?","[1, 2, 3]","[1, 2, 3, 4]","[4, 1, 2, 3]","Error","A","a[:] creates a shallow copy. Modifying b does not affect a, so a remains [1, 2, 3].","a = [1, 2, 3]
+b = a[:]
+b.append(4)
+print(a)"
+"209","Python","Lists","Hard","output","What is printed?","[[1], [1], [1]]","[[1], [], []]","[1, [], []]","Error","A","[[]] * 3 creates three references to the SAME inner list. Appending to one affects all three.","x = [[]] * 3
+x[0].append(1)
+print(x)"
+"210","Python","Dicts","Easy","output","What does this code output?","3","6","2","Error","A","len() on a dictionary returns the number of key-value pairs. This dictionary has 3 entries.","d = {'a': 1, 'b': 2, 'c': 3}
+print(len(d))"
+"211","Python","Dicts","Medium","output","What is printed?","0","None","KeyError","z","A","dict.get(key, default) returns default when the key is missing. 'z' is not in d, so 0 is returned.","d = {'x': 1, 'y': 2}
+print(d.get('z', 0))"
+"212","Python","Sets","Easy","output","What is the output?","3","6","1","Error","A","Sets contain unique elements only. Duplicates are removed, leaving {1, 2, 3} with length 3.","s = {1, 2, 2, 3, 3, 3}
+print(len(s))"
+"213","Python","Sets","Medium","output","What does this print?","{1, 2, 3, 4}","{2, 3}","{1, 4}","Error","A","The | operator computes the union of two sets, combining all unique elements from both.","a = {1, 2, 3}
+b = {2, 3, 4}
+print(a | b)"
+"214","Python","Tuples","Easy","output","What is the output?","2","1","3","(1, 2)","A","Tuple indexing is zero-based. t[1] returns the second element, which is 2.","t = (1, 2, 3)
+print(t[1])"
+"215","Python","Tuples","Medium","output","What does this code print?","[2, 3, 4]","(2, 3, 4)","[1, 2, 3]","Error","A","Extended unpacking with *b captures the middle elements as a list: a=1, b=[2,3,4], c=5.","a, *b, c = (1, 2, 3, 4, 5)
+print(b)"
+"216","Python","Functions","Easy","output","What is the output?","7","34","12","None","A","The function adds 3 + 4 = 7 and returns it. print() displays 7.","def add(a, b):
+    return a + b
+print(add(3, 4))"
+"217","Python","Functions","Medium","output","What does this code print?","[1]\n[1, 1]","[1]\n[1]","[1, 1]\n[1, 1]","Error","A","The mutable default list is shared across calls. First call appends 1, second call appends another 1.","def f(x=[]):
+    x.append(1)
+    return x
+print(f())
+print(f())"
+"218","Python","Functions","Hard","output","What is printed?","15","10","5","Error","A","nonlocal x refers to x in outer. inner() modifies x from 10 to 15 and returns it.","def outer():
+    x = 10
+    def inner():
+        nonlocal x
+        x += 5
+        return x
+    return inner()
+print(outer())"
+"219","Python","OOP","Medium","output","What does this code output?","Canis Rex","Dog Rex","Rex Canis","Error","A","species is a class attribute ('Canis'). name is an instance attribute ('Rex'). Both are accessible via the instance.","class Dog:
+    species = 'Canis'
+    def __init__(self, name):
+        self.name = name
+d = Dog('Rex')
+print(d.species, d.name)"
+"220","Python","OOP","Hard","output","What is printed?","Hello from A","Hello from B","None","Error","A","C inherits from A (not B). C does not override greet(), so A's greet() is called.","class A:
+    def greet(self):
+        return 'Hello from A'
+class B(A):
+    def greet(self):
+        return 'Hello from B'
+class C(A):
+    pass
+print(C().greet())"
+"221","Python","Inheritance","Medium","output","What is the output?","1 2","2 1","1 1","Error","A","super().__init__() calls Base.__init__ which sets x=1. Then Child sets y=2.","class Base:
+    def __init__(self):
+        self.x = 1
+class Child(Base):
+    def __init__(self):
+        super().__init__()
+        self.y = 2
+c = Child()
+print(c.x, c.y)"
+"222","Python","Decorators","Medium","output","What does this code print?","14","7","34","Error","A","The decorator doubles the return value. add(3,4) returns 7, multiplied by 2 gives 14.","def double(func):
+    def wrapper(*args):
+        return func(*args) * 2
+    return wrapper
+
+@double
+def add(a, b):
+    return a + b
+
+print(add(3, 4))"
+"223","Python","Generators","Medium","output","What is printed?","1\n2","1\n1","3\n3","Error","A","Each next() call resumes the generator to the next yield. First yields 1, second yields 2.","def gen():
+    yield 1
+    yield 2
+    yield 3
+g = gen()
+print(next(g))
+print(next(g))"
+"224","Python","Generators","Hard","output","What is the output?","[0, 1, 1, 2, 3, 5]","[1, 1, 2, 3, 5, 8]","[0, 1, 2, 3, 5, 8]","Error","A","The generator yields Fibonacci numbers starting from 0. The first 6 values are 0, 1, 1, 2, 3, 5.","def fib():
+    a, b = 0, 1
+    while True:
+        yield a
+        a, b = b, a + b
+f = fib()
+print([next(f) for _ in range(6)])"
+"225","Python","Comprehensions","Easy","output","What does this code output?","[0, 1, 4, 9, 16]","[1, 4, 9, 16, 25]","[0, 2, 4, 6, 8]","Error","A","range(5) gives 0,1,2,3,4. Squaring each: 0,1,4,9,16.","print([x**2 for x in range(5)])"
+"226","Python","Comprehensions","Medium","output","What is printed?","[0, 2, 4, 6, 8]","[1, 3, 5, 7, 9]","[2, 4, 6, 8, 10]","[0, 1, 2, 3, 4]","A","The comprehension filters even numbers from 0-9. Even numbers in range(10) are 0, 2, 4, 6, 8.","print([x for x in range(10) if x % 2 == 0])"
+"227","Python","Exception Handling","Easy","output","What is the output?","caught","ZeroDivisionError","0","Error","A","Division by zero raises ZeroDivisionError, which is caught by the except clause, printing 'caught'.","try:
+    x = 1 / 0
+except ZeroDivisionError:
+    print('caught')"
+"228","Python","Exception Handling","Medium","output","What does this code print?","bad value\ndone","done","bad value","Error","A","int('abc') raises ValueError which is caught. Then finally executes regardless, printing both messages.","try:
+    x = int('abc')
+except ValueError:
+    print('bad value')
+finally:
+    print('done')"
+"229","Python","Scope","Medium","output","What is printed?","local\nglobal","global\nglobal","local\nlocal","Error","A","Inside f(), x is a local variable ('local'). Outside, x is the global variable ('global').","x = 'global'
+def f():
+    x = 'local'
+    print(x)
+f()
+print(x)"
+"230","Python","Scope","Hard","output","What is the output?","2","1","None","Error","A","The global keyword makes x refer to the global variable. f() changes it from 1 to 2.","x = 1
+def f():
+    global x
+    x = 2
+f()
+print(x)"
+"231","Python","Closures","Medium","output","What does this code print?","15","10","5","Error","A","make_adder(5) returns a closure that adds 5 to its argument. add5(10) returns 10 + 5 = 15.","def make_adder(n):
+    def adder(x):
+        return x + n
+    return adder
+add5 = make_adder(5)
+print(add5(10))"
+"232","Python","Closures","Hard","output","What is the output?","[2, 2, 2]","[0, 1, 2]","[0, 0, 0]","Error","A","Late binding: all lambdas reference the same variable i, which is 2 after the loop ends. All return 2.","funcs = []
+for i in range(3):
+    funcs.append(lambda: i)
+print([f() for f in funcs])"
+"233","Python","Built-ins","Easy","output","What is the output?","9","1","5","3","A","max() returns the largest argument. Among 3, 1, 4, 1, 5, 9, the maximum is 9.","print(max(3, 1, 4, 1, 5, 9))"
+"234","Python","Built-ins","Medium","output","What does this print?","[(1, 'a'), (2, 'b'), (3, 'c')]","[[1,'a'], [2,'b'], [3,'c']]","{1:'a', 2:'b', 3:'c'}","Error","A","zip pairs elements from both iterables into tuples. list() converts the zip object to a list.","print(list(zip([1,2,3], ['a','b','c'])))"
+"235","Python","Collections","Medium","output","What is the output?","[('a', 5), ('b', 2)]","[('a', 5), ('r', 2)]","{'a': 5, 'b': 2}","[5, 2]","A","Counter counts characters. 'a' appears 5 times, 'b' appears 2 times. most_common(2) returns the top 2.","from collections import Counter
+c = Counter('abracadabra')
+print(c.most_common(2))"
+"236","Python","Collections","Hard","output","What is printed?","[1, 2]","1","[1]","Error","A","defaultdict(list) creates an empty list for missing keys. We append 1 and 2 to dd['key'], giving [1, 2].","from collections import defaultdict
+dd = defaultdict(list)
+dd['key'].append(1)
+dd['key'].append(2)
+print(dd['key'])"
+"237","Python","Iterators","Easy","output","What is the output?","10\n20","10\n10","30\n30","Error","A","iter() creates an iterator. Each next() call returns the next element: first 10, then 20.","it = iter([10, 20, 30])
+print(next(it))
+print(next(it))"
+"238","Python","Iterators","Hard","output","What is printed?","[1, 2, 3]","[0, 1, 2]","[0, 1, 2, 3]","Error","A","The iterator increments self.i before returning, yielding 1, 2, 3. StopIteration fires when i >= 3.","class Count:
+    def __init__(self, n):
+        self.n = n
+        self.i = 0
+    def __iter__(self):
+        return self
+    def __next__(self):
+        if self.i >= self.n:
+            raise StopIteration
+        self.i += 1
+        return self.i
+print(list(Count(3)))"
+"239","Python","Regular Expressions","Medium","output","What is the output?","['123', '456']","['abc', 'def']","['1', '2', '3', '4', '5', '6']","Error","A","\d+ matches one or more digits. findall returns all matches: '123' and '456'.","import re
+print(re.findall(r'\d+', 'abc123def456'))"
+"240","Python","Regular Expressions","Hard","output","What does this code print?","('user', 'host')","'user@host'","['user', 'host']","None","A","Two capturing groups (\w+) match 'user' and 'host'. groups() returns them as a tuple.","import re
+m = re.match(r'(\w+)@(\w+)', 'user@host')
+print(m.groups())"
+"241","Python","Multithreading","Medium","output","What is the output?","[10]","[]","[5]","Error","A","The thread calls worker(5), appending 10 to results. join() waits for completion before printing.","import threading
+results = []
+def worker(n):
+    results.append(n * 2)
+t = threading.Thread(target=worker, args=(5,))
+t.start()
+t.join()
+print(results)"
+"242","Python","Advanced Python","Medium","output","What is the output?","Point(x=1, y=2)","<Point object>","(1, 2)","Error","A","@dataclass auto-generates __repr__ that shows the class name and field values.","from dataclasses import dataclass
+
+@dataclass
+class Point:
+    x: int
+    y: int
+
+p = Point(1, 2)
+print(p)"
+"243","Python","Advanced Python","Hard","output","What is printed?","1","None","Error","Meta","A","The metaclass __new__ adds 'version' to the namespace. MyClass gets version=1 as a class attribute.","class Meta(type):
+    def __new__(mcs, name, bases, namespace):
+        namespace['version'] = 1
+        return super().__new__(mcs, name, bases, namespace)
+class MyClass(metaclass=Meta):
+    pass
+print(MyClass.version)"
+"244","Python","Async/Await","Medium","output","What concept does this code demonstrate?","Concurrent coroutine execution - B prints before A","Sequential execution - A prints before B","Parallel threads","Error","A","asyncio.gather runs coroutines concurrently. B has a shorter delay (0.05s) so it prints before A (0.1s).","import asyncio
+async def say(msg, delay):
+    await asyncio.sleep(delay)
+    print(msg)
+async def main():
+    await asyncio.gather(say('A', 0.1), say('B', 0.05))
+asyncio.run(main())"
+"245","Python","File I/O","Easy","output","What does this code do?","Prints 'hello'","Prints nothing","Raises FileNotFoundError","Prints the file path","A","First block writes 'hello' to the file. Second block reads it back and prints 'hello'.","with open('test.txt', 'w') as f:
+    f.write('hello')
+with open('test.txt', 'r') as f:
+    print(f.read())"
+"246","Python","Modules","Easy","output","What is the output?","3","4","3.7","Error","A","math.floor() returns the largest integer less than or equal to the argument. floor(3.7) = 3.","import math
+print(math.floor(3.7))"
+"247","Python","Data Types","Hard","output","What is the output?","True\nFalse","True\nTrue","False\nFalse","False\nTrue","A","CPython caches integers from -5 to 256. a and b share the same object (True). 257 creates separate objects (False).","a = 256
+b = 256
+print(a is b)
+c = 257
+d = 257
+print(c is d)"
+"248","Python","Strings","Medium","output","What does this print?","['Hello', 'World!']","['Hello,', 'World!']","['Hello, World!']","Error","A","split(', ') splits on the comma-space delimiter, producing ['Hello', 'World!'].","s = 'Hello, World!'
+print(s.split(', '))"
+"249","Python","Lists","Medium","output","What is the output?","[5, 4, 3, 1, 1]","[1, 1, 3, 4, 5]","[5, 3, 4, 1, 1]","Error","A","sort(reverse=True) sorts in descending order. The sorted list is [5, 4, 3, 1, 1].","lst = [3, 1, 4, 1, 5]
+lst.sort(reverse=True)
+print(lst)"
+"250","Python","Dicts","Hard","output","What is printed?","{'a': 1, 'b': 3, 'c': 4}","{'a': 1, 'b': 2, 'c': 4}","{'b': 3, 'c': 4}","Error","A","update() merges dictionaries. 'b' is updated to 3, 'c' is added with 4. 'a' remains unchanged.","d = {'a': 1, 'b': 2}
+d.update({'b': 3, 'c': 4})
+print(d)"
+"251","Python","Functions","Medium","output","What is the output?","25","10","5","Error","A","The lambda creates a function that squares its argument. square(5) = 5 ** 2 = 25.","square = lambda x: x ** 2
+print(square(5))"
+"252","Python","Comprehensions","Hard","output","What is printed?","[1, 2, 3, 4, 5, 6]","[[1,2],[3,4],[5,6]]","[1, 3, 5, 2, 4, 6]","Error","A","The nested comprehension iterates rows then elements within each row, flattening the matrix.","matrix = [[1,2],[3,4],[5,6]]
+flat = [x for row in matrix for x in row]
+print(flat)"
+"253","Python","Decorators","Hard","output","What is the output?","True","False","None","Error","A","The class decorator adds a 'decorated' attribute set to True on the class.","def decorator(cls):
+    cls.decorated = True
+    return cls
+
+@decorator
+class MyClass:
+    pass
+
+print(MyClass.decorated)"
+"254","Python","Exception Handling","Hard","output","What is the output?","cleanup\ninf","inf\ncleanup","inf","cleanup","A","finally executes before the function returns. So 'cleanup' prints first, then 'inf' is returned and printed.","def divide(a, b):
+    try:
+        return a / b
+    except ZeroDivisionError:
+        return 'inf'
+    finally:
+        print('cleanup')
+result = divide(10, 0)
+print(result)"
+"255","Python","Generators","Medium","output","What is the output?","[0, 1, 4, 9]","[1, 4, 9, 16]","[0, 2, 4, 6]","Error","A","The generator yields squares of 0,1,2,3: that is 0,1,4,9. list() collects all values.","def squares(n):
+    for i in range(n):
+        yield i ** 2
+print(list(squares(4)))"
+"256","Python","Built-ins","Easy","output","What is the output?","[1, 1, 3, 4, 5, 9]","[9, 5, 4, 3, 1, 1]","[3, 1, 4, 1, 5, 9]","Error","A","sorted() returns a new list sorted in ascending order by default.","print(sorted([3, 1, 4, 1, 5, 9]))"
+"257","Python","Built-ins","Medium","output","What is printed?","[(1, 'a'), (2, 'b'), (3, 'c')]","[(0, 'a'), (1, 'b'), (2, 'c')]","[('a', 1), ('b', 2), ('c', 3)]","Error","A","enumerate with start=1 begins counting from 1. Each element is paired with its index.","print(list(enumerate(['a', 'b', 'c'], start=1)))"
+"258","Python","Advanced Python","Hard","output","What is the output?","True","False","100","Error","A","Python's default recursion limit is usually 1000, which is greater than 100, so this prints True.","import sys
+print(sys.getrecursionlimit() > 100)"
+"259","Python","OOP","Medium","output","What does this print?","meow","generic sound","None","Error","A","Cat overrides the speak method. Cat().speak() calls the Cat version, returning 'meow'.","class Animal:
+    def speak(self):
+        return 'generic sound'
+class Cat(Animal):
+    def speak(self):
+        return 'meow'
+print(Cat().speak())"
+"260","Python","Closures","Hard","output","What is printed?","1 2 3","1 1 1","0 1 2","Error","A","The closure remembers count between calls. Each call increments and returns the updated value: 1, 2, 3.","def counter():
+    count = 0
+    def increment():
+        nonlocal count
+        count += 1
+        return count
+    return increment
+c = counter()
+print(c(), c(), c())"
+"261","Python","Data Types","Medium","output","What is the output?","False True False False","False False False False","True True False False","True True True True","A","Empty string is falsy, space string is truthy, 0 is falsy, None is falsy.","print(bool(''), bool(' '), bool(0), bool(None))"
+"262","Python","Lists","Hard","output","What is printed?","[1, 2, 3, 1, 2, 3]","[2, 4, 6]","[1, 2, 3, 2]","Error","A","The * operator on lists repeats the entire list. [1,2,3] * 2 creates [1,2,3,1,2,3].","a = [1, 2, 3]
+print(a * 2)"
+"263","Python","Strings","Hard","output","What is the output?","'Alice' is 30","Alice is 30","Alice!r is 30","Error","A","!r applies repr() to the value. For strings, repr adds quotes, giving 'Alice' is 30.","name = 'Alice'
+age = 30
+print(f'{name!r} is {age}')"
+"264","Python","Sets","Hard","output","What is printed?","{1, 2, 3}","Error","{1, 2, 3, 4}","set()","A","discard() removes an element if present but does NOT raise an error if the element is missing. The set is unchanged.","s = {1, 2, 3}
+s.discard(4)
+print(s)"
+"265","Python","Tuples","Hard","output","What is the output?","(1, [2, 3, 5], 4)","TypeError","(1, [2, 3], 4, 5)","(1, [2, 3], 4)","A","The tuple is immutable, but its elements can be mutable. The list at t[1] can be modified in place.","t = (1, [2, 3], 4)
+t[1].append(5)
+print(t)"
+"266","Python","Modules","Medium","output","What is the output?","home/user/file.txt","home\user\file.txt","/home/user/file.txt","Error","A","os.path.join combines path components. On Unix-like systems, it uses forward slashes. The exact separator is OS-dependent.","import os.path
+print(os.path.join('home', 'user', 'file.txt'))"
+"267","Python","Inheritance","Hard","output","What does this code print?","1 2 1","2 2 2","1 1 1","1 2 2","A","B.x = 2 creates a class attribute on B, shadowing A.x. C still inherits A.x = 1.","class A:
+    x = 1
+class B(A):
+    pass
+class C(A):
+    pass
+B.x = 2
+print(A.x, B.x, C.x)"
+"268","Python","Dicts","Medium","output","What is printed?","{'a': 1, 'b': 2, 'c': 3}","[('a',1),('b',2),('c',3)]","{1:'a', 2:'b', 3:'c'}","Error","A","zip pairs keys with values. dict() converts these pairs into a dictionary.","d = dict(zip(['a','b','c'], [1,2,3]))
+print(d)"
+"269","Python","Functions","Hard","output","What is the output?","1024","20","210","Error","A","apply calls pow(2, 10) which computes 2^10 = 1024.","def apply(func, *args):
+    return func(*args)
+print(apply(pow, 2, 10))"
+"270","Python","Comprehensions","Medium","output","What does this print?","{'a': 1, 'b': 2, 'c': 3}","{'abc': [1,2,3]}","[('a',1),('b',2),('c',3)]","Error","A","The dict comprehension creates key-value pairs from the zipped iterables.","d = {k: v for k, v in zip('abc', [1,2,3])}
+print(d)"
+"271","Python","Built-ins","Hard","output","What is printed?","False\nTrue","True\nTrue","False\nFalse","True\nFalse","A","all() returns True only if ALL elements are truthy (False here). any() returns True if ANY element is truthy (True here).","print(all([True, True, False]))
+print(any([False, False, True]))"
+"272","Python","Scope","Hard","output","What is the output?","not found","10","None","UnboundLocalError","D","Python determines x is local (due to assignment later). Accessing it before assignment raises UnboundLocalError, not caught by NameError.","def f():
+    try:
+        print(x)
+    except NameError:
+        print('not found')
+    x = 10
+f()"
+"273","Python","File I/O","Medium","output","What is the output?","hello","hello world","h","Error","A","StringIO is an in-memory text stream. read(5) reads the first 5 characters: 'hello'.","import io
+f = io.StringIO('hello world')
+print(f.read(5))"
+"274","Python","Advanced Python","Medium","output","What does this code print?","True\nFalse","True\nTrue","False\nFalse","False\nTrue","A","== checks value equality (True). 'is' checks identity - x and y are separate objects (False).","x = [1, 2, 3]
+y = [1, 2, 3]
+print(x == y)
+print(x is y)"
+"275","Python","Decorators","Hard","output","What is the output?","['hi', 'hi', 'hi']","'hi'","('hi', 'hi', 'hi')","Error","A","The decorator factory repeat(3) creates a decorator that calls greet() 3 times, collecting results in a list.","def repeat(n):
+    def decorator(func):
+        def wrapper(*args):
+            return [func(*args) for _ in range(n)]
+        return wrapper
+    return decorator
+
+@repeat(3)
+def greet():
+    return 'hi'
+
+print(greet())"
+"276","Python","Collections","Medium","output","What is printed?","3 4","3 3","4 3","Error","A","Named tuples support both attribute access (p.x=3) and index access (p[1]=4).","from collections import namedtuple
+Point = namedtuple('Point', ['x', 'y'])
+p = Point(3, 4)
+print(p.x, p[1])"
+"277","Python","Generators","Hard","output","What is the output?","[0, 1, 2, 3, 4, 5]","[0, 1, 2]","[3, 4, 5]","Error","A","'yield from' delegates to each range. First yields 0,1,2 then 3,4,5, creating a combined sequence.","def gen():
+    yield from range(3)
+    yield from range(3, 6)
+print(list(gen()))"
+"278","Python","Multithreading","Hard","output","What is the output?","[1, 4, 9, 16]","[1, 2, 3, 4]","[2, 4, 6, 8]","Error","A","ThreadPoolExecutor.map applies square to each element. Results maintain order: 1, 4, 9, 16.","from concurrent.futures import ThreadPoolExecutor
+def square(n):
+    return n ** 2
+with ThreadPoolExecutor(max_workers=2) as ex:
+    results = list(ex.map(square, [1, 2, 3, 4]))
+print(results)"
+"279","Python","Regular Expressions","Hard","output","What is the output?","hello-world-python","hello   world   python","hello-world-python-","-hello-world-python","A","re.sub replaces all whitespace sequences (\s+) with a single hyphen.","import re
+print(re.sub(r'\s+', '-', 'hello   world   python'))"
+"280","Python","Iterators","Medium","output","What is printed?","5 8 11","5 6 7","3 6 9","Error","A","count(5, 3) generates 5, 8, 11, 14, ... incrementing by 3 each time.","from itertools import count
+c = count(start=5, step=3)
+print(next(c), next(c), next(c))"
+"281","Python","Data Types","Medium","output","What is the output?","20","10","25","2","A","Left shift by 2 multiplies by 4. 5 << 2 = 5 * 4 = 20.","x = 5
+print(x << 2)"
+"282","Python","Strings","Easy","output","What does this code print?","2","1","3","0","A","str.count('o') counts non-overlapping occurrences. 'o' appears twice in 'Hello World'.","print('Hello World'.count('o'))"
+"283","Python","Lists","Easy","output","What is the output?","[3, 2, 1]","[1, 2, 3]","None","Error","A","list.reverse() reverses the list in-place and returns None. The list itself becomes [3, 2, 1].","lst = [1, 2, 3]
+lst.reverse()
+print(lst)"
+"284","Python","Dicts","Easy","output","What does this print?","['a', 'b']","[1, 2]","[('a',1), ('b',2)]","Error","A","dict.keys() returns a view of keys. list() converts it to ['a', 'b'].","d = {'a': 1, 'b': 2}
+print(list(d.keys()))"
+"285","Python","Functions","Easy","output","What is the output?","24","9","234","Error","A","*args collects all positional arguments. The function multiplies 2 * 3 * 4 = 24.","def multiply(*args):
+    result = 1
+    for a in args:
+        result *= a
+    return result
+print(multiply(2, 3, 4))"
+"286","Python","OOP","Easy","output","What does this code print?","2","1","0","Error","A","Each instantiation increments the class attribute. After two instances, Counter.count is 2.","class Counter:
+    count = 0
+    def __init__(self):
+        Counter.count += 1
+a = Counter()
+b = Counter()
+print(Counter.count)"
+"287","Python","Comprehensions","Easy","output","What is the output?","{1, 2, 3}","[1, 2, 3]","{1, 2, 2, 3, 3, 3}","Error","A","A set comprehension removes duplicates, producing {1, 2, 3}.","print({x for x in [1, 2, 2, 3, 3, 3]})"
+"288","Python","Exception Handling","Hard","output","What is the output?","2","1","None","Error","A","The finally block's return overrides the try block's return. The function returns 2.","def f():
+    try:
+        return 1
+    finally:
+        return 2
+print(f())"
+"289","Python","Decorators","Medium","output","What does this code print?","calling hello\nhello!","hello!\ncalling hello","hello!","Error","A","The decorator prints the function name before calling it. First 'calling hello' then 'hello!'.","def trace(func):
+    def wrapper(*args):
+        print(f'calling {func.__name__}')
+        return func(*args)
+    return wrapper
+
+@trace
+def hello():
+    print('hello!')
+hello()"
+"290","Python","Sets","Medium","output","What is printed?","{3, 4}","{1, 2, 3, 4, 5, 6}","{1, 2}","{5, 6}","A","intersection() returns elements common to both sets: {3, 4}.","a = {1, 2, 3, 4}
+b = {3, 4, 5, 6}
+print(a.intersection(b))"
+"291","Python","Tuples","Easy","output","What is the output?","<class 'tuple'>","<class 'int'>","<class 'list'>","Error","A","The trailing comma makes (1,) a tuple, not just the integer 1 in parentheses.","t = (1,)
+print(type(t))"
+"292","Python","Scope","Easy","output","What does this code print?","outer","None","Error","inner","A","x is not defined locally in f(), so Python looks up to the global scope and finds x = 'outer'.","x = 'outer'
+def f():
+    print(x)
+f()"
+"293","Python","Inheritance","Easy","output","What is the output?","True","False","Error","None","A","issubclass(B, A) returns True because B inherits from A.","class A:
+    pass
+class B(A):
+    pass
+print(issubclass(B, A))"
+"294","Python","Built-ins","Easy","output","What is printed?","1","5","9","Error","A","min() returns the smallest element from the iterable. The minimum of [5, 3, 8, 1, 9] is 1.","print(min([5, 3, 8, 1, 9]))"
+"295","Python","Advanced Python","Easy","output","What does this code print?","[3, 2, 1]","[1, 2, 3]","[1, 3]","Error","A","Slice [::-1] reverses any sequence. It creates a new reversed list.","x = [1, 2, 3]
+print(x[::-1])"
+"296","Python","Closures","Easy","output","What is the output?","hello","None","Error","outer","A","inner() is a closure that captures msg from the enclosing scope. When called, it returns 'hello'.","def outer():
+    msg = 'hello'
+    def inner():
+        return msg
+    return inner
+f = outer()
+print(f())"
+"297","Python","Modules","Medium","output","What is the output?","5","4","4.1","Error","A","math.ceil() returns the smallest integer greater than or equal to the argument. ceil(4.1) = 5.","import math
+print(math.ceil(4.1))"
+"298","Python","Generators","Easy","output","What is printed?","<class 'generator'>","<class 'list'>","<class 'tuple'>","Error","A","Parentheses around a comprehension create a generator expression, which is of type 'generator'.","g = (x for x in range(3))
+print(type(g))"
+"299","Python","Regular Expressions","Easy","output","What is the output?","['a', 'b', 'c', 'd']","['a,b;c,d']","['a', 'b;c', 'd']","Error","A","re.split with character class [,;] splits on either comma or semicolon, producing four parts.","import re
+result = re.split(r'[,;]', 'a,b;c,d')
+print(result)"
+"300","Python","File I/O","Medium","output","What does this code print?","b'hello'","hello","['h','e','l','l','o']","Error","A","BytesIO is an in-memory binary stream. read() returns the bytes object b'hello'.","import io
+buf = io.BytesIO(b'hello')
+print(buf.read())"
+"301","Python","Data Types","Medium","scenario","You need to store a collection of unique user IDs that supports fast membership testing. Which data structure is most appropriate?","set","list","tuple","string","A","Sets provide O(1) average-case membership testing and automatically enforce uniqueness.",""
+"302","Python","Strings","Easy","scenario","A user inputs ' Hello World  '. You need to remove extra whitespace from both ends. Which method should you use?","strip()","replace()","split()","center()","A","strip() removes leading and trailing whitespace, turning ' Hello World  ' into 'Hello World'.",""
+"303","Python","Lists","Medium","scenario","You need to process a list of 10 million records and extract only those matching a condition. What is the most memory-efficient approach?","Generator expression","List comprehension","map() with list()","Nested for loops","A","A generator expression processes items lazily one at a time, avoiding loading all results into memory.",""
+"304","Python","Dicts","Medium","scenario","You need to count word frequencies in a document. Which approach is most Pythonic?","collections.Counter","Manual dict with if/else","list of tuples","sorted list","A","Counter is purpose-built for counting. Counter(words) creates a frequency dictionary in one line.",""
+"305","Python","Sets","Easy","scenario","You have two lists of email addresses and need to find emails that appear in both lists. What operation should you use?","Set intersection","List concatenation","Dictionary merge","String matching","A","Converting to sets and using intersection (&) efficiently finds common elements.",""
+"306","Python","Tuples","Easy","scenario","You want to return multiple values from a function (a name and an age). What is the most Pythonic approach?","Return a tuple","Use global variables","Return a formatted string","Write to a file","A","Returning a tuple (name, age) is idiomatic Python. The caller can unpack: name, age = get_person().",""
+"307","Python","Functions","Medium","scenario","You are writing a function that should accept any number of keyword arguments to configure settings. What parameter should you use?","**kwargs","*args","A fixed list of parameters","Global variables","A","**kwargs collects arbitrary keyword arguments into a dictionary, perfect for flexible configuration.",""
+"308","Python","OOP","Medium","scenario","You need to ensure that a class attribute is read-only from outside the class. What should you use?","@property with only a getter","A global variable","A class method","A static variable","A","@property without a setter makes the attribute read-only. Any attempt to set it raises AttributeError.",""
+"309","Python","Inheritance","Hard","scenario","You are designing a plugin system where plugins share some common behavior but each has unique logic. What pattern is best?","Abstract Base Class with abstract methods","Copy-paste common code","Monkey patching at runtime","Global functions","A","An ABC defines the interface and common behavior. Each plugin subclass implements the abstract methods.",""
+"310","Python","Decorators","Medium","scenario","You want to add logging to 20 different functions without modifying their code. What approach is best?","Create a logging decorator","Add print statements to each function","Use a logging config file","Subclass each function","A","A decorator cleanly adds logging behavior. Apply @log_decorator to each function with minimal code changes.",""
+"311","Python","Generators","Hard","scenario","You need to process a 50GB log file line by line. What approach avoids loading the entire file into memory?","A generator that yields one line at a time","read() the entire file","readlines() into a list","Load into a pandas DataFrame","A","A generator (or iterating the file object) yields one line at a time, using constant memory regardless of file size.",""
+"312","Python","Iterators","Medium","scenario","You need to create an object that generates prime numbers on demand. What should you implement?","The iterator protocol (__iter__ and __next__)","A list of all primes","A recursive function","A global counter","A","Implementing __iter__ and __next__ makes a lazy prime generator that produces primes one at a time.",""
+"313","Python","Comprehensions","Easy","scenario","You need to create a list of squares of even numbers from 0 to 20. What is the most Pythonic approach?","[x**2 for x in range(21) if x % 2 == 0]","for loop with if and append","map with filter and list","while loop with counter","A","List comprehensions with filtering are the most Pythonic way to create transformed, filtered lists.",""
+"314","Python","Exception Handling","Medium","scenario","Your function connects to a database, performs a query, and must close the connection even if an error occurs. What pattern should you use?","try/finally or a context manager","try/except only","Global connection variable","Ignore the error","A","try/finally ensures cleanup (closing the connection) regardless of exceptions. A context manager is even better.",""
+"315","Python","File I/O","Easy","scenario","You need to read a CSV file and process each row. What module should you use?","csv","json","pickle","xml","A","The csv module provides readers and writers specifically designed for CSV file handling.",""
+"316","Python","Modules","Medium","scenario","You are building a large application and want to organize code into multiple files with shared utilities. What structure should you use?","A Python package with __init__.py and submodules","A single large file","Global variables across files","Shell scripts for organization","A","Packages provide hierarchical module organization with __init__.py files defining the package structure.",""
+"317","Python","Regular Expressions","Medium","scenario","You need to validate that a string is a valid email address format. What is the recommended approach?","Use re.match() with an email pattern","Check for '@' character only","Try to send an email","Use string.find()","A","A regex pattern can validate email format (e.g., r'^[\w.+-]+@[\w-]+\.[\w.]+$') for basic validation.",""
+"318","Python","Multithreading","Hard","scenario","You need to download 100 web pages as fast as possible. What approach best suits Python?","ThreadPoolExecutor or asyncio with aiohttp","Sequential loop with requests","Multiprocessing with Pool","Subprocess calls to curl","A","Web downloads are I/O-bound. ThreadPoolExecutor or async/await with aiohttp enables concurrent downloads efficiently.",""
+"319","Python","Async/Await","Hard","scenario","You are building a chat server handling thousands of concurrent WebSocket connections. What framework approach is best?","asyncio-based server with async handlers","Threading with one thread per connection","Multiprocessing","Sequential request handling","A","asyncio handles thousands of concurrent connections efficiently using coroutines, with minimal overhead per connection.",""
+"320","Python","Built-ins","Easy","scenario","You need to sort a list of dictionaries by a specific key. What is the most Pythonic approach?","sorted() with a key function","Manual bubble sort","Convert to tuples first","Use collections.OrderedDict","A","sorted(dicts, key=lambda d: d['age']) sorts by the specified key efficiently and Pythonically.",""
+"321","Python","Collections","Medium","scenario","You need a dictionary that returns 0 for missing keys instead of raising KeyError. What should you use?","defaultdict(int)","Regular dict with try/except","OrderedDict","ChainMap","A","defaultdict(int) automatically creates missing keys with a default value of int() = 0.",""
+"322","Python","Scope","Medium","scenario","You have a configuration value that multiple functions in a module need to access. What is the cleanest approach?","Module-level constant","Pass as argument to each function","Global variable modified by each function","Environment variable","B","Passing configuration as a parameter is the cleanest approach. It makes dependencies explicit and aids testing.",""
+"323","Python","Closures","Hard","scenario","You need to create a family of functions that each multiply by a different factor. What pattern should you use?","Global variables for each factor","Separate function definitions for each","A closure factory function","Class with different methods","C","A closure factory (def multiplier(n): return lambda x: x*n) generates customized functions sharing the pattern.",""
+"324","Python","Advanced Python","Hard","scenario","You are designing a class that controls how its instances are created (e.g., singleton pattern). What Python feature should you use?","Global variable check","__init__ override","__new__ method override","Module-level function","C","__new__ controls instance creation. For singleton, it can return an existing instance instead of creating a new one.",""
+"325","Python","Data Types","Easy","scenario","You need to store a constant mathematical value like pi. What data type is appropriate?","str","int","float","bool","C","Pi (3.14159...) is a decimal number, so float is the appropriate type. For higher precision, use decimal.Decimal.",""
+"326","Python","Strings","Medium","scenario","You need to build a SQL query string with user inputs safely. What approach should you use?","String concatenation with +","f-strings directly","Parameterized queries with placeholders","str.format()","C","Parameterized queries prevent SQL injection. Never use string formatting with user input in SQL queries.",""
+"327","Python","Lists","Hard","scenario","You need a data structure supporting fast O(1) appends and pops from both ends. What should you use?","list","tuple","collections.deque","set","C","deque provides O(1) operations on both ends. Lists are O(n) for operations at the front.",""
+"328","Python","Dicts","Hard","scenario","You need to merge multiple configuration dictionaries where later ones override earlier values. What Python 3.9+ approach is cleanest?","Manual loop","dict.update() chain","Using the | operator to merge dicts","json.loads()","C","In Python 3.9+, d1 | d2 | d3 cleanly merges dictionaries, with later ones taking precedence.",""
+"329","Python","Functions","Hard","scenario","You have a computationally expensive pure function called repeatedly with the same arguments. How do you optimize it?","Rewrite in C","Use global cache dict","Use @functools.lru_cache","Use multithreading","C","lru_cache automatically caches function results based on arguments, avoiding redundant computations.",""
+"330","Python","OOP","Hard","scenario","You want to create a class that behaves like a dictionary but adds validation on key assignment. What approach is best?","Monkey patch dict","Wrap dict in a tuple","Inherit from dict and override __setitem__","Use a list of tuples","C","Subclassing dict and overriding __setitem__ lets you add validation while preserving all dict functionality.",""
+"331","Python","Decorators","Hard","scenario","You need a decorator that retries a function up to 3 times on failure with exponential backoff. What structure do you need?","A simple decorator","A class-based decorator","A decorator factory that accepts retry count","A context manager","C","A decorator factory allows parameterization: @retry(max_attempts=3, backoff=2) passes configuration to the decorator.",""
+"332","Python","Generators","Medium","scenario","You want to create an infinite sequence of Fibonacci numbers that consumers can take from as needed. What should you use?","A list of pre-computed values","A recursive function","A generator with yield","A class with __call__","C","A generator with yield lazily produces values on demand, perfect for potentially infinite sequences.",""
+"333","Python","Exception Handling","Hard","scenario","You are building a library and need to define domain-specific errors. What is the best practice?","Use ValueError for everything","Use string error messages","Create a custom exception hierarchy inheriting from Exception","Use sys.exit() codes","C","A custom exception hierarchy (e.g., LibraryError -> DatabaseError, ValidationError) gives users precise error handling.",""
+"334","Python","File I/O","Medium","scenario","You need to parse a large JSON file that might not fit in memory. What approach should you use?","json.loads() on the entire file","Read line by line","Use ijson for iterative JSON parsing","Convert to CSV first","C","ijson provides iterative JSON parsing, processing the file incrementally without loading it entirely into memory.",""
+"335","Python","Modules","Hard","scenario","You need to dynamically load a module based on a string name at runtime. What should you use?","exec()","eval()","importlib.import_module()","__import__()","C","importlib.import_module(name) is the recommended way to dynamically import modules by name.",""
+"336","Python","Regular Expressions","Hard","scenario","You need to extract all URLs from a large text document efficiently. What approach is best?","String split and filter","Manual character scanning","re.findall() with a URL pattern","String replace","C","re.findall() with a URL regex efficiently extracts all matching URLs from the text.",""
+"337","Python","Multithreading","Medium","scenario","You need to protect a shared counter variable accessed by multiple threads. What synchronization primitive should you use?","No synchronization needed","Global variable","threading.Lock","try/except","C","threading.Lock ensures mutual exclusion. Acquire the lock before modifying the counter and release it after.",""
+"338","Python","Async/Await","Medium","scenario","You need to set a timeout for an async operation. What should you use?","time.sleep()","threading.Timer()","asyncio.wait_for() with timeout","signal.alarm()","C","asyncio.wait_for(coroutine, timeout=seconds) cancels the coroutine if it does not complete in time.",""
+"339","Python","Built-ins","Medium","scenario","You need to check if all elements in a list satisfy a condition. What built-in function should you use?","any()","filter()","all()","map()","C","all(condition(x) for x in lst) returns True only if every element satisfies the condition.",""
+"340","Python","Collections","Hard","scenario","You need a dictionary that searches multiple scopes (local, global, defaults) in order. What should you use?","Nested dicts","defaultdict","collections.ChainMap","dict.update() merge","C","ChainMap groups multiple dicts and searches them in order, perfect for scoped lookups.",""
+"341","Python","Closures","Medium","scenario","You want to implement a simple caching mechanism for a pure function without using decorators. What approach uses closures?","Global dictionary","Class with __call__","A function that returns a function with an enclosed cache dict","Module-level cache","C","A closure can enclose a cache dictionary: def cached(f): cache = {}; def wrapper(x): ... return wrapper.",""
+"342","Python","Scope","Hard","scenario","A junior developer's function accidentally modifies a global list. How do you prevent this?","Use a set instead","Use a tuple instead","Pass a copy of the list to the function","Use a class method","C","Passing a copy (func(lst.copy())) ensures the function cannot modify the original list.",""
+"343","Python","Advanced Python","Medium","scenario","You need to make your custom class work with the 'with' statement. What should you implement?","__init__ and __del__","__enter__ only","__enter__ and __exit__","__start__ and __stop__","C","The context manager protocol requires __enter__ (setup) and __exit__ (cleanup) methods.",""
+"344","Python","Inheritance","Medium","scenario","You have a Shape base class and want to ensure all subclasses implement an area() method. What should you do?","Document the requirement","Raise NotImplementedError","Use ABC with @abstractmethod","Check at runtime","C","Using ABC with @abstractmethod prevents instantiation of subclasses that don't implement area().",""
+"345","Python","Iterators","Hard","scenario","You need to iterate over a large database result set without loading all rows. What pattern should you use?","fetchall() into a list","Read all into pandas","Server-side cursor with iterator protocol","JSON dump","C","A server-side cursor with iterator protocol fetches rows in batches, keeping memory usage constant.",""
+"346","Python","Data Types","Hard","scenario","You need to perform exact decimal arithmetic for a financial application. What should you use?","float","int","numpy.float64","decimal.Decimal","D","decimal.Decimal provides exact decimal representation, avoiding floating-point errors critical in finance.",""
+"347","Python","Strings","Hard","scenario","You need to efficiently build a string from thousands of small pieces. What is the fastest approach?","String concatenation with +=","f-strings in a loop","String multiplication","''.join() on a list of parts","D","''.join(parts) builds the final string in one operation, avoiding O(n^2) cost of repeated concatenation.",""
+"348","Python","Functions","Easy","scenario","You need to write a function that accepts either a filename or a file object. What feature helps?","Overloading","Decorators","Metaclasses","Duck typing - check for read() method","D","Duck typing: check if the argument has a read() method (file-like object) rather than checking its type.",""
+"349","Python","OOP","Easy","scenario","You want to track how many instances of a class have been created. Where should you store the count?","In __init__","In a local variable","In a global variable","As a class attribute","D","A class attribute is shared across all instances and persists. Increment it in __init__ to track instance count.",""
+"350","Python","Generators","Easy","scenario","You need to process items from a list but want to transform each item lazily. What should you use?","for loop with list","list comprehension","sorted()","Generator expression","D","A generator expression (x*2 for x in items) transforms items lazily, one at a time, saving memory.",""
+"351","Python","Exception Handling","Easy","scenario","You want to ensure a database connection is always closed, even if an exception occurs. What pattern is best?","try/except only","Manual close() call","atexit handler","with statement (context manager)","D","The with statement automatically calls __exit__ which closes the connection, even if an exception occurs.",""
+"352","Python","File I/O","Hard","scenario","You need to atomically write to a file to prevent corruption if the process crashes mid-write. What approach is best?","Direct write with flush()","Use a lock file","Append mode only","Write to a temp file and rename","D","Writing to a temporary file and atomically renaming it ensures the original file is never in a partial state.",""
+"353","Python","Modules","Easy","scenario","You want to make your Python script both importable as a module and runnable as a standalone script. What guard should you use?","try/except ImportError","sys.argv check","os.environ check","if __name__ == '__main__':","D","The __name__ guard runs code only when the script is executed directly, not when imported.",""
+"354","Python","Multithreading","Hard","scenario","You need true CPU parallelism for a number-crunching task in Python. What should you use?","threading","asyncio","greenlet","multiprocessing","D","multiprocessing uses separate OS processes, each with its own GIL, enabling true parallel CPU computation.",""
+"355","Python","Collections","Easy","scenario","You need a FIFO queue with O(1) operations on both ends. What should you use?","list","tuple","set","collections.deque","D","deque (double-ended queue) provides O(1) append and popleft, ideal for FIFO queues.",""
+"356","Python","Built-ins","Hard","scenario","You need to flatten a list of lists. What is the most Pythonic one-liner using built-ins?","reduce()","map()","filter()","sum(lists, []) or itertools.chain.from_iterable()","D","itertools.chain.from_iterable(lists) efficiently flattens nested iterables. sum(lists, []) works but is O(n^2).",""
+"357","Python","Advanced Python","Hard","scenario","You want to add type hints and validate data at runtime for API input. What tool is best?","Manual isinstance() checks","assert statements","typing module only","pydantic or dataclass with validation","D","Pydantic provides runtime data validation using type hints, auto-parsing, and clear error messages.",""
+"358","Python","Async/Await","Easy","scenario","You need to run a blocking synchronous function inside an async application without blocking the event loop. What should you use?","Call it directly","Use await on it","Wrap in a coroutine","Use loop.run_in_executor()","D","run_in_executor() runs blocking code in a thread pool, preventing it from blocking the asyncio event loop.",""
+"359","Python","Regular Expressions","Easy","scenario","You need to split a string on multiple delimiters (comma, semicolon, pipe). What should you use?","str.split()","str.partition()","str.replace()","re.split(r'[,;|]', text)","D","re.split() with a character class [,;|] splits on any of the specified delimiters.",""
+"360","Python","Dicts","Easy","scenario","You need to iterate over both keys and values of a dictionary simultaneously. What method should you use?","keys()","values()","get()","items()","D","dict.items() returns (key, value) pairs: for k, v in d.items(): ...",""
+"361","Python","Scope","Easy","scenario","You want to define a constant used throughout your module. Where should you define it?","Inside a function","Inside a class","In a separate config class","At module level with UPPER_CASE name","D","Module-level constants in UPPER_CASE (e.g., MAX_SIZE = 100) is the Python convention for constants.",""
+"362","Python","Sets","Medium","scenario","You have two large datasets and need to find items that appear in only one of them. What set operation should you use?","Union","Intersection","Difference","Symmetric difference","D","Symmetric difference (a ^ b) returns elements in either set but not both, finding unique-to-each items.",""
+"363","Python","Tuples","Medium","scenario","You need to use a pair of coordinates as a dictionary key. Which data type should you use?","list","set","dict","tuple","D","Tuples are immutable and hashable, making them suitable as dictionary keys. Lists are not hashable.",""
+"364","Python","Inheritance","Hard","scenario","You have a logging mixin, a caching mixin, and a base class. How should you combine them?","Nested inheritance chain","Composition only","Copy methods manually","Multiple inheritance: class MyClass(LogMixin, CacheMixin, Base)","D","Multiple inheritance with mixins cleanly combines orthogonal behaviors without deep inheritance hierarchies.",""
+"365","Python","Decorators","Easy","scenario","You want to measure the execution time of a function. What is the cleanest approach?","Manual time.time() before and after","Print statements","Profiler module","A timing decorator","D","A decorator wraps the function with timing logic, keeping the function code clean and reusable.",""
+"366","Python","Iterators","Easy","scenario","You need to process pairs of adjacent elements from a list. What itertools function helps?","chain()","count()","cycle()","pairwise() (Python 3.10+)","D","itertools.pairwise() yields consecutive overlapping pairs from an iterable: (s[0],s[1]), (s[1],s[2]), etc.",""
+"367","Python","Comprehensions","Medium","scenario","You need to create a dictionary mapping filenames to their extensions. What is the most Pythonic approach?","Manual for loop","map() with lambda","filter() with lambda","Dict comprehension: {f: f.split('.')[-1] for f in files}","D","A dict comprehension is the most concise and Pythonic way to create the mapping.",""
+"368","Python","Closures","Easy","scenario","You want to create a function that remembers how many times it has been called. What approach uses closures?","Global counter variable","Class with __call__","Static method","Nested function with nonlocal counter","D","A closure with nonlocal counter keeps the count in the enclosing scope, avoiding global state.",""
+"369","Python","File I/O","Hard","scenario","You need to process a very large CSV file (100GB) row by row. What is the most memory-efficient approach?","pandas.read_csv()","csv.reader() with readlines()","json.load()","csv.reader() iterating the file object directly","D","Iterating the file object with csv.reader reads one row at a time from disk, using constant memory.",""
+"370","Python","Advanced Python","Medium","scenario","You need to serialize Python objects to binary format for inter-process communication. What should you use?","json","csv","xml","pickle (with security considerations)","D","pickle serializes arbitrary Python objects to binary. Use with trusted data only due to security risks.",""
+"371","Python","Built-ins","Easy","scenario","You need to remove duplicates from a list while preserving order. What approach works in Python 3.7+?","sorted(set(lst))","list(set(lst))","Using a loop with 'in' check","list(dict.fromkeys(lst))","D","dict.fromkeys(lst) preserves insertion order (Python 3.7+) and removes duplicates. Converting back to list gives the result.",""
+"372","Python","Data Types","Hard","scenario","You need to represent a fraction 1/3 exactly without floating-point error. What module should you use?","math","decimal","numpy","fractions","D","The fractions module provides a Fraction class that represents rational numbers exactly. Fraction(1, 3) is precise.",""
+"373","Python","Strings","Easy","scenario","You need to check if a user-submitted password contains at least one uppercase letter. What method helps?","isupper()","islower()","any(c.isupper() for c in password)","upper()","C","Using any() with a generator checking each character's case is the Pythonic way to verify mixed-case requirements.",""
+"374","Python","Lists","Easy","scenario","You need to check if a list is empty before processing it. What is the most Pythonic way?","if len(lst) == 0:","if lst == []:","if not lst:","if lst is None:","C","'if not lst:' is the most Pythonic idiom. Empty lists are falsy, so 'not []' evaluates to True.",""
+"375","Python","Dicts","Easy","scenario","You need to iterate over a dictionary and print each key-value pair. What is the most Pythonic approach?","for k in d: print(k, d[k])","for i in range(len(d)):","for k, v in d.items():","while loop with pop()","C","for k, v in d.items(): unpacks each key-value pair directly, which is the most readable and Pythonic approach.",""
+"376","Python","Functions","Medium","scenario","You want a function to accept configuration options as keyword arguments and pass them to another function. What parameter should you use?","*args","Named parameters","**kwargs","A config object","C","**kwargs collects keyword arguments into a dict. You can then pass them with **kwargs to another function.",""
+"377","Python","OOP","Easy","scenario","You want to prevent a class from being modified after creation. Which approach helps?","Use global variables","Use a list","Use __slots__ and make attributes read-only","Use a tuple","C","__slots__ restricts attributes and combined with @property (getters only) creates a mostly immutable class.",""
+"378","Python","Inheritance","Easy","scenario","You have common logging code used by multiple unrelated classes. What pattern is best?","Duplicate the code","Global functions","A mixin class","Decorator on the module","C","A LoggingMixin class provides logging methods. Classes can inherit from it alongside their main base class.",""
+"379","Python","Decorators","Medium","scenario","You want to enforce that a function argument is always a positive integer. What approach is cleanest?","Add checks at every call site","Use global validation","A validation decorator","String assertions","C","A decorator can validate arguments before calling the function, keeping the function code clean and the validation reusable.",""
+"380","Python","Generators","Medium","scenario","You need to implement pagination over a large dataset, yielding one page at a time. What is the best approach?","Load all pages at once","Use recursion","A generator that yields page-sized chunks","Create separate functions per page","C","A generator yielding slices of the dataset provides lazy, memory-efficient pagination.",""
+"381","Python","Iterators","Medium","scenario","You need to combine multiple sorted iterators into a single sorted iterator. What should you use?","sorted() on concatenated lists","list.sort()","heapq.merge()","itertools.chain()","C","heapq.merge(*iterables) merges multiple sorted inputs into a single sorted output, lazily and efficiently.",""
+"382","Python","Comprehensions","Hard","scenario","You need to transpose a matrix (list of lists). What is the most Pythonic one-liner?","Manual nested loops","numpy.transpose()","list(zip(*matrix))","matrix.T","C","zip(*matrix) unpacks rows and zips columns together, effectively transposing the matrix.",""
+"383","Python","Exception Handling","Easy","scenario","Your code might divide by zero. You want to handle it gracefully and return 0 instead. What pattern should you use?","Check with assert","Use a global flag","try/except ZeroDivisionError","Ignore the error","C","try/except ZeroDivisionError catches the specific error and allows returning a default value.",""
+"384","Python","File I/O","Easy","scenario","You need to check if a file exists before opening it. What module provides the most Pythonic approach?","os.system","shutil","pathlib","sys","C","Path('file.txt').exists() from pathlib provides an object-oriented way to check file existence.",""
+"385","Python","Modules","Medium","scenario","You need to package your Python project for distribution on PyPI. What tool should you use?","pip only","conda only","setuptools with pyproject.toml","manual zip files","C","setuptools with pyproject.toml is the standard way to package Python projects for distribution.",""
+"386","Python","Regular Expressions","Medium","scenario","You need to validate that a string is a valid Python variable name. What is the simplest approach?","Manual character checks","Try to assign it","str.isidentifier()","regex pattern","C","str.isidentifier() checks if the string is a valid Python identifier. Combined with keyword.iskeyword() for full validation.",""
+"387","Python","Multithreading","Easy","scenario","You need to run a function after a 5-second delay without blocking the main thread. What should you use?","time.sleep(5)","os.system('sleep 5')","threading.Timer(5, func)","asyncio.sleep(5)","C","threading.Timer(5, func) creates a timer thread that calls func after 5 seconds without blocking.",""
+"388","Python","Async/Await","Medium","scenario","You need to rate-limit async API calls to 10 per second. What approach is best?","time.sleep() between calls","Thread pool","asyncio.Semaphore with sleep","Multiprocessing","C","An asyncio.Semaphore combined with asyncio.sleep() provides cooperative rate limiting in async code.",""
+"389","Python","Built-ins","Medium","scenario","You need to transform a list of strings to integers, filtering out invalid ones. What is the cleanest approach?","Manual try/except in a loop","regex validation","A list comprehension with a helper function and try/except","str.isdigit() check","C","A comprehension with a helper that catches ValueError provides clean filtering: [safe_int(s) for s in items if safe_int(s) is not None].",""
+"390","Python","Collections","Medium","scenario","You need an ordered dictionary that also provides fast access to the most and least recently added items. What should you use?","dict","defaultdict","OrderedDict","deque","C","OrderedDict provides move_to_end() and popitem(last=True/False) for manipulating order, beyond what plain dict offers.",""
+"391","Python","Scope","Medium","scenario","A team member accidentally shadows a built-in name (list = [1,2,3]). How do you still access the built-in?","Use List instead","Restart Python","import builtins; builtins.list","Use [] syntax only","C","The builtins module holds all built-in names. builtins.list still references the original list type.",""
+"392","Python","Closures","Medium","scenario","You want to create a configurable logger that remembers its log level. What pattern uses closures?","Global log level variable","Class with __init__","A factory function returning a closure over the level","Module-level config","C","A factory function make_logger(level) returning a closure that captures level provides configurable, stateful loggers.",""
+"393","Python","Advanced Python","Medium","scenario","You need to profile a Python script to find performance bottlenecks. What built-in module should you use?","timeit","sys","cProfile","traceback","C","cProfile provides deterministic profiling of Python programs, showing time spent in each function call.",""
+"394","Python","Tuples","Hard","scenario","You need a lightweight class to represent database records with named fields. What is the most memory-efficient approach?","Regular class","Dictionary per record","namedtuple or __slots__ class","List per record","C","namedtuple creates tuple-like objects with named access. They use less memory than dicts or regular classes.",""
+"395","Python","Sets","Hard","scenario","You need to efficiently check if two large lists have any elements in common. What approach is fastest?","Nested for loops","sorted() and binary search","not set(list1).isdisjoint(list2)","Using == operator","C","Converting to set and using isdisjoint() is O(min(n,m)) average case, much faster than O(n*m) nested loops.",""
+"396","Python","Data Types","Medium","scenario","You need to store a very large integer (1000+ digits). What should you use?","float","numpy.int64","Python's built-in int (arbitrary precision)","ctypes.c_long","C","Python's int type supports arbitrary precision. It can handle integers of any size, limited only by available memory.",""
+"397","Python","Lists","Medium","scenario","You need to find the top-k largest elements from a list of millions of items efficiently. What should you use?","sorted()[-k:]","list.sort() then slice","heapq.nlargest(k, lst)","Manual iteration","C","heapq.nlargest(k, lst) is more efficient than sorting for small k and large lists, using a heap of size k.",""
+"398","Python","Strings","Hard","scenario","You need to parse a complex text format with nested delimiters. What approach is most robust?","str.split()","String slicing","A proper parser (e.g., pyparsing or PLY)","Regular expressions","C","For complex nested formats, a proper parser handles recursive structures that regex cannot. pyparsing is a good choice.",""
+"399","Python","Dicts","Medium","scenario","You need a cache with a maximum size that evicts the least recently used entries. What should you use?","Regular dict","defaultdict","functools.lru_cache or OrderedDict-based LRU","set","C","functools.lru_cache provides built-in LRU caching. For custom caches, OrderedDict's move_to_end enables LRU logic.",""
+"400","Python","Functions","Easy","scenario","You need to document what a function does, its parameters, and return value. What Python feature should you use?","Comments above the function","print statements","A docstring (triple-quoted string as first statement)","External documentation file","C","Docstrings are the standard way to document functions. They are accessible via help() and __doc__.",""
+"401","Python","Data Types","Easy","code_completion","Complete the code to check if a variable x is of type int.","type()","isinstance","istype()","check()","B","isinstance(x, int) checks if x is an instance of int or its subclasses. It is preferred over type(x) == int.","x = 42
+result = ___(x, int)
+print(result)  # True"
+"402","Python","Data Types","Medium","code_completion","Complete the code to convert a float to an integer by truncating toward zero.","floor","ceil","trunc","round","C","math.trunc() removes the decimal part, truncating toward zero. floor(-3.7) would give -4.","import math
+x = -3.7
+result = math.___(x)
+print(result)  # -3"
+"403","Python","Strings","Easy","code_completion","Complete the code to join a list of words with a space.","words.join(' ')","str.concat(words)","' '.join","join(' ', words)","C","The join method is called on the separator string. ' '.join(['Hello', 'World']) produces 'Hello World'.","words = ['Hello', 'World']
+result = ___.___(words)
+print(result)  # Hello World"
+"404","Python","Strings","Medium","code_completion","Complete the code to format a number with 2 decimal places.","2d","%2f",".2f","0.2","C","The format spec .2f means fixed-point notation with 2 decimal places. f'{19.5:.2f}' gives '19.50'.","price = 19.5
+print(f'{price:___}')"
+"405","Python","Strings","Hard","code_completion","Complete the code to remove all non-alphanumeric characters from a string.","\d+","\s+","[^a-zA-Z0-9]","[a-z]","C","[^a-zA-Z0-9] matches any character that is NOT alphanumeric. re.sub replaces all matches with empty string.","import re
+text = 'Hello, World! 123'
+result = re.sub(r'___', '', text)
+print(result)  # HelloWorld123"
+"406","Python","Lists","Easy","code_completion","Complete the code to insert the value 99 at index 2.","append","add","insert","push","C","list.insert(index, value) inserts the value before the given index position.","lst = [1, 2, 3, 4]
+lst.___(2, 99)
+print(lst)  # [1, 2, 99, 3, 4]"
+"407","Python","Lists","Medium","code_completion","Complete the code to sort a list of tuples by the second element.","x","x[0]","x[1]","x[-1]","C","x[1] extracts the second element of each tuple for comparison. Sorting by 'a','b','c' gives the expected order.","data = [(1, 'b'), (3, 'a'), (2, 'c')]
+data.sort(key=lambda x: ___)
+print(data)  # [(3, 'a'), (1, 'b'), (2, 'c')]"
+"408","Python","Lists","Hard","code_completion","Complete the code to flatten a list of lists using itertools.","link","merge","connect","from_iterable","D","This uses chain(*nested) which unpacks the sublists. chain.from_iterable(nested) is the alternative without unpacking.","import itertools
+nested = [[1, 2], [3, 4], [5, 6]]
+flat = list(itertools.chain.___(*nested))
+print(flat)  # [1, 2, 3, 4, 5, 6]"
+"409","Python","Dicts","Easy","code_completion","Complete the code to get a value with a default of 'N/A' if the key is missing.","find('age', 'N/A')","fetch('age', 'N/A')","lookup('age', 'N/A')","get('age', 'N/A')","D","dict.get(key, default) returns the default value when the key is not found, avoiding KeyError.","d = {'name': 'Alice'}
+age = d.___(___)
+print(age)  # N/A"
+"410","Python","Dicts","Medium","code_completion","Complete the code to merge two dictionaries in Python 3.9+.","+","&","^","|","D","The | operator merges dictionaries in Python 3.9+, returning a new dict with entries from both.","d1 = {'a': 1}
+d2 = {'b': 2}
+merged = d1 ___ d2
+print(merged)  # {'a': 1, 'b': 2}"
+"411","Python","Sets","Easy","code_completion","Complete the code to remove element 3 from the set without raising an error if it is missing.","remove","pop","delete","discard","D","discard() removes an element if present, silently doing nothing if absent. remove() raises KeyError.","s = {1, 2, 3}
+s.___(3)
+print(s)"
+"412","Python","Sets","Medium","code_completion","Complete the code to check if set_a is a subset of set_b.","contains","includes","issubset","isin","C","set.issubset(other) returns True if all elements of the set are in the other set.","set_a = {1, 2}
+set_b = {1, 2, 3, 4}
+result = set_a.___(set_b)
+print(result)  # True"
+"413","Python","Tuples","Easy","code_completion","Complete the code to find the index of value 30 in the tuple.","find","search","index","locate","C","tuple.index(value) returns the index of the first occurrence of the value.","t = (10, 20, 30, 40)
+i = t.___(30)
+print(i)  # 2"
+"414","Python","Functions","Easy","code_completion","Complete the function definition with a default parameter.",": ","== ","= ","-> ","C","Default parameters use = sign: def greet(name='World'). When no argument is passed, 'World' is used.","def greet(name___'World'):
+    return f'Hello, {name}!'
+print(greet())  # Hello, World!"
+"415","Python","Functions","Medium","code_completion","Complete the code to create a partial function that always adds 10.","curry","bind","partial","wrap","C","functools.partial(func, *args) creates a new function with some arguments pre-filled. partial(add, 10) fixes a=10.","from functools import ___
+def add(a, b):
+    return a + b
+add10 = ___(add, 10)
+print(add10(5))  # 15"
+"416","Python","Functions","Hard","code_completion","Complete the code to apply a decorator that caches results.","cache","memoize","lru_cache","functools.cache","C","lru_cache (or cache in 3.9+) memoizes function results. Without it, fibonacci(50) would be impossibly slow.","from functools import ___
+
+@___
+def fibonacci(n):
+    if n < 2:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
+print(fibonacci(50))"
+"417","Python","OOP","Easy","code_completion","Complete the constructor to initialize the name attribute.","__new__","__create__","__init__","__start__","C","__init__ is the constructor method called when creating a new instance. It initializes instance attributes.","class Person:
+    def ___(self, name):
+        self.name = name
+p = Person('Alice')
+print(p.name)"
+"418","Python","OOP","Medium","code_completion","Complete the code to make the method a class method.","@staticmethod","@abstract","@classmethod","@property","C","@classmethod binds the method to the class. It receives cls as the first argument instead of self.","class MyClass:
+    count = 0
+    ___
+    def get_count(cls):
+        return cls.count"
+"419","Python","OOP","Hard","code_completion","Complete the code to implement the string representation.","__repr__","__str__","__format__","__display__","B","__str__ defines the human-readable string representation used by print() and str().","class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+    def ___(self):
+        return f'Point({self.x}, {self.y})'
+p = Point(1, 2)
+print(p)  # Point(1, 2)"
+"420","Python","Inheritance","Easy","code_completion","Complete the code to call the parent class constructor.","parent()","base()","super()","Animal","C","super() returns a proxy object that delegates method calls to the parent class following the MRO.","class Animal:
+    def __init__(self, name):
+        self.name = name
+class Dog(Animal):
+    def __init__(self, name, breed):
+        ___.__init__(name)
+        self.breed = breed"
+"421","Python","Inheritance","Medium","code_completion","Complete the code to define an abstract method.","virtual","interface","abstractmethod","override","C","@abstractmethod from abc module declares a method that subclasses must implement.","from abc import ABC, ___
+class Shape(ABC):
+    @___
+    def area(self):
+        pass"
+"422","Python","Decorators","Medium","code_completion","Complete the decorator to preserve the wrapped function's metadata.","copy","preserve","wraps","metadata","C","functools.wraps(func) copies __name__, __doc__, and other attributes from the original function to the wrapper.","from functools import ___
+def my_decorator(func):
+    @___(func)
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+    return wrapper"
+"423","Python","Generators","Easy","code_completion","Complete the generator function to yield even numbers.","return","send","yield","output","C","yield produces a value and suspends the function. The generator yields each even number one at a time.","def evens(n):
+    for i in range(n):
+        if i % 2 == 0:
+            ___ i
+print(list(evens(10)))"
+"424","Python","Generators","Hard","code_completion","Complete the code to delegate to a sub-generator.","return","send","yield from","yield","C","'yield from' delegates to the sub-iterator, yielding each of its values. Without 'from', it would yield the iterator itself.","def chain_gen(*iterables):
+    for it in iterables:
+        ___ it
+print(list(chain_gen([1,2], [3,4])))"
+"425","Python","Iterators","Medium","code_completion","Complete the iterator to stop after n items.","IndexError","ValueError","StopIteration","RuntimeError","C","StopIteration signals the end of iteration. Raising it tells the for loop (or list()) to stop consuming values.","class FirstN:
+    def __init__(self, data, n):
+        self.data = iter(data)
+        self.n = n
+        self.count = 0
+    def __iter__(self):
+        return self
+    def __next__(self):
+        if self.count >= self.n:
+            raise ___
+        self.count += 1
+        return next(self.data)"
+"426","Python","Comprehensions","Easy","code_completion","Complete the set comprehension to get unique first letters.","w for w in words","w[1] for w in words","w[0] for w in words","len(w) for w in words","C","w[0] extracts the first character of each word. The set comprehension ensures uniqueness.","words = ['apple', 'banana', 'avocado', 'blueberry']
+first_letters = {___}
+print(first_letters)  # {'a', 'b'}"
+"427","Python","Comprehensions","Hard","code_completion","Complete the code to create a dictionary from two lists using a comprehension.","map","enumerate","zip","chain","C","zip(keys, vals) pairs corresponding elements, which are then unpacked in the dict comprehension.","keys = ['a', 'b', 'c']
+vals = [1, 2, 3]
+d = {k: v for k, v in ___(keys, vals)}
+print(d)"
+"428","Python","Exception Handling","Easy","code_completion","Complete the code to handle a file not found error.","IOError","ValueError","FileNotFoundError","OSError","C","FileNotFoundError is raised when open() cannot find the specified file. It is a subclass of OSError.","try:
+    f = open('missing.txt')
+except ___:
+    print('File not found')"
+"429","Python","Exception Handling","Medium","code_completion","Complete the code to raise a custom exception with a message.","throw","error","raise","except","C","'raise' explicitly throws an exception. raise InvalidAgeError(msg) creates and raises the custom exception.","class InvalidAgeError(Exception):
+    pass
+
+def set_age(age):
+    if age < 0:
+        ___ InvalidAgeError('Age cannot be negative')
+    return age"
+"430","Python","Exception Handling","Hard","code_completion","Complete the code to chain exceptions.","because","caused_by","from","with","C","'raise X from Y' chains exceptions. Y becomes the __cause__ of X, preserving the full error context.","try:
+    x = int('abc')
+except ValueError as e:
+    raise RuntimeError('Conversion failed') ___ e"
+"431","Python","File I/O","Easy","code_completion","Complete the code to read a file using a context manager.","using","open","with","file","C","The 'with' statement ensures the file is properly closed when the block exits, even if an exception occurs.","___ open('data.txt', 'r') as f:
+    content = f.read()"
+"432","Python","File I/O","Medium","code_completion","Complete the code to write a list of lines to a file.","write","append","writelines","output","C","writelines() writes a list of strings to the file. Unlike write(), it accepts an iterable of strings.","lines = ['line1\n', 'line2\n', 'line3\n']
+with open('output.txt', 'w') as f:
+    f.___(lines)"
+"433","Python","Modules","Easy","code_completion","Complete the import to use only the sqrt function.","import, use","load, get","from, import","get, from","C","'from math import sqrt' imports only the sqrt function directly into the namespace.","___ math ___ sqrt
+print(sqrt(16))  # 4.0"
+"434","Python","Modules","Medium","code_completion","Complete the code to dynamically import a module by name.","sys","os","importlib","inspect","C","importlib.import_module(name) dynamically imports a module by string name at runtime.","import ___
+mod = ___.import_module('json')
+data = mod.loads('{""key"": 1}')
+print(data)"
+"435","Python","Regular Expressions","Easy","code_completion","Complete the code to find all digits in a string.","match","search","findall","split","C","re.findall() returns a list of all non-overlapping matches of the pattern in the string.","import re
+text = 'abc123def456'
+numbers = re.___(r'\d+', text)
+print(numbers)  # ['123', '456']"
+"436","Python","Regular Expressions","Hard","code_completion","Complete the regex to match a valid IPv4 address.","\d+","\d{1}","\d{1,3}","\d*","C","Each octet is 1-3 digits. The pattern matches three octets followed by dots, then a final 1-3 digit group.","import re
+pattern = r'^(\d{1,3}\.){3}___$'
+print(bool(re.match(pattern, '192.168.1.1')))"
+"437","Python","Multithreading","Medium","code_completion","Complete the code to create and start a thread.","Process","Task","Thread","Worker","C","threading.Thread(target=func) creates a thread that will execute the given function when started.","import threading
+def worker():
+    print('Working')
+t = threading.___(target=worker)
+t.start()
+t.join()"
+"438","Python","Multithreading","Hard","code_completion","Complete the code to use a lock for thread-safe counter updates.","use","lock","with","acquire","C","'with lock' acquires the lock on entry and releases it on exit, ensuring thread-safe access to the counter.","import threading
+lock = threading.Lock()
+counter = 0
+def increment():
+    global counter
+    ___ lock:
+        counter += 1"
+"439","Python","Async/Await","Easy","code_completion","Complete the code to define an async function.","await","defer","async","coroutine","C","'async def' defines a coroutine function. It can contain await expressions to suspend execution.","___ def fetch_data():
+    await asyncio.sleep(1)
+    return 'data'"
+"440","Python","Async/Await","Medium","code_completion","Complete the code to run multiple coroutines concurrently.","run","wait","gather","execute","C","asyncio.gather() runs multiple coroutines concurrently and returns their results in order.","import asyncio
+async def main():
+    results = await asyncio.___(coro1(), coro2(), coro3())
+    return results"
+"441","Python","Async/Await","Hard","code_completion","Complete the code to set a timeout on an async operation.","deadline","limit","wait_for","timeout","C","asyncio.wait_for(coro, timeout) wraps a coroutine with a timeout. Raises TimeoutError if exceeded.","import asyncio
+async def main():
+    try:
+        result = await asyncio.___(slow_operation(), timeout=5.0)
+    except asyncio.TimeoutError:
+        print('Timed out')"
+"442","Python","Built-ins","Easy","code_completion","Complete the code to get the sum of a list.","add","total","sum","count","C","sum(iterable) returns the sum of all elements. sum([1,2,3,4,5]) = 15.","numbers = [1, 2, 3, 4, 5]
+total = ___(numbers)
+print(total)  # 15"
+"443","Python","Built-ins","Medium","code_completion","Complete the code to apply a function to each element and get a list.","apply","each","map","transform","C","map(func, iterable) applies the function to each element. Wrapping in list() materializes the results.","numbers = [1, 2, 3, 4]
+squares = list(___(lambda x: x**2, numbers))
+print(squares)  # [1, 4, 9, 16]"
+"444","Python","Built-ins","Hard","code_completion","Complete the code to reduce a list to a single value.","fold","accumulate","reduce","combine","C","functools.reduce applies the function cumulatively: ((1*2)*3)*4 = 24.","from functools import ___
+result = ___(lambda a, b: a * b, [1, 2, 3, 4])
+print(result)  # 24"
+"445","Python","Collections","Easy","code_completion","Complete the code to create a named tuple.","NamedDict","TypedTuple","namedtuple","DataClass","C","namedtuple('Name', fields) creates a new tuple subclass with named fields.","from collections import ___
+Point = ___('Point', ['x', 'y'])
+p = Point(3, 4)
+print(p.x)"
+"446","Python","Collections","Medium","code_completion","Complete the code to create a default dictionary with list values.","OrderedDict","ChainMap","defaultdict","Counter","C","defaultdict(list) creates empty lists for missing keys, so dd['fruits'] creates a new list automatically.","from collections import ___
+dd = ___(list)
+dd['fruits'].append('apple')
+print(dd)"
+"447","Python","Collections","Hard","code_completion","Complete the code to get the 3 most common elements.","top","frequent","most_common","best","C","Counter.most_common(n) returns the n most common elements and their counts as a list of tuples.","from collections import Counter
+data = ['a', 'b', 'a', 'c', 'a', 'b']
+c = Counter(data)
+print(c.___(3))"
+"448","Python","Scope","Medium","code_completion","Complete the code to modify the outer variable from the inner function.","global","outer","nonlocal","shared","C","'nonlocal' declares that count refers to the variable in the enclosing scope, allowing modification.","def outer():
+    count = 0
+    def inner():
+        ___ count
+        count += 1
+    inner()
+    return count"
+"449","Python","Closures","Medium","code_completion","Complete the closure to create a multiplier function.","+","-","*","/","C","x * n multiplies the argument by the enclosed value n. double(5) = 5 * 2 = 10.","def make_multiplier(n):
+    def multiplier(x):
+        return x ___ n
+    return multiplier
+double = make_multiplier(2)
+print(double(5))  # 10"
+"450","Python","Closures","Hard","code_completion","Complete the code to fix the late binding issue in a loop closure.","i=i","x=i","x, i=i","x=i, y=x","B","Using a default argument x=i captures the current value of i at each iteration, fixing the late binding issue.","funcs = []
+for i in range(3):
+    funcs.append(lambda ___: x)
+print([f() for f in funcs])  # [0, 1, 2]"
+"451","Python","Advanced Python","Medium","code_completion","Complete the code to create a data class.","data","model","dataclass","struct","C","@dataclass auto-generates __init__, __repr__, __eq__ and other methods based on the annotated fields.","from dataclasses import ___
+
+@___
+class Employee:
+    name: str
+    salary: float"
+"452","Python","Advanced Python","Hard","code_completion","Complete the code to implement __enter__ and __exit__ for a context manager.","__init__","__start__","__enter__","__begin__","C","__enter__ is called when entering the 'with' block. It sets up resources and returns the context value.","class Timer:
+    def ___(self):
+        import time
+        self.start = time.time()
+        return self
+    def __exit__(self, *args):
+        import time
+        self.elapsed = time.time() - self.start"
+"453","Python","Advanced Python","Hard","code_completion","Complete the code to use the walrus operator.","==","=",":=","->","C","The walrus operator := assigns x*2 to n inside the expression. It allows assignment within an if condition.","data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+filtered = [x for x in data if (n ___ x * 2) > 10]
+print(filtered, n)"
+"454","Python","Decorators","Easy","code_completion","Complete the code to apply the decorator to the function.","#","!","@","$","C","The @ symbol is the decorator syntax. @uppercase is equivalent to greet = uppercase(greet).","def uppercase(func):
+    def wrapper():
+        return func().upper()
+    return wrapper
+
+___uppercase
+def greet():
+    return 'hello'
+print(greet())  # HELLO"
+"455","Python","Iterators","Easy","code_completion","Complete the code to create an iterator from a list.","list","next","iter","range","C","iter() creates an iterator from an iterable. next() then retrieves values one at a time.","lst = [10, 20, 30]
+it = ___(lst)
+print(next(it))  # 10"
+"456","Python","Iterators","Hard","code_completion","Complete the code to create an infinite cycle over elements.","repeat","chain","cycle","count","C","itertools.cycle(iterable) creates an infinite iterator that repeats the elements of the iterable.","from itertools import ___
+c = ___([1, 2, 3])
+result = [next(c) for _ in range(7)]
+print(result)  # [1, 2, 3, 1, 2, 3, 1]"
+"457","Python","Data Types","Hard","code_completion","Complete the code to use precise decimal arithmetic.","math","numbers","decimal","fractions","C","The decimal module provides Decimal for exact decimal arithmetic, avoiding float precision issues.","from ___ import Decimal
+result = Decimal('0.1') + Decimal('0.2')
+print(result)  # 0.3"
+"458","Python","Scope","Easy","code_completion","Complete the code to access a global variable inside a function.","local","outer","global","nonlocal","C","'global x' declares that x refers to the module-level variable, allowing the function to modify it.","x = 10
+def modify():
+    ___ x
+    x = 20
+modify()
+print(x)  # 20"
+"459","Python","Dicts","Hard","code_completion","Complete the code to create a dictionary with default values using comprehension.","None","''","0","[]","C","The comprehension creates a dict with each key mapped to 0. dict.fromkeys(keys, 0) achieves the same.","keys = ['a', 'b', 'c']
+d = {k: ___ for k in keys}
+print(d)  # {'a': 0, 'b': 0, 'c': 0}"
+"460","Python","Sets","Hard","code_completion","Complete the code to find elements in either set but not both.","difference","intersection","symmetric_difference","union","C","symmetric_difference returns elements in either set but not in both. Equivalent to a ^ b.","a = {1, 2, 3}
+b = {2, 3, 4}
+result = a.___(b)
+print(result)  # {1, 4}"
+"461","Python","Tuples","Medium","code_completion","Complete the code to count occurrences of a value in a tuple.","find","index","count","search","C","tuple.count(value) returns the number of times the value appears. 2 appears 3 times.","t = (1, 2, 2, 3, 2, 4)
+result = t.___(2)
+print(result)  # 3"
+"462","Python","File I/O","Hard","code_completion","Complete the code to read a file using pathlib.","open()","load()","read_text()","get_content()","C","Path.read_text() reads the entire file content as a string. It automatically handles opening and closing.","from pathlib import Path
+content = Path('data.txt').___
+print(content)"
+"463","Python","Modules","Hard","code_completion","Complete the code to reload a previously imported module.","reimport","refresh","reload","update","C","importlib.reload(module) re-reads and re-executes the module's source file, updating its namespace.","import importlib
+import mymodule
+# ... modify mymodule.py on disk ...
+importlib.___(mymodule)"
+"464","Python","Multithreading","Hard","code_completion","Complete the code to use a thread pool executor.","ProcessPoolExecutor","AsyncExecutor","ThreadPoolExecutor","WorkerPool","C","ThreadPoolExecutor manages a pool of threads. executor.map applies the function to each input concurrently.","from concurrent.futures import ___
+with ___(max_workers=4) as executor:
+    results = list(executor.map(str.upper, ['a','b','c']))
+print(results)"
+"465","Python","Comprehensions","Medium","code_completion","Complete the code to create a dict mapping numbers to their cubes.","x * 2","x ** 2","x ** 3","x * 3","C","x ** 3 computes the cube of x. The dict comprehension maps each number to its cube.","cubes = {x: ___ for x in range(1, 6)}
+print(cubes)  # {1: 1, 2: 8, 3: 27, 4: 64, 5: 125}"
+"466","Python","Built-ins","Medium","code_completion","Complete the code to check if all elements are positive.","any","every","all","each","C","all() returns True if every element of the iterable is truthy. All numbers are > 0 so result is True.","numbers = [1, 2, 3, 4, 5]
+result = ___(x > 0 for x in numbers)
+print(result)  # True"
+"467","Python","Regular Expressions","Medium","code_completion","Complete the code to replace all whitespace with underscores.","match","search","sub","split","C","re.sub(pattern, replacement, string) replaces all matches. \s+ matches whitespace sequences.","import re
+text = 'hello world python'
+result = re.___(r'\s+', '_', text)
+print(result)  # hello_world_python"
+"468","Python","Generators","Medium","code_completion","Complete the code to create a generator expression for squares.","of, from","from, to","for, in","with, from","C","Generator expressions use the same syntax as list comprehensions: (expr for var in iterable).","gen = (x**2 ___ x ___ range(5))
+print(list(gen))  # [0, 1, 4, 9, 16]"
+"469","Python","OOP","Hard","code_completion","Complete the code to define a read-only property.","@staticmethod","@classmethod","@property","@readonly","C","@property makes a method accessible as an attribute. Without a setter, it becomes read-only.","class Circle:
+    def __init__(self, radius):
+        self._radius = radius
+    ___
+    def radius(self):
+        return self._radius"
+"470","Python","Inheritance","Hard","code_completion","Complete the code to check the method resolution order.","__bases__","__parents__","__mro__","__hierarchy__","C","__mro__ (Method Resolution Order) shows the order in which classes are searched for method lookup.","class A: pass
+class B(A): pass
+class C(A): pass
+class D(B, C): pass
+print(D.___)"
+"471","Python","Exception Handling","Hard","code_completion","Complete the code to suppress a specific exception.","ignore","catch","suppress","handle","C","contextlib.suppress(ExcType) silently catches and ignores the specified exception type.","from contextlib import ___
+with ___(FileNotFoundError):
+    open('missing.txt')
+print('Continued')"
+"472","Python","Advanced Python","Medium","code_completion","Complete the type hint for a function that takes a list of integers.","Array","Sequence","List","Collection","C","typing.List[int] annotates a list of integers. In Python 3.9+, you can use list[int] directly.","from typing import ___
+def sum_numbers(nums: ___[int]) -> int:
+    return sum(nums)"
+"473","Python","Closures","Easy","code_completion","Complete the code to create a closure that adds a prefix.","prefix","make_prefixer","text","self","C","The inner function concatenates the enclosed prefix with the text argument.","def make_prefixer(prefix):
+    def prefixer(text):
+        return prefix + ___
+    return prefixer
+add_mr = make_prefixer('Mr. ')
+print(add_mr('Smith'))  # Mr. Smith"
+"474","Python","Data Types","Easy","code_completion","Complete the code to get the absolute value.","positive","unsigned","abs","math.abs","C","abs() is a built-in function that returns the absolute value of a number.","x = -42
+result = ___(x)
+print(result)  # 42"
+"475","Python","Functions","Hard","code_completion","Complete the code to define a keyword-only argument.","/","**","*","...","C","The bare * in the parameter list forces all following parameters to be keyword-only.","def plot(x, y, ___, color='blue'):
+    print(f'Plotting at ({x},{y}) in {color}')
+plot(1, 2, color='red')"
+"476","Python","Lists","Easy","code_completion","Complete the code to remove the element at index 1.","remove","drop","del","pop","C","'del lst[1]' deletes the element at index 1. pop(1) would also work but returns the removed element.","lst = ['a', 'b', 'c', 'd']
+___ lst[1]
+print(lst)  # ['a', 'c', 'd']"
+"477","Python","Strings","Hard","code_completion","Complete the code to use a raw string for a Windows path.","b","f","r","u","C","Raw strings (r'...') treat backslashes as literal characters, preventing escape sequence interpretation.","path = ___'C:\Users\admin\docs'
+print(path)"
+"478","Python","Dicts","Medium","code_completion","Complete the code to remove a key-value pair and return the value.","remove","delete","pop","discard","C","dict.pop(key) removes the key and returns its value. It raises KeyError if the key is missing (without default).","d = {'a': 1, 'b': 2, 'c': 3}
+val = d.___('b')
+print(val, d)  # 2 {'a': 1, 'c': 3}"
+"479","Python","Tuples","Hard","code_completion","Complete the code to convert a list of pairs to a dict using a tuple trick.","list","tuple","dict","set","C","dict() can take an iterable of (key, value) pairs and construct a dictionary from them.","pairs = [('a', 1), ('b', 2), ('c', 3)]
+d = ___(pairs)
+print(d)  # {'a': 1, 'b': 2, 'c': 3}"
+"480","Python","Data Types","Easy","code_completion","Complete the code to convert an integer to a string.","int","float","str","repr","C","str() converts any object to its string representation. str(42) returns '42'.","x = 42
+s = ___(x)
+print(type(s))  # <class 'str'>"
+"481","Python","Strings","Easy","code_completion","Complete the code to check if a string ends with '.py'.","startswith('.py')","contains('.py')","endswith('.py')","find('.py')","C","str.endswith(suffix) returns True if the string ends with the specified suffix.","filename = 'script.py'
+result = filename.___(___)
+print(result)  # True"
+"482","Python","Lists","Medium","code_completion","Complete the code to remove all occurrences of a value from a list.","==",">","!=","is","C","The condition x != 2 filters out all elements equal to 2, keeping only the others.","lst = [1, 2, 3, 2, 4, 2]
+result = [x for x in lst if x ___ 2]
+print(result)  # [1, 3, 4]"
+"483","Python","Dicts","Easy","code_completion","Complete the code to check if a key exists in a dictionary.","of","==","in","has","C","'in' operator checks for key membership in a dictionary. 'name' in d returns True.","d = {'name': 'Alice', 'age': 30}
+result = 'name' ___ d
+print(result)  # True"
+"484","Python","Sets","Medium","code_completion","Complete the code to create a set from a list.","list","tuple","set","frozenset","C","set(lst) creates a set from the list, removing duplicates. The result has 3 unique elements.","lst = [1, 2, 2, 3, 3, 3]
+unique = ___(lst)
+print(len(unique))  # 3"
+"485","Python","Functions","Medium","code_completion","Complete the code to make a function accept keyword-only arguments.","/","**","*","...","C","A bare * forces all following parameters to be keyword-only. timeout must be passed as a keyword.","def connect(host, port, ___, timeout=30):
+    print(f'{host}:{port} timeout={timeout}')
+connect('localhost', 8080, timeout=10)"
+"486","Python","OOP","Medium","code_completion","Complete the code to check if an object is an instance of a class.","type","istype","isinstance","isclass","C","isinstance(obj, cls) returns True if obj is an instance of cls or a subclass of cls.","class Animal:
+    pass
+class Dog(Animal):
+    pass
+d = Dog()
+print(___(d, Animal))  # True"
+"487","Python","Inheritance","Medium","code_completion","Complete the code to prevent a class from being instantiated directly.","object","Interface","ABC","Base","C","Inheriting from ABC (Abstract Base Class) and having abstract methods prevents direct instantiation.","from abc import ABC, abstractmethod
+class Shape(___):
+    @abstractmethod
+    def area(self):
+        pass"
+"488","Python","Decorators","Hard","code_completion","Complete the code to create a decorator that measures execution time.","clock","now","perf_counter","date","C","time.perf_counter() provides the highest resolution timer for measuring short durations.","import time
+from functools import wraps
+def timer(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.___()
+        result = func(*args, **kwargs)
+        end = time.___()
+        print(f'{func.__name__} took {end-start:.4f}s')
+        return result
+    return wrapper"
+"489","Python","Generators","Medium","code_completion","Complete the code to create a generator that yields only unique elements.","list","dict","set","tuple","C","A set provides O(1) membership testing with seen.add() for tracking already-yielded elements.","def unique(iterable):
+    seen = ___()
+    for item in iterable:
+        if item not in seen:
+            seen.add(item)
+            yield item"
+"490","Python","Iterators","Easy","code_completion","Complete the code to get the next value from an iterator with a default.","iter","get","next","value","C","next(iterator, default) returns default instead of raising StopIteration when the iterator is exhausted.","it = iter([])
+result = ___(it, 'default')
+print(result)  # default"
+"491","Python","Exception Handling","Medium","code_completion","Complete the code to catch multiple exception types.","IOError","KeyError","TypeError","RuntimeError","C","Multiple exception types can be caught in a tuple. TypeError handles type conversion issues alongside ValueError.","try:
+    x = int('abc')
+except (ValueError, ___) as e:
+    print(f'Error: {e}')"
+"492","Python","File I/O","Medium","code_completion","Complete the code to create a temporary file.","os","io","tempfile","shutil","C","tempfile.NamedTemporaryFile creates a temporary file with a visible name in the filesystem.","import ___
+with ___.NamedTemporaryFile(mode='w', delete=False) as f:
+    f.write('test data')
+    print(f.name)"
+"493","Python","Modules","Medium","code_completion","Complete the code to list all attributes of a module.","list","attrs","dir","vars","C","dir(module) returns a list of names defined in the module, including functions and constants.","import math
+attributes = ___(math)
+print('sqrt' in attributes)  # True"
+"494","Python","Regular Expressions","Medium","code_completion","Complete the code to make the pattern case-insensitive.","MULTILINE","DOTALL","IGNORECASE","VERBOSE","C","re.IGNORECASE makes the pattern match regardless of case. All three variations of 'hello' are matched.","import re
+result = re.findall(r'hello', 'Hello HELLO hello', re.___)
+print(len(result))  # 3"
+"495","Python","Multithreading","Medium","code_completion","Complete the code to create a thread-safe queue.","threading","collections","queue","multiprocessing","C","The queue module provides Queue, a thread-safe FIFO queue designed for inter-thread communication.","import ___
+q = ___.Queue()
+q.put('item1')
+print(q.get())  # item1"
+"496","Python","Async/Await","Medium","code_completion","Complete the code to create an async context manager.","__del__","__close__","__aexit__","__exit__","C","__aexit__ is the async counterpart of __exit__ for async context managers used with 'async with'.","class AsyncDB:
+    async def __aenter__(self):
+        print('connecting')
+        return self
+    async def ___(self, *args):
+        print('disconnecting')"
+"497","Python","Collections","Hard","code_completion","Complete the code to create a ChainMap for layered lookups.","OrderedDict","defaultdict","ChainMap","Counter","C","ChainMap searches dictionaries in order. overrides is checked first, so color='blue', then defaults gives size=10.","from collections import ___
+defaults = {'color': 'red', 'size': 10}
+overrides = {'color': 'blue'}
+config = ___(overrides, defaults)
+print(config['color'], config['size'])"
+"498","Python","Scope","Hard","code_completion","Complete the code to access the built-in list function after it has been shadowed.","sys","os","builtins","types","C","The builtins module contains all built-in names. Importing it gives access to the original list type.","list = [1, 2, 3]  # shadows built-in
+import ___
+real_list = ___.list
+print(real_list(range(3)))  # [0, 1, 2]"
+"499","Python","Closures","Hard","code_completion","Complete the code to inspect closure variables.","__dict__","__vars__","__closure__","__scope__","C","__closure__ is a tuple of cell objects containing the closed-over variables. cell_contents gives the actual value.","def make_counter(start):
+    count = start
+    def counter():
+        nonlocal count
+        count += 1
+        return count
+    return counter
+c = make_counter(10)
+print(c.___[0].cell_contents)"
+"500","Python","Advanced Python","Hard","code_completion","Complete the code to create a class using type() directly.","class","object","type","meta","C","type(name, bases, dict) dynamically creates a class. This is what class statements do internally.","MyClass = ___('MyClass', (object,), {'x': 10, 'greet': lambda self: 'hi'})
+obj = MyClass()
+print(obj.x, obj.greet())"

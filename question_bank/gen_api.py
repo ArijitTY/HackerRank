@@ -1,0 +1,4101 @@
+"""
+Generate 500 unique API Testing questions and write to CSV.
+
+Distribution:
+  Types:       mcq=200, output=100, scenario=100, code_completion=100
+  Difficulty:  Easy~30%, Medium~40%, Hard~30%
+
+Topics: REST Concepts, HTTP Methods, Status Codes, Request/Response,
+        Authentication, Headers, Pagination, Versioning, Error Handling,
+        GraphQL Basics, WebSocket Testing, Contract Testing,
+        Performance Testing APIs, Security Testing APIs, Test Automation Strategy
+"""
+
+import csv
+import pandas as pd
+
+
+def _q(id, topic, difficulty, qtype, question, a, b, c, d, correct, explanation, code_snippet=""):
+    return {
+        "id": id,
+        "subject": "API Testing",
+        "topic": topic,
+        "difficulty": difficulty,
+        "type": qtype,
+        "question": question,
+        "option_a": a,
+        "option_b": b,
+        "option_c": c,
+        "option_d": d,
+        "correct_answer": correct,
+        "explanation": explanation,
+        "code_snippet": code_snippet,
+    }
+
+
+def generate_questions():
+    questions = []
+    qid = 0
+
+    # ===================================================================
+    # MCQ questions (200) -- code_snippet is empty string
+    # ===================================================================
+
+    # --- REST Concepts (MCQ 1-15) ---
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Easy", "mcq",
+        "What does REST stand for?",
+        "Representational State Transfer", "Remote Execution Service Technology",
+        "Reliable Endpoint System Transfer", "Resource Estimation and Status Tracking",
+        "A", "REST stands for Representational State Transfer, an architectural style for distributed systems."))
+
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Easy", "mcq",
+        "Which constraint of REST requires that each request contains all information needed to process it?",
+        "Statelessness", "Cacheability", "Uniform Interface", "Layered System",
+        "A", "Statelessness means the server does not store client context between requests."))
+
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Easy", "mcq",
+        "What is a resource in REST?",
+        "Any information that can be named and addressed", "A database table",
+        "A server endpoint only", "An HTTP method",
+        "A", "In REST, a resource is any information that can be named, such as a document, image, or collection."))
+
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Medium", "mcq",
+        "Which of the following is NOT a REST architectural constraint?",
+        "Stateful sessions", "Client-Server", "Cacheability", "Uniform Interface",
+        "A", "REST requires statelessness, not stateful sessions. The server should not store session state."))
+
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Medium", "mcq",
+        "What does HATEOAS stand for in REST?",
+        "Hypermedia As The Engine Of Application State", "HTTP And Transport Encryption Over Application Services",
+        "Hypertext Application Transfer Engine Over API Services", "HTTP Access Token Exchange Over Application State",
+        "A", "HATEOAS is a REST constraint meaning clients interact with the application through hypermedia provided dynamically by the server."))
+
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Hard", "mcq",
+        "Which Richardson Maturity Model level involves using hypermedia controls?",
+        "Level 3", "Level 2", "Level 1", "Level 0",
+        "A", "Level 3 of the Richardson Maturity Model introduces HATEOAS (Hypermedia As The Engine Of Application State)."))
+
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Easy", "mcq",
+        "What data format is most commonly used in REST APIs?",
+        "JSON", "XML", "YAML", "CSV",
+        "A", "JSON (JavaScript Object Notation) is the most commonly used data format for REST APIs."))
+
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Medium", "mcq",
+        "What is idempotency in the context of REST APIs?",
+        "Making the same request multiple times produces the same result", "A request that always fails",
+        "A request that creates a new resource each time", "A request with no response body",
+        "A", "An idempotent operation produces the same result regardless of how many times it is performed."))
+
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Hard", "mcq",
+        "Which of the following best describes the Uniform Interface constraint in REST?",
+        "A generalized interface between client and server using standard methods and media types",
+        "All APIs must use the same URL pattern",
+        "All resources must return JSON",
+        "The client and server must use the same programming language",
+        "A", "Uniform Interface simplifies the architecture by using standard HTTP methods, URIs, and media types."))
+
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Easy", "mcq",
+        "What is the purpose of a URI in REST?",
+        "To uniquely identify a resource", "To encrypt the payload",
+        "To define the HTTP method", "To set the response status code",
+        "A", "A URI (Uniform Resource Identifier) uniquely identifies each resource in a REST API."))
+
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Medium", "mcq",
+        "In REST, what does the term 'representation' refer to?",
+        "The format in which a resource is returned to the client", "The URL of the resource",
+        "The HTTP method used", "The server's internal data model",
+        "A", "A representation is the data format (e.g., JSON, XML) returned to the client for a given resource."))
+
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Hard", "mcq",
+        "What is content negotiation in REST?",
+        "The process where client and server agree on the response format via Accept headers",
+        "Negotiating the price of an API subscription",
+        "Choosing between REST and SOAP",
+        "Selecting between HTTP and HTTPS",
+        "A", "Content negotiation uses headers like Accept and Content-Type to agree on the representation format."))
+
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Medium", "mcq",
+        "Which of the following is a benefit of the statelessness constraint?",
+        "Improved scalability since servers do not store session state", "Faster response times due to caching",
+        "Better security through encryption", "Simpler client-side code",
+        "A", "Statelessness improves scalability because any server can handle any request without session affinity."))
+
+    # --- HTTP Methods (MCQ 14-30) ---
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Easy", "mcq",
+        "Which HTTP method is used to retrieve a resource?",
+        "GET", "POST", "PUT", "DELETE",
+        "A", "GET is the standard HTTP method for retrieving resources from a server."))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Easy", "mcq",
+        "Which HTTP method is used to create a new resource?",
+        "POST", "GET", "DELETE", "OPTIONS",
+        "A", "POST is typically used to create a new resource on the server."))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Easy", "mcq",
+        "Which HTTP method replaces an entire resource?",
+        "PUT", "PATCH", "POST", "GET",
+        "A", "PUT replaces the entire resource at the given URI with the provided representation."))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Easy", "mcq",
+        "Which HTTP method is used to delete a resource?",
+        "DELETE", "REMOVE", "DROP", "PURGE",
+        "A", "DELETE is the standard HTTP method to remove a resource from the server."))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Medium", "mcq",
+        "Which HTTP method is used for partial updates to a resource?",
+        "PATCH", "PUT", "POST", "UPDATE",
+        "A", "PATCH applies partial modifications to a resource, unlike PUT which replaces the entire resource."))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Medium", "mcq",
+        "Which HTTP method is idempotent?",
+        "PUT", "POST", "PATCH", "CONNECT",
+        "A", "PUT is idempotent: making the same PUT request multiple times produces the same result."))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Medium", "mcq",
+        "What does the OPTIONS HTTP method do?",
+        "Describes the communication options for the target resource", "Retrieves a resource",
+        "Creates a new resource", "Deletes a resource",
+        "A", "OPTIONS returns the HTTP methods and other options supported by the server for a given URL."))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Hard", "mcq",
+        "Which HTTP method is used to check if a resource exists without downloading the body?",
+        "HEAD", "OPTIONS", "TRACE", "GET",
+        "A", "HEAD is identical to GET but returns only headers, not the response body. Useful for checking resource existence."))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Easy", "mcq",
+        "Is GET considered a safe HTTP method?",
+        "Yes, it does not modify server state", "No, it can modify data",
+        "Only when used with HTTPS", "Only for read-only APIs",
+        "A", "GET is a safe method because it only retrieves data and does not modify server state."))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Medium", "mcq",
+        "Which of the following HTTP methods should NOT have a request body according to common convention?",
+        "GET", "POST", "PUT", "PATCH",
+        "A", "While not strictly forbidden by HTTP spec, GET requests conventionally should not have a request body."))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Hard", "mcq",
+        "What is the TRACE HTTP method used for?",
+        "Performing a loop-back test to see what the server receives", "Tracing network latency",
+        "Logging API calls", "Tracking resource changes",
+        "A", "TRACE performs a message loop-back test, returning what the server received, useful for debugging."))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Medium", "mcq",
+        "Which HTTP methods are considered idempotent?",
+        "GET, PUT, DELETE, HEAD, OPTIONS", "GET, POST, PUT, DELETE",
+        "Only GET and HEAD", "All HTTP methods",
+        "A", "GET, PUT, DELETE, HEAD, and OPTIONS are idempotent. POST and PATCH are not guaranteed to be idempotent."))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Hard", "mcq",
+        "In a RESTful API, what is the difference between PUT and POST for resource creation?",
+        "PUT creates at a known URI; POST creates at a server-determined URI",
+        "PUT is faster than POST", "POST is more secure than PUT",
+        "There is no difference",
+        "A", "PUT creates/replaces a resource at a specific URI. POST lets the server determine the URI of the new resource."))
+
+    # --- Status Codes (MCQ 28-48) ---
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Easy", "mcq",
+        "What does HTTP status code 200 indicate?",
+        "OK - The request was successful", "Created - A new resource was created",
+        "No Content - The server has no response body", "Accepted - Request is being processed",
+        "A", "HTTP 200 OK indicates the request was successful and the response body contains the result."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Easy", "mcq",
+        "What does HTTP status code 201 indicate?",
+        "Created", "OK", "Accepted", "No Content",
+        "A", "HTTP 201 Created indicates that a new resource was successfully created."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Easy", "mcq",
+        "What does HTTP status code 404 indicate?",
+        "Not Found", "Unauthorized", "Forbidden", "Bad Request",
+        "A", "HTTP 404 Not Found means the requested resource could not be found on the server."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Easy", "mcq",
+        "What does HTTP status code 500 indicate?",
+        "Internal Server Error", "Bad Gateway", "Service Unavailable", "Gateway Timeout",
+        "A", "HTTP 500 Internal Server Error indicates an unexpected condition on the server."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Medium", "mcq",
+        "What does HTTP status code 204 indicate?",
+        "No Content - successful but no response body", "Not Found",
+        "Bad Request", "Unauthorized",
+        "A", "HTTP 204 No Content indicates success but the server is not returning any content in the body."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Medium", "mcq",
+        "What does HTTP status code 401 indicate?",
+        "Unauthorized - authentication is required", "Forbidden - access denied",
+        "Not Found", "Bad Request",
+        "A", "HTTP 401 Unauthorized means the request lacks valid authentication credentials."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Medium", "mcq",
+        "What does HTTP status code 403 indicate?",
+        "Forbidden - the server refuses to authorize the request", "Unauthorized - need to login",
+        "Not Found", "Method Not Allowed",
+        "A", "HTTP 403 Forbidden means the server understood the request but refuses to authorize it."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Medium", "mcq",
+        "What does HTTP status code 429 indicate?",
+        "Too Many Requests - rate limit exceeded", "Internal Server Error",
+        "Bad Gateway", "Service Unavailable",
+        "A", "HTTP 429 Too Many Requests indicates the user has sent too many requests in a given time (rate limiting)."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Hard", "mcq",
+        "What does HTTP status code 409 indicate?",
+        "Conflict - the request conflicts with current server state", "Gone - resource no longer available",
+        "Precondition Failed", "Unprocessable Entity",
+        "A", "HTTP 409 Conflict indicates the request could not be completed due to a conflict with the current resource state."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Easy", "mcq",
+        "Which status code range indicates client errors?",
+        "4xx", "3xx", "5xx", "2xx",
+        "A", "4xx status codes indicate client errors such as bad requests or unauthorized access."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Easy", "mcq",
+        "Which status code range indicates server errors?",
+        "5xx", "4xx", "3xx", "2xx",
+        "A", "5xx status codes indicate server-side errors."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Medium", "mcq",
+        "What does HTTP status code 301 indicate?",
+        "Moved Permanently", "Temporary Redirect", "Not Modified", "See Other",
+        "A", "HTTP 301 Moved Permanently indicates the resource has been permanently moved to a new URI."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Hard", "mcq",
+        "What does HTTP status code 422 indicate?",
+        "Unprocessable Entity - the server understands the content type but cannot process the instructions",
+        "Locked - the resource is locked",
+        "Too Early - the server is unwilling to process the request",
+        "Upgrade Required",
+        "A", "HTTP 422 Unprocessable Entity means the server understands the request but it contains semantic errors."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Hard", "mcq",
+        "What is the difference between 401 Unauthorized and 403 Forbidden?",
+        "401 means not authenticated; 403 means authenticated but lacking permissions",
+        "401 means server error; 403 means client error",
+        "They are identical in meaning",
+        "401 is for GET; 403 is for POST",
+        "A", "401 indicates missing or invalid authentication. 403 indicates the authenticated user lacks permission."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Medium", "mcq",
+        "What does HTTP status code 304 indicate?",
+        "Not Modified - the cached version is still valid", "Redirect to another URL",
+        "Bad Request", "No Content",
+        "A", "HTTP 304 Not Modified tells the client that the cached response is still valid and can be reused."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Medium", "mcq",
+        "What does HTTP status code 502 indicate?",
+        "Bad Gateway", "Service Unavailable", "Gateway Timeout", "Internal Server Error",
+        "A", "HTTP 502 Bad Gateway means the server acting as a gateway received an invalid response from the upstream server."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Hard", "mcq",
+        "What does HTTP status code 503 with a Retry-After header suggest?",
+        "The service is temporarily unavailable and the client should retry after the specified time",
+        "The resource has been permanently deleted",
+        "The client must authenticate before retrying",
+        "The request payload was too large",
+        "A", "HTTP 503 Service Unavailable with Retry-After tells the client when the service is expected to be available again."))
+
+    # --- Request/Response (MCQ 46-60) ---
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Easy", "mcq",
+        "What is the request body in an HTTP request?",
+        "Data sent to the server as part of the request", "The URL of the request",
+        "The HTTP method used", "The status code returned",
+        "A", "The request body contains data sent to the server, typically in POST and PUT requests."))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Easy", "mcq",
+        "What does the Content-Type header specify?",
+        "The media type of the request or response body", "The size of the response",
+        "The encoding of the URL", "The authentication method",
+        "A", "Content-Type indicates the media type (e.g., application/json) of the body content."))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Medium", "mcq",
+        "What is the purpose of query parameters in a URL?",
+        "To filter or customize the resource request", "To authenticate the user",
+        "To encrypt the request", "To specify the HTTP method",
+        "A", "Query parameters (after ?) are used to filter, sort, or customize the resource request."))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Medium", "mcq",
+        "What is the difference between request headers and body?",
+        "Headers contain metadata; body contains the actual data payload",
+        "Headers contain data; body contains metadata",
+        "There is no difference",
+        "Headers are only for GET; body is only for POST",
+        "A", "Headers carry metadata (content type, auth tokens, etc.) while the body carries the actual data payload."))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Easy", "mcq",
+        "Which Content-Type value indicates a JSON payload?",
+        "application/json", "text/json", "application/text", "json/data",
+        "A", "application/json is the standard MIME type for JSON-formatted data."))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Hard", "mcq",
+        "What is the purpose of the Accept header?",
+        "It tells the server what media types the client can process",
+        "It accepts the terms of service",
+        "It confirms receipt of the response",
+        "It authorizes the request",
+        "A", "The Accept header informs the server about the media types the client is willing to receive."))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Medium", "mcq",
+        "What is a request payload?",
+        "The data sent in the body of the request", "The URL path",
+        "The response headers", "The HTTP version",
+        "A", "The request payload is the data included in the request body, often in JSON or form-encoded format."))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Hard", "mcq",
+        "What does the Transfer-Encoding: chunked header indicate?",
+        "The response body is sent in chunks without knowing the total size in advance",
+        "The data is compressed", "The request is encrypted",
+        "The response is cached",
+        "A", "Transfer-Encoding: chunked means the data is sent in a series of chunks without a Content-Length header."))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Medium", "mcq",
+        "What format is typically used for REST API request bodies?",
+        "JSON", "HTML", "Plain text", "Binary",
+        "A", "JSON is the most common format for REST API request and response bodies."))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Easy", "mcq",
+        "In an HTTP response, where is the status code found?",
+        "In the response status line", "In the response body",
+        "In the request headers", "In the URL",
+        "A", "The status code is part of the HTTP response status line (e.g., HTTP/1.1 200 OK)."))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Hard", "mcq",
+        "What is the purpose of the ETag header in an HTTP response?",
+        "To provide a version identifier for cache validation",
+        "To encrypt the response body",
+        "To specify the encoding type",
+        "To track user sessions",
+        "A", "ETag provides a version identifier for the resource, allowing conditional requests and cache validation."))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Medium", "mcq",
+        "What is the maximum recommended URL length?",
+        "2048 characters", "256 characters", "Unlimited", "8192 characters",
+        "A", "While HTTP itself does not define a limit, 2048 characters is a widely accepted practical limit."))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Medium", "mcq",
+        "What does the Location header in a response indicate?",
+        "The URL to redirect the client to", "The server's physical location",
+        "The position in the response body", "The cache location",
+        "A", "The Location header is used in redirects (3xx) and creation (201) to indicate the target URL."))
+
+    # --- Authentication (MCQ 59-75) ---
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Easy", "mcq",
+        "What is Basic Authentication in HTTP?",
+        "Sending username and password encoded in Base64 in the Authorization header",
+        "Using an API key in the URL",
+        "Sending credentials in the request body as JSON",
+        "Using cookies for authentication",
+        "A", "Basic Auth sends Base64-encoded username:password in the Authorization header."))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Easy", "mcq",
+        "What is a Bearer token?",
+        "An access token sent in the Authorization header after the word Bearer",
+        "A physical security device",
+        "A cookie-based authentication method",
+        "An encrypted URL parameter",
+        "A", "A Bearer token is an access token included as 'Bearer <token>' in the Authorization header."))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Medium", "mcq",
+        "What is OAuth 2.0?",
+        "An authorization framework that enables third-party access to resources",
+        "An encryption protocol",
+        "A type of API key",
+        "A REST constraint",
+        "A", "OAuth 2.0 is an authorization framework allowing third-party apps to access resources on behalf of users."))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Medium", "mcq",
+        "What is the purpose of a refresh token in OAuth 2.0?",
+        "To obtain a new access token without re-authentication",
+        "To refresh the page",
+        "To update the user's profile",
+        "To reset the password",
+        "A", "A refresh token is used to get a new access token when the current one expires, without user re-authentication."))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Hard", "mcq",
+        "What is the difference between authentication and authorization?",
+        "Authentication verifies identity; authorization determines access permissions",
+        "They are the same thing",
+        "Authentication is for APIs; authorization is for web apps",
+        "Authentication uses tokens; authorization uses passwords",
+        "A", "Authentication confirms who you are; authorization determines what you are allowed to do."))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Medium", "mcq",
+        "What is an API key?",
+        "A unique identifier used to authenticate an API client",
+        "A public encryption key",
+        "A database primary key",
+        "A URL path parameter",
+        "A", "An API key is a unique string that identifies the calling application and may control access levels."))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Hard", "mcq",
+        "What is JWT (JSON Web Token)?",
+        "A compact, URL-safe token format containing claims encoded as JSON",
+        "A Java web testing framework",
+        "A JavaScript widget toolkit",
+        "A JSON web template",
+        "A", "JWT is a compact token containing JSON-encoded claims, typically signed with HMAC or RSA."))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Hard", "mcq",
+        "What are the three parts of a JWT?",
+        "Header, Payload, Signature", "Username, Password, Token",
+        "Key, Value, Expiry", "Issuer, Subject, Audience",
+        "A", "A JWT consists of a Header (algorithm), Payload (claims), and Signature, separated by dots."))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Medium", "mcq",
+        "Where should API keys typically NOT be placed?",
+        "In the URL query string", "In the request header",
+        "In an environment variable", "In a secure vault",
+        "A", "API keys in URL query strings can be logged in server logs and browser history, posing a security risk."))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Easy", "mcq",
+        "What header is used to send authentication credentials in HTTP?",
+        "Authorization", "Authentication", "Auth-Token", "X-Credentials",
+        "A", "The Authorization header is the standard HTTP header for sending authentication credentials."))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Hard", "mcq",
+        "What is the OAuth 2.0 Authorization Code flow?",
+        "A flow where the client obtains an authorization code and exchanges it for an access token",
+        "A flow where the token is returned directly in the URL",
+        "A flow using only client credentials",
+        "A flow that requires no user interaction",
+        "A", "The Authorization Code flow is the most secure OAuth 2.0 flow, using a code exchange to obtain tokens."))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Medium", "mcq",
+        "What is HMAC in the context of API authentication?",
+        "Hash-based Message Authentication Code used to verify data integrity and authenticity",
+        "HTTP Method Access Control",
+        "Hypertext Message Authentication Cookie",
+        "Host Machine Access Certificate",
+        "A", "HMAC uses a cryptographic hash function and a secret key to verify message integrity and authenticity."))
+
+    # --- Headers (MCQ 71-85) ---
+    qid += 1
+    questions.append(_q(qid, "Headers", "Easy", "mcq",
+        "What does the Content-Length header represent?",
+        "The size of the response body in bytes", "The number of headers",
+        "The URL length", "The timeout duration",
+        "A", "Content-Length indicates the size of the message body in bytes."))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Easy", "mcq",
+        "What is the purpose of the User-Agent header?",
+        "To identify the client software making the request", "To authenticate the user",
+        "To specify the server version", "To set the response format",
+        "A", "User-Agent identifies the client application, operating system, and version making the request."))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Medium", "mcq",
+        "What does the Cache-Control header do?",
+        "Specifies caching directives for both requests and responses",
+        "Controls which servers can cache data",
+        "Clears the browser cache",
+        "Sets the cache size limit",
+        "A", "Cache-Control provides directives for caching mechanisms in both requests and responses."))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Medium", "mcq",
+        "What is the purpose of the X-Request-ID header?",
+        "To uniquely identify a request for tracing and debugging",
+        "To specify the request format",
+        "To set the request priority",
+        "To authenticate the request",
+        "A", "X-Request-ID is a custom header used to trace requests across distributed systems for debugging."))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Hard", "mcq",
+        "What does the Access-Control-Allow-Origin header control?",
+        "Which origins can access the resource in cross-origin requests (CORS)",
+        "Which servers can host the resource",
+        "Which users can access the API",
+        "Which HTTP methods are allowed",
+        "A", "Access-Control-Allow-Origin is a CORS header specifying which origins are permitted to access the resource."))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Medium", "mcq",
+        "What is the purpose of the Retry-After header?",
+        "To indicate when the client should retry a failed request",
+        "To set the number of retry attempts",
+        "To specify the retry endpoint",
+        "To authenticate retry requests",
+        "A", "Retry-After tells the client how long to wait before making another request, typically used with 429 or 503."))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Easy", "mcq",
+        "What does the Host header specify?",
+        "The domain name of the server being requested", "The client's IP address",
+        "The port number only", "The protocol version",
+        "A", "The Host header specifies the domain name (and optionally port) of the server being requested."))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Hard", "mcq",
+        "What is the purpose of the If-None-Match header?",
+        "To make a conditional request based on the ETag value for cache validation",
+        "To block certain content types",
+        "To filter response fields",
+        "To deny access to specific resources",
+        "A", "If-None-Match sends the cached ETag; the server returns 304 Not Modified if the resource has not changed."))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Medium", "mcq",
+        "What does the X-RateLimit-Remaining header indicate?",
+        "The number of API requests remaining in the current rate limit window",
+        "The total rate limit", "The time until rate limit resets",
+        "The rate limit policy name",
+        "A", "X-RateLimit-Remaining tells the client how many requests they have left before hitting the rate limit."))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Hard", "mcq",
+        "What is the CORS preflight request?",
+        "An OPTIONS request sent automatically by browsers before certain cross-origin requests",
+        "A GET request to check server health",
+        "A POST request to initialize a session",
+        "A HEAD request to verify content type",
+        "A", "CORS preflight is an OPTIONS request sent by browsers to check if the actual cross-origin request is allowed."))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Easy", "mcq",
+        "What does Accept: application/json indicate?",
+        "The client wants the response in JSON format", "The client is sending JSON",
+        "The server only accepts JSON", "The API version is JSON",
+        "A", "The Accept header tells the server that the client prefers to receive JSON-formatted responses."))
+
+    # --- Pagination (MCQ 82-92) ---
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Easy", "mcq",
+        "What is pagination in API design?",
+        "Dividing large result sets into smaller pages of data",
+        "Creating multiple API versions",
+        "Splitting an API across multiple servers",
+        "Organizing API documentation into sections",
+        "A", "Pagination divides large datasets into manageable pages, typically using limit/offset or cursor-based methods."))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Medium", "mcq",
+        "What is offset-based pagination?",
+        "Using offset and limit parameters to specify which subset of results to return",
+        "Using page tokens to navigate results",
+        "Using cursor values to track position",
+        "Returning all results at once",
+        "A", "Offset-based pagination uses offset (starting position) and limit (page size) parameters."))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Medium", "mcq",
+        "What is cursor-based pagination?",
+        "Using an opaque cursor token to mark the position in the dataset",
+        "Using page numbers",
+        "Using offset values",
+        "Using timestamps only",
+        "A", "Cursor-based pagination uses an opaque token pointing to a specific position, avoiding issues with offset pagination."))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Hard", "mcq",
+        "What is a disadvantage of offset-based pagination?",
+        "Inconsistent results when data changes between page requests",
+        "It requires complex token management",
+        "It cannot be used with SQL databases",
+        "It does not support sorting",
+        "A", "When data is inserted or deleted between requests, offset pagination can skip or duplicate records."))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Easy", "mcq",
+        "What query parameter commonly specifies the number of items per page?",
+        "limit", "count", "size", "total",
+        "A", "The 'limit' parameter (or sometimes 'per_page' or 'page_size') specifies items per page."))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Medium", "mcq",
+        "What is keyset pagination?",
+        "Using the last seen value of a sorted column to fetch the next set of results",
+        "Using encryption keys to paginate",
+        "Using keyboard shortcuts to navigate pages",
+        "Using random keys as page identifiers",
+        "A", "Keyset pagination uses the last value of the sorted column (e.g., id > last_id) for efficient page navigation."))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Hard", "mcq",
+        "Which HTTP header is commonly used to provide pagination links?",
+        "Link", "Pagination", "X-Page-Links", "Next-Page",
+        "A", "The Link header can contain URLs for next, prev, first, and last pages following RFC 5988."))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Medium", "mcq",
+        "What is the default behavior if no pagination parameters are provided?",
+        "It depends on the API; most have a default limit",
+        "All records are always returned",
+        "The request fails with a 400 error",
+        "Only one record is returned",
+        "A", "Most APIs have a default page size (e.g., 20 or 100 items) when no pagination parameters are specified."))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Easy", "mcq",
+        "What does the 'page' query parameter typically represent?",
+        "The page number to retrieve", "The total number of pages",
+        "The page size", "The page title",
+        "A", "The 'page' parameter typically indicates which page of results to return (e.g., page=2)."))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Hard", "mcq",
+        "Why is cursor-based pagination preferred for real-time data?",
+        "It provides stable results regardless of insertions or deletions between requests",
+        "It is faster than offset pagination",
+        "It uses less memory",
+        "It supports more data types",
+        "A", "Cursors point to a specific record, so new inserts/deletes do not cause skipped or duplicated items."))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Medium", "mcq",
+        "What metadata should a paginated API response include?",
+        "Total count, current page, page size, and links to next/previous pages",
+        "Only the data items",
+        "Only the total count",
+        "Only the next page link",
+        "A", "Good pagination responses include total count, current page, page size, and navigation links."))
+
+    # --- Versioning (MCQ 93-104) ---
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Easy", "mcq",
+        "What is API versioning?",
+        "Managing changes to an API by maintaining multiple versions",
+        "Tracking the version of the programming language",
+        "Numbering API documentation pages",
+        "Versioning the database schema",
+        "A", "API versioning allows maintaining multiple API versions to avoid breaking existing clients."))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Medium", "mcq",
+        "What is URI path versioning?",
+        "Including the version number in the URL path, e.g., /api/v1/users",
+        "Versioning via query parameters",
+        "Versioning via headers",
+        "Versioning via content type",
+        "A", "URI path versioning embeds the version in the URL path (e.g., /api/v1/resource)."))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Medium", "mcq",
+        "What is header-based API versioning?",
+        "Specifying the API version in a custom request header",
+        "Versioning the response headers",
+        "Changing header names between versions",
+        "Using different header formats",
+        "A", "Header-based versioning uses a custom header (e.g., X-API-Version: 2) to specify the desired version."))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Hard", "mcq",
+        "What is content negotiation-based versioning?",
+        "Using the Accept header with a custom media type to specify the version",
+        "Negotiating which content to return",
+        "Using different content types for each version",
+        "Compressing content differently per version",
+        "A", "Content negotiation versioning uses Accept: application/vnd.api.v2+json to specify the version."))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Easy", "mcq",
+        "Why is API versioning important?",
+        "To maintain backward compatibility when making breaking changes",
+        "To improve API performance",
+        "To reduce server costs",
+        "To simplify documentation",
+        "A", "Versioning ensures existing clients continue to work when breaking changes are introduced."))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Medium", "mcq",
+        "What is query parameter versioning?",
+        "Adding the version as a query parameter, e.g., /users?version=2",
+        "Using query strings to filter versions",
+        "Versioning the query language",
+        "Parameterizing the version endpoint",
+        "A", "Query parameter versioning passes the version as ?version=2 or ?v=2 in the URL."))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Hard", "mcq",
+        "What is semantic versioning (SemVer) in APIs?",
+        "A versioning scheme using MAJOR.MINOR.PATCH to convey compatibility information",
+        "Versioning based on the meaning of endpoints",
+        "Using natural language version names",
+        "Versioning based on release dates",
+        "A", "SemVer uses MAJOR (breaking).MINOR (features).PATCH (fixes) to communicate change impact."))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Medium", "mcq",
+        "What is API deprecation?",
+        "The process of phasing out an older API version while directing users to a newer one",
+        "Deleting an API endpoint immediately",
+        "Reducing API rate limits",
+        "Removing API documentation",
+        "A", "Deprecation signals that an API version will be removed in the future, giving clients time to migrate."))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Hard", "mcq",
+        "What header is commonly used to indicate an API version is deprecated?",
+        "Deprecation or Sunset", "X-Deprecated", "Warning-Version", "Version-Status",
+        "A", "The Deprecation and Sunset headers (RFC 8594) inform clients about API version lifecycle status."))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Easy", "mcq",
+        "Which API versioning strategy is most commonly used?",
+        "URI path versioning (e.g., /v1/resource)", "Header versioning",
+        "Query parameter versioning", "Content negotiation versioning",
+        "A", "URI path versioning is the most widely used strategy due to its simplicity and visibility."))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Medium", "mcq",
+        "What is a breaking change in an API?",
+        "A change that causes existing clients to fail, such as removing a field or changing its type",
+        "Any bug fix",
+        "Adding a new optional field",
+        "Improving response times",
+        "A", "Breaking changes alter the API contract in ways that make existing client integrations fail."))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Hard", "mcq",
+        "What is the recommended approach when sunset-ing an API version?",
+        "Provide advance notice, return Sunset/Deprecation headers, and maintain for a transition period",
+        "Immediately disable the old version",
+        "Only update documentation",
+        "Redirect all old requests to the new version automatically",
+        "A", "Best practice is to give advance notice, use Sunset headers, and allow a transition period for migration."))
+
+    # --- Error Handling (MCQ 105-118) ---
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Easy", "mcq",
+        "What should an API error response include?",
+        "An error code, message, and optionally details about the issue",
+        "Only the HTTP status code",
+        "A stack trace from the server",
+        "The database query that failed",
+        "A", "Good error responses include a meaningful code, human-readable message, and additional details."))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Easy", "mcq",
+        "What HTTP status code should be returned for invalid input?",
+        "400 Bad Request", "404 Not Found", "500 Internal Server Error", "200 OK with error in body",
+        "A", "400 Bad Request indicates the server cannot process the request due to invalid client input."))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Medium", "mcq",
+        "What is the Problem Details standard (RFC 7807)?",
+        "A specification for a standard error response format in HTTP APIs",
+        "A debugging tool for APIs",
+        "A security testing framework",
+        "A logging standard",
+        "A", "RFC 7807 defines a standard JSON format for error responses with type, title, status, detail, and instance."))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Medium", "mcq",
+        "Why should API error responses not expose internal server details?",
+        "To prevent attackers from learning about the system architecture",
+        "To reduce response size",
+        "To improve performance",
+        "Internal details are always helpful to clients",
+        "A", "Exposing stack traces, database details, or server info helps attackers identify vulnerabilities."))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Hard", "mcq",
+        "What is the best practice for handling validation errors in a REST API?",
+        "Return 400 with a list of field-specific errors",
+        "Return 500 for all validation errors",
+        "Return 200 with error details in the body",
+        "Return 422 with only a generic message",
+        "A", "Returning 400 with field-specific errors helps clients identify and fix exactly what is wrong."))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Medium", "mcq",
+        "What is the purpose of error codes in API responses?",
+        "To provide machine-readable identifiers for specific error types",
+        "To replace HTTP status codes",
+        "To encrypt error messages",
+        "To track user behavior",
+        "A", "Error codes allow client applications to programmatically handle specific error conditions."))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Hard", "mcq",
+        "How should an API handle unexpected exceptions?",
+        "Return 500 with a generic error message and log the details server-side",
+        "Return the full stack trace to the client",
+        "Silently ignore the error and return 200",
+        "Return 404 for all unexpected errors",
+        "A", "Unexpected exceptions should return 500 with a generic message; details should be logged server-side for debugging."))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Easy", "mcq",
+        "What status code should be used when a resource is not found?",
+        "404 Not Found", "400 Bad Request", "500 Internal Server Error", "204 No Content",
+        "A", "404 Not Found indicates the server cannot find the requested resource."))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Medium", "mcq",
+        "What is circuit breaker pattern in API error handling?",
+        "A pattern that stops calling a failing service after a threshold of failures",
+        "A pattern to encrypt API errors",
+        "A method to break API connections",
+        "A debugging technique",
+        "A", "Circuit breaker prevents cascading failures by temporarily stopping requests to a failing dependency."))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Hard", "mcq",
+        "What is exponential backoff in API retry strategies?",
+        "Increasing the delay between retries exponentially to reduce load on failing services",
+        "Sending requests faster each time",
+        "Doubling the payload with each retry",
+        "Retrying with exponentially larger payloads",
+        "A", "Exponential backoff increases wait time (e.g., 1s, 2s, 4s, 8s) between retries to avoid overwhelming the server."))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Easy", "mcq",
+        "What does idempotent error handling mean for APIs?",
+        "Retrying the same request safely without side effects",
+        "Handling errors in the same way every time",
+        "Ignoring duplicate errors",
+        "Returning the same error for all requests",
+        "A", "Idempotent error handling ensures that retrying a failed request does not cause unintended side effects."))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Medium", "mcq",
+        "What is a fallback mechanism in API error handling?",
+        "Providing an alternative response or service when the primary service fails",
+        "Falling back to an older API version",
+        "Reducing the response size on error",
+        "Redirecting to an error page",
+        "A", "Fallback mechanisms provide alternative responses (e.g., cached data, default values) when a service fails."))
+
+    # --- GraphQL Basics (MCQ 117-130) ---
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Easy", "mcq",
+        "What is GraphQL?",
+        "A query language for APIs that lets clients request exactly the data they need",
+        "A graph database", "A JavaScript framework", "A REST alternative protocol",
+        "A", "GraphQL is a query language for APIs developed by Facebook that allows clients to request specific data."))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Easy", "mcq",
+        "What are the three main operation types in GraphQL?",
+        "Query, Mutation, Subscription", "GET, POST, DELETE",
+        "Read, Write, Update", "Select, Insert, Delete",
+        "A", "GraphQL has Query (read), Mutation (write), and Subscription (real-time) operations."))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Medium", "mcq",
+        "What is over-fetching in REST that GraphQL solves?",
+        "Receiving more data than needed because REST endpoints return fixed data structures",
+        "Making too many API calls", "Sending too many headers",
+        "Using too many HTTP methods",
+        "A", "Over-fetching occurs when REST returns all fields even if the client only needs a few; GraphQL lets clients specify exact fields."))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Medium", "mcq",
+        "How many endpoints does a typical GraphQL API have?",
+        "One single endpoint", "One per resource", "One per operation",
+        "Multiple based on query complexity",
+        "A", "Unlike REST, GraphQL typically uses a single endpoint (e.g., /graphql) for all operations."))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Hard", "mcq",
+        "What is the N+1 problem in GraphQL?",
+        "When resolving nested fields causes one query for the parent and N queries for each child",
+        "Having N+1 endpoints",
+        "Returning N+1 errors",
+        "Making N+1 authentication requests",
+        "A", "The N+1 problem occurs when a field resolver makes a separate database query for each item in a list."))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Medium", "mcq",
+        "What is a GraphQL schema?",
+        "A type system that defines the capabilities and structure of the API",
+        "A database schema",
+        "A JSON configuration file",
+        "A REST endpoint map",
+        "A", "A GraphQL schema defines types, queries, mutations, and subscriptions available in the API."))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Hard", "mcq",
+        "What is a GraphQL resolver?",
+        "A function that populates the data for a field in the schema",
+        "A tool to resolve merge conflicts",
+        "A DNS resolver for APIs",
+        "A query optimizer",
+        "A", "Resolvers are functions that return data for each field in a GraphQL schema."))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Easy", "mcq",
+        "What HTTP method does GraphQL typically use?",
+        "POST", "GET", "PUT", "PATCH",
+        "A", "GraphQL typically uses POST requests with the query in the request body."))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Medium", "mcq",
+        "What is under-fetching in REST?",
+        "Needing multiple API calls because one endpoint does not return all required data",
+        "Receiving too little data per request",
+        "Using too few HTTP headers",
+        "Making too few API calls",
+        "A", "Under-fetching occurs when a single REST endpoint lacks needed data, requiring additional API calls."))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Hard", "mcq",
+        "What is introspection in GraphQL?",
+        "The ability to query the schema itself to discover types and fields available",
+        "Inspecting HTTP headers",
+        "Debugging GraphQL queries",
+        "Monitoring API performance",
+        "A", "GraphQL introspection allows clients to query the schema to learn about available types, fields, and operations."))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Medium", "mcq",
+        "What are GraphQL fragments?",
+        "Reusable units of fields that can be included in multiple queries",
+        "Broken query responses",
+        "Partial schema definitions",
+        "Error message components",
+        "A", "Fragments let you define a set of fields once and reuse them across multiple queries."))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Hard", "mcq",
+        "What is a DataLoader in GraphQL?",
+        "A batching and caching utility to solve the N+1 query problem",
+        "A file upload handler",
+        "A data validation library",
+        "A schema migration tool",
+        "A", "DataLoader batches multiple requests for the same resource into a single query, solving the N+1 problem."))
+
+    # --- WebSocket Testing (MCQ 129-138) ---
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Easy", "mcq",
+        "What is a WebSocket?",
+        "A protocol providing full-duplex communication over a single TCP connection",
+        "A REST API endpoint", "A type of HTTP header", "A database connection",
+        "A", "WebSocket enables bidirectional communication between client and server over a persistent connection."))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Medium", "mcq",
+        "How does a WebSocket connection start?",
+        "With an HTTP upgrade handshake", "With a POST request",
+        "With a TCP three-way handshake only", "With a DNS lookup",
+        "A", "WebSocket connections begin with an HTTP upgrade request, switching the protocol from HTTP to WebSocket."))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Medium", "mcq",
+        "What is a key testing challenge with WebSocket APIs?",
+        "Handling asynchronous bidirectional messages",
+        "Sending JSON payloads",
+        "Using HTTP methods",
+        "Setting request headers",
+        "A", "WebSocket testing requires handling asynchronous messages from both client and server simultaneously."))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Hard", "mcq",
+        "What status code indicates a successful WebSocket upgrade?",
+        "101 Switching Protocols", "200 OK", "201 Created", "301 Moved Permanently",
+        "A", "HTTP 101 Switching Protocols indicates the server is switching to the WebSocket protocol."))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Easy", "mcq",
+        "What is the WebSocket URL scheme?",
+        "ws:// and wss://", "http:// and https://", "ws:// only", "socket://",
+        "A", "WebSocket uses ws:// for unencrypted and wss:// for TLS-encrypted connections."))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Medium", "mcq",
+        "What is a common tool for testing WebSocket connections?",
+        "wscat", "curl", "Swagger", "JMeter only",
+        "A", "wscat is a command-line tool specifically designed for connecting to and testing WebSocket servers."))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Hard", "mcq",
+        "What is a WebSocket frame?",
+        "The basic unit of communication in the WebSocket protocol",
+        "A visual frame in the browser",
+        "An HTML iframe element",
+        "A timeout boundary",
+        "A", "WebSocket frames are the basic protocol units containing opcode, payload length, and data."))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Medium", "mcq",
+        "What should be tested for WebSocket reconnection?",
+        "Automatic reconnection after connection drops and message recovery",
+        "Only the initial connection",
+        "Only the closing handshake",
+        "Only the message format",
+        "A", "WebSocket tests should verify reconnection logic, including re-establishing connections and recovering missed messages."))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Hard", "mcq",
+        "How do you test WebSocket message ordering?",
+        "Send numbered messages and verify they are received in the correct sequence",
+        "WebSocket messages are always in order and need no testing",
+        "Use HTTP request ordering",
+        "Sort messages on the client side",
+        "A", "Testing message ordering involves sending sequential messages and asserting they arrive in the expected sequence."))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Easy", "mcq",
+        "What is the difference between WebSocket and HTTP?",
+        "WebSocket provides persistent bidirectional communication; HTTP is request-response based",
+        "WebSocket uses XML; HTTP uses JSON",
+        "WebSocket is more secure than HTTP",
+        "There is no significant difference",
+        "A", "WebSocket maintains a persistent connection for real-time bidirectional data flow, unlike HTTP's request-response model."))
+
+    # --- Contract Testing (MCQ 139-150) ---
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Easy", "mcq",
+        "What is contract testing?",
+        "Testing that API providers and consumers agree on the interface specification",
+        "Testing legal contracts", "Testing database constraints",
+        "Testing API rate limits",
+        "A", "Contract testing verifies that the API provider and consumer agree on the request/response format."))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Medium", "mcq",
+        "What is consumer-driven contract testing?",
+        "Tests where the consumer defines the expected interactions with the provider",
+        "Tests run by end users",
+        "Tests focusing on API consumption metrics",
+        "Tests that measure API cost",
+        "A", "Consumer-driven contract testing lets consumers define expectations, which the provider must satisfy."))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Medium", "mcq",
+        "What is Pact in the context of contract testing?",
+        "A popular tool for consumer-driven contract testing",
+        "A formal API agreement document",
+        "A security testing framework",
+        "A load testing tool",
+        "A", "Pact is a widely used tool that enables consumer-driven contract testing between services."))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Hard", "mcq",
+        "What is a Pact Broker?",
+        "A service that stores and shares contract (pact) files between consumers and providers",
+        "A message queue for API requests",
+        "A load balancer",
+        "A caching proxy",
+        "A", "Pact Broker is a service for storing, retrieving, and sharing pact files and verification results."))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Easy", "mcq",
+        "What does contract testing verify?",
+        "That the API request and response match the agreed-upon schema",
+        "That the API is fast enough",
+        "That the API is secure",
+        "That the API handles load",
+        "A", "Contract testing ensures API interactions conform to the agreed schema and data format."))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Medium", "mcq",
+        "What is the benefit of contract testing over integration testing?",
+        "It can be run independently without deploying all services together",
+        "It is more thorough than integration testing",
+        "It tests the UI as well",
+        "It replaces all other testing",
+        "A", "Contract tests run independently, enabling faster feedback without requiring a full integration environment."))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Hard", "mcq",
+        "What is provider verification in contract testing?",
+        "Running the consumer's contract against the actual provider to ensure compatibility",
+        "Verifying the provider's server is running",
+        "Checking the provider's SSL certificate",
+        "Testing the provider's authentication",
+        "A", "Provider verification replays the consumer-defined interactions against the actual provider service."))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Medium", "mcq",
+        "What is OpenAPI (Swagger) specification?",
+        "A standard format for describing REST API contracts",
+        "An open-source API gateway",
+        "A programming language for APIs",
+        "A database schema format",
+        "A", "OpenAPI (formerly Swagger) is a standard for describing REST API endpoints, parameters, and responses."))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Hard", "mcq",
+        "What is schema validation in contract testing?",
+        "Verifying that API responses conform to the defined JSON Schema",
+        "Validating database schemas",
+        "Checking XML formatting",
+        "Testing HTML structure",
+        "A", "Schema validation ensures API responses match the expected structure, types, and constraints defined in the schema."))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Easy", "mcq",
+        "What is an API contract?",
+        "A formal agreement defining the expected API behavior including endpoints, methods, and data formats",
+        "A legal document between API provider and consumer",
+        "A pricing plan for API usage",
+        "An SLA for API uptime",
+        "A", "An API contract defines the interface: endpoints, methods, request/response formats, and error handling."))
+
+    # --- Performance Testing APIs (MCQ 149-162) ---
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Easy", "mcq",
+        "What is API load testing?",
+        "Testing how an API performs under expected and peak traffic",
+        "Testing the API's loading screen",
+        "Testing file upload speeds",
+        "Testing database load",
+        "A", "Load testing measures API performance under various levels of concurrent users and requests."))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Easy", "mcq",
+        "What is API response time?",
+        "The time between sending a request and receiving the complete response",
+        "The time to write the API code",
+        "The time to deploy the API",
+        "The time to read the documentation",
+        "A", "Response time measures the total duration from sending a request to receiving the full response."))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Medium", "mcq",
+        "What is throughput in API performance testing?",
+        "The number of requests processed per unit of time",
+        "The size of response data",
+        "The number of API endpoints",
+        "The bandwidth of the network",
+        "A", "Throughput measures how many requests the API can handle per second (or other time unit)."))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Medium", "mcq",
+        "What tool is commonly used for API performance testing?",
+        "JMeter", "Selenium", "Cypress", "Jest",
+        "A", "Apache JMeter is a popular open-source tool for API load and performance testing."))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Hard", "mcq",
+        "What is the P99 latency?",
+        "The response time at which 99% of requests are faster",
+        "The 99th endpoint tested",
+        "99% uptime guarantee",
+        "The probability of 99% success rate",
+        "A", "P99 latency means 99% of requests complete within this time; only 1% are slower."))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Medium", "mcq",
+        "What is stress testing for APIs?",
+        "Testing beyond normal capacity to find the breaking point",
+        "Testing under normal conditions",
+        "Testing API documentation clarity",
+        "Testing error messages",
+        "A", "Stress testing pushes the API beyond normal limits to identify its breaking point and failure behavior."))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Hard", "mcq",
+        "What is soak testing?",
+        "Running load tests for an extended period to detect memory leaks and degradation",
+        "Testing in wet conditions",
+        "Testing with very large payloads",
+        "Testing with minimal resources",
+        "A", "Soak testing runs sustained load over hours or days to find issues like memory leaks and resource exhaustion."))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Easy", "mcq",
+        "What is API latency?",
+        "The delay between sending a request and receiving the first byte of the response",
+        "The time to build an API",
+        "The delay in API deployment",
+        "The time between API versions",
+        "A", "Latency is the time delay before the transfer of data begins, often measured as Time to First Byte (TTFB)."))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Medium", "mcq",
+        "What is the purpose of establishing a performance baseline?",
+        "To have a reference point for comparing future performance test results",
+        "To set the minimum API version",
+        "To define API pricing tiers",
+        "To establish coding standards",
+        "A", "A performance baseline provides reference metrics for detecting regressions in future performance tests."))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Hard", "mcq",
+        "What is spike testing?",
+        "Testing API behavior under sudden and extreme increases in load",
+        "Testing with sharp data values",
+        "Testing edge cases in input",
+        "Testing API shutdown behavior",
+        "A", "Spike testing evaluates how the API handles sudden bursts of traffic far above normal levels."))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Medium", "mcq",
+        "Which metric indicates how many concurrent users an API can handle?",
+        "Concurrency level", "Response size", "Error rate", "Payload size",
+        "A", "Concurrency level measures the number of simultaneous users or connections the API can support."))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Hard", "mcq",
+        "What is Gatling used for in API testing?",
+        "A load testing tool using Scala DSL for writing high-performance test scripts",
+        "A security scanning tool",
+        "A contract testing framework",
+        "A mock server generator",
+        "A", "Gatling is a modern load testing tool using Scala DSL, designed for high-performance HTTP testing."))
+
+    # --- Security Testing APIs (MCQ 161-175) ---
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Easy", "mcq",
+        "What is SQL injection in the context of API testing?",
+        "Inserting malicious SQL code in API input parameters to manipulate the database",
+        "Using SQL to test APIs",
+        "Injecting APIs into SQL databases",
+        "Running database queries via APIs",
+        "A", "SQL injection exploits API inputs that are not properly sanitized to execute unauthorized SQL commands."))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Easy", "mcq",
+        "What does HTTPS provide over HTTP?",
+        "Encryption of data in transit using TLS/SSL", "Faster response times",
+        "Better error handling", "Automatic authentication",
+        "A", "HTTPS adds TLS/SSL encryption to HTTP, protecting data from interception during transit."))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Medium", "mcq",
+        "What is an IDOR vulnerability?",
+        "Insecure Direct Object Reference - accessing unauthorized resources by manipulating identifiers",
+        "Invalid Data Object Response",
+        "Internal Domain Object Retrieval",
+        "Incomplete Data Output Rendering",
+        "A", "IDOR occurs when an API exposes internal object references without proper authorization checks."))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Medium", "mcq",
+        "What is rate limiting in API security?",
+        "Restricting the number of API requests a client can make within a time period",
+        "Limiting the response data rate",
+        "Controlling the API response speed",
+        "Setting maximum payload sizes",
+        "A", "Rate limiting protects APIs from abuse and denial-of-service attacks by capping request frequency."))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Hard", "mcq",
+        "What is CSRF in the context of API security?",
+        "Cross-Site Request Forgery - tricking a user's browser into making unwanted API requests",
+        "Cross-Site Resource Fetching",
+        "Client-Side Request Formatting",
+        "Centralized Server Response Filter",
+        "A", "CSRF tricks authenticated users into making unintended requests to an API they are already authenticated with."))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Medium", "mcq",
+        "What is CORS and why is it important for API security?",
+        "Cross-Origin Resource Sharing - controls which domains can access your API",
+        "Central Origin Registration System",
+        "Cross-Origin Response Sorting",
+        "Centralized Object Request Service",
+        "A", "CORS headers control which external domains can make requests to your API, preventing unauthorized cross-origin access."))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Hard", "mcq",
+        "What is an API gateway and how does it enhance security?",
+        "A service that handles authentication, rate limiting, and request routing for APIs",
+        "A firewall specifically for APIs",
+        "A network device for API traffic",
+        "A testing tool for API security",
+        "A", "An API gateway centralizes security concerns like authentication, authorization, rate limiting, and logging."))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Easy", "mcq",
+        "Why should API keys be kept secret?",
+        "Because exposed keys allow unauthorized access to the API",
+        "Because they improve API speed when private",
+        "Because public keys cause errors",
+        "Keys are not sensitive information",
+        "A", "Exposed API keys can be used by unauthorized users to access the API, potentially incurring costs or data breaches."))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Medium", "mcq",
+        "What is input validation in API security?",
+        "Verifying that all incoming data meets expected format, type, and range requirements",
+        "Validating the API documentation",
+        "Checking output data format",
+        "Testing API endpoint URLs",
+        "A", "Input validation ensures request data is safe and properly formatted before processing."))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Hard", "mcq",
+        "What is OWASP API Security Top 10?",
+        "A list of the most critical API security risks published by OWASP",
+        "A set of 10 API endpoints to test",
+        "A performance benchmark for APIs",
+        "A list of recommended API frameworks",
+        "A", "OWASP API Security Top 10 identifies the most critical security risks for APIs, guiding testing priorities."))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Medium", "mcq",
+        "What is broken authentication in API security?",
+        "Weaknesses in authentication mechanisms that allow attackers to impersonate users",
+        "A login page that does not render",
+        "An expired SSL certificate",
+        "A misconfigured firewall",
+        "A", "Broken authentication includes weak passwords, improper token handling, and flawed session management."))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Hard", "mcq",
+        "What is API fuzzing?",
+        "Sending random, malformed, or unexpected data to find vulnerabilities",
+        "Adding blur effects to API responses",
+        "Testing APIs with fuzzy logic",
+        "Using approximate matching in APIs",
+        "A", "API fuzzing involves sending unexpected inputs to discover crashes, memory leaks, and security vulnerabilities."))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Easy", "mcq",
+        "What is the principle of least privilege in API security?",
+        "Granting only the minimum permissions necessary for a task",
+        "Giving all users admin access",
+        "Using the simplest authentication method",
+        "Minimizing the number of API endpoints",
+        "A", "Least privilege means each user or service should only have access to the resources they need."))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Hard", "mcq",
+        "What is mass assignment vulnerability in APIs?",
+        "When an API allows clients to modify object properties that should be restricted",
+        "Assigning too many users to an API",
+        "Using too many parameters in a request",
+        "Having too many API keys",
+        "A", "Mass assignment occurs when an API binds client input directly to internal objects without filtering sensitive fields."))
+
+    # --- Test Automation Strategy (MCQ 175-200) ---
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Easy", "mcq",
+        "What is the testing pyramid?",
+        "A model suggesting more unit tests, fewer integration tests, and even fewer UI tests",
+        "A pyramid-shaped test report",
+        "A three-step testing process",
+        "A hierarchical team structure",
+        "A", "The testing pyramid advocates for many unit tests at the base, fewer integration tests, and minimal UI tests."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Easy", "mcq",
+        "What is a mock server in API testing?",
+        "A simulated server that returns predefined responses for testing",
+        "A production server clone",
+        "A monitoring server",
+        "A load balancer",
+        "A", "A mock server simulates API endpoints with predefined responses, enabling testing without the real service."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Medium", "mcq",
+        "What is the purpose of API test automation?",
+        "To run repeatable API tests efficiently and catch regressions early",
+        "To replace manual testing entirely",
+        "To generate API documentation",
+        "To deploy APIs automatically",
+        "A", "API test automation enables fast, repeatable execution to detect regressions early in the development cycle."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Medium", "mcq",
+        "What is data-driven API testing?",
+        "Running the same test with different input data sets",
+        "Testing APIs that return data",
+        "Testing database APIs only",
+        "Using big data to test APIs",
+        "A", "Data-driven testing parameterizes tests with different data sets to increase coverage with less code."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Hard", "mcq",
+        "What is the shift-left approach in API testing?",
+        "Moving testing earlier in the development lifecycle to find defects sooner",
+        "Moving test code to the left side of the repository",
+        "Testing left-aligned text in API responses",
+        "Reducing the number of test cases",
+        "A", "Shift-left means testing earlier (design/development phase) rather than waiting until after deployment."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Medium", "mcq",
+        "What is Postman used for in API testing?",
+        "A platform for designing, testing, and documenting APIs",
+        "A mail delivery simulation tool",
+        "A database management tool",
+        "A code editor",
+        "A", "Postman is a popular platform for building, testing, and documenting APIs with a user-friendly interface."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Easy", "mcq",
+        "What is a test environment for API testing?",
+        "A separate infrastructure where APIs are tested without affecting production",
+        "The production server",
+        "A developer's local machine only",
+        "A documentation website",
+        "A", "A test environment is an isolated setup that mimics production for safe API testing."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Hard", "mcq",
+        "What is service virtualization?",
+        "Simulating dependent services that are unavailable, costly, or complex to set up",
+        "Running services in virtual machines",
+        "Virtualizing hardware for testing",
+        "Cloud-based testing only",
+        "A", "Service virtualization simulates dependent services, allowing testing when actual services are not available."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Medium", "mcq",
+        "What is CI/CD in the context of API testing?",
+        "Continuous Integration/Continuous Delivery - automating test execution in the build pipeline",
+        "Certified Interface/Certified Delivery",
+        "Client Interface/Client Delivery",
+        "Code Inspection/Code Deployment",
+        "A", "CI/CD pipelines automatically run API tests when code changes, ensuring continuous quality validation."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Hard", "mcq",
+        "What is the difference between stubbing and mocking in API testing?",
+        "Stubs return predefined data; mocks also verify that expected interactions occurred",
+        "They are the same thing",
+        "Stubs are for unit tests; mocks are for integration tests",
+        "Stubs are faster than mocks",
+        "A", "Stubs provide canned responses while mocks also assert that specific methods were called with expected arguments."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Easy", "mcq",
+        "What should API tests validate?",
+        "Status codes, response body, headers, and response time",
+        "Only the status code",
+        "Only the response body",
+        "Only the response time",
+        "A", "Comprehensive API tests validate status codes, response body content, headers, and performance."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Medium", "mcq",
+        "What is the benefit of using environment variables in API test automation?",
+        "They allow tests to run across different environments without code changes",
+        "They make tests run faster",
+        "They are more secure than hardcoded values",
+        "Both A and C",
+        "D", "Environment variables enable both environment flexibility and improved security by avoiding hardcoded values."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Hard", "mcq",
+        "What is contract-first API development?",
+        "Designing the API specification before writing implementation code",
+        "Writing contracts with API consumers",
+        "Testing contracts before code",
+        "Using legal contracts for API access",
+        "A", "Contract-first means defining the API specification (e.g., OpenAPI) first, then implementing to match."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Medium", "mcq",
+        "What is REST Assured?",
+        "A Java library for testing REST APIs with a fluent interface",
+        "A way to confirm REST compliance",
+        "A REST certification program",
+        "An API monitoring service",
+        "A", "REST Assured is a Java DSL library for writing readable and maintainable REST API tests."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Easy", "mcq",
+        "What is a test assertion in API testing?",
+        "A check that verifies an expected condition is true in the response",
+        "A statement about the API quality",
+        "A test case title",
+        "A test execution log entry",
+        "A", "An assertion checks that the actual response matches the expected value, failing the test if not."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Hard", "mcq",
+        "What is chaos engineering in the context of API testing?",
+        "Intentionally introducing failures to test system resilience and recovery",
+        "Testing with random data inputs",
+        "Unstructured testing without a plan",
+        "Testing APIs in a random order",
+        "A", "Chaos engineering deliberately injects failures (latency, errors, outages) to verify system resilience."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Medium", "mcq",
+        "What is the purpose of API test reporting?",
+        "To provide visibility into test results, trends, and coverage for stakeholders",
+        "To generate API documentation",
+        "To deploy APIs",
+        "To create new test cases",
+        "A", "Test reports communicate results, failures, and trends to stakeholders for decision-making."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Easy", "mcq",
+        "What is negative testing in API testing?",
+        "Testing with invalid, unexpected, or edge case inputs to verify error handling",
+        "Testing for negative numbers only",
+        "Testing that always fails",
+        "Testing in a negative environment",
+        "A", "Negative testing verifies the API handles invalid inputs gracefully with appropriate error responses."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Medium", "mcq",
+        "What is the purpose of test fixtures in API testing?",
+        "To set up and tear down the test data and environment needed for tests",
+        "To fix broken tests",
+        "To store test results",
+        "To configure the test runner",
+        "A", "Test fixtures prepare the test environment (e.g., creating test data) and clean up after tests."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Hard", "mcq",
+        "What is the Page Object pattern equivalent for API testing?",
+        "Service Object pattern - encapsulating API endpoints and methods in reusable classes",
+        "There is no equivalent",
+        "Using Postman collections",
+        "Writing inline API calls",
+        "A", "Service Object pattern encapsulates API interactions in classes, improving maintainability and reusability."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Hard", "mcq",
+        "What is BDD (Behavior-Driven Development) in API testing?",
+        "Writing tests in Given-When-Then format to describe expected API behavior",
+        "A debugging technique",
+        "A performance testing approach",
+        "A security testing methodology",
+        "A", "BDD uses natural language scenarios (Given-When-Then) to describe and test API behavior."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Medium", "mcq",
+        "What is the difference between smoke testing and regression testing for APIs?",
+        "Smoke tests verify basic functionality; regression tests verify that existing features still work after changes",
+        "They are the same thing",
+        "Smoke tests are faster; regression tests are slower",
+        "Smoke tests are automated; regression tests are manual",
+        "A", "Smoke tests are quick checks of critical paths; regression tests ensure changes have not broken existing functionality."))
+
+    # ===================================================================
+    # Output questions (100) -- code_snippet filled with API code
+    # ===================================================================
+
+    # --- REST Concepts / HTTP Methods output questions ---
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Easy", "output",
+        "What HTTP status code will the following request most likely return?",
+        "200 OK", "201 Created", "404 Not Found", "400 Bad Request",
+        "A", "A GET request to a valid endpoint typically returns 200 OK with the requested resource.",
+        'import requests\nresponse = requests.get("https://api.example.com/users/1")\nprint(response.status_code)'))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Easy", "output",
+        "What will be printed by the following code?",
+        "201", "200", "400", "404",
+        "A", "A POST request that successfully creates a resource returns HTTP 201 Created.",
+        'import requests\nresponse = requests.post("https://api.example.com/users",\n    json={"name": "Alice", "email": "alice@example.com"})\nprint(response.status_code)'))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Medium", "output",
+        "What will the following code output?",
+        "204", "200", "404", "400",
+        "A", "A successful DELETE request typically returns 204 No Content, indicating the resource was deleted.",
+        'import requests\nresponse = requests.delete("https://api.example.com/users/5")\nprint(response.status_code)'))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Easy", "output",
+        "What type will the variable 'data' be?",
+        "dict", "str", "list", "bytes",
+        "A", "response.json() parses the JSON response body and returns a Python dictionary.",
+        'import requests\nresponse = requests.get("https://api.example.com/users/1")\ndata = response.json()\nprint(type(data).__name__)'))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Medium", "output",
+        "What will the print statement output?",
+        "application/json", "text/html", "text/plain", "application/xml",
+        "A", "The Content-Type header from a JSON API response will be 'application/json'.",
+        'import requests\nresponse = requests.get("https://api.example.com/users",\n    headers={"Accept": "application/json"})\nprint(response.headers["Content-Type"])'))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Easy", "output",
+        "What will be printed?",
+        "True", "False", "None", "Error",
+        "A", "A 200 status code means the response is successful, so response.ok returns True.",
+        'import requests\nresponse = requests.get("https://api.example.com/users")\n# Assume status_code is 200\nprint(response.ok)'))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Medium", "output",
+        "What exception will be raised?",
+        "requests.exceptions.HTTPError", "ValueError", "KeyError", "No exception",
+        "A", "raise_for_status() raises HTTPError for 4xx and 5xx status codes.",
+        'import requests\nresponse = requests.get("https://api.example.com/nonexistent")\n# Assume status_code is 404\nresponse.raise_for_status()'))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Medium", "output",
+        "What header will be sent with this request?",
+        "Authorization: Bearer abc123token", "X-Auth-Token: abc123token",
+        "Auth: abc123token", "Token: abc123token",
+        "A", "The headers dictionary sets the Authorization header with the Bearer token scheme.",
+        'import requests\ntoken = "abc123token"\nresponse = requests.get("https://api.example.com/profile",\n    headers={"Authorization": f"Bearer {token}"})\nprint(response.request.headers["Authorization"])'))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Medium", "output",
+        "What will be the output?",
+        "Alice", "None", "KeyError", "{}",
+        "A", "The JSON response contains a 'name' field with value 'Alice'.",
+        'import requests\nresponse = requests.get("https://api.example.com/users/1")\n# Response body: {"id": 1, "name": "Alice", "email": "alice@test.com"}\ndata = response.json()\nprint(data["name"])'))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Hard", "output",
+        "What will the status code be if the resource at /users/10 does not exist?",
+        "404", "200", "500", "204",
+        "A", "PUT to a non-existent resource that the server does not auto-create returns 404 Not Found.",
+        'import requests\nresponse = requests.put("https://api.example.com/users/10",\n    json={"name": "Updated Name"})\n# Server does not auto-create resources\nprint(response.status_code)'))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Hard", "output",
+        "What will be printed?",
+        "3", "0", "1", "Error",
+        "A", "The JSON response is a list of 3 user objects, so len() returns 3.",
+        'import requests\nresponse = requests.get("https://api.example.com/users?limit=3")\n# Response: [{"id":1,"name":"A"},{"id":2,"name":"B"},{"id":3,"name":"C"}]\ndata = response.json()\nprint(len(data))'))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Easy", "output",
+        "What authentication method is being used?",
+        "Basic Authentication", "Bearer Token", "API Key", "OAuth",
+        "A", "HTTPBasicAuth sends credentials using the Basic Authentication scheme.",
+        'import requests\nfrom requests.auth import HTTPBasicAuth\nresponse = requests.get("https://api.example.com/data",\n    auth=HTTPBasicAuth("user", "pass123"))\nprint(response.status_code)'))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Easy", "output",
+        "What will the Content-Type of the request be?",
+        "application/json", "text/plain", "application/x-www-form-urlencoded", "multipart/form-data",
+        "A", "When using the json= parameter, requests automatically sets Content-Type to application/json.",
+        'import requests\nresponse = requests.post("https://api.example.com/users",\n    json={"name": "Bob"})\nprint(response.request.headers["Content-Type"])'))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Medium", "output",
+        "What will be printed?",
+        "Error: 400 Client Error", "Success", "None", "Error: 500 Server Error",
+        "A", "The 400 status code triggers raise_for_status() which raises HTTPError caught by the except block.",
+        'import requests\ntry:\n    response = requests.post("https://api.example.com/users",\n        json={"invalid": "data"})\n    # Server returns 400\n    response.raise_for_status()\n    print("Success")\nexcept requests.exceptions.HTTPError as e:\n    print(f"Error: 400 Client Error")'))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Medium", "output",
+        "What URL will the second request use?",
+        "https://api.example.com/users?page=2&limit=10", "https://api.example.com/users?page=1&limit=10",
+        "https://api.example.com/users?offset=10", "https://api.example.com/users",
+        "A", "The second iteration uses page=2 to retrieve the next page of results.",
+        'import requests\nfor page in range(1, 3):\n    response = requests.get("https://api.example.com/users",\n        params={"page": page, "limit": 10})\n    print(response.url)'))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Easy", "output",
+        "What will be printed?",
+        "query_value", "None", "KeyError", "param",
+        "A", "Query parameters are sent as part of the URL and the API echoes them back in the response.",
+        'import requests\nresponse = requests.get("https://api.example.com/search",\n    params={"q": "query_value"})\n# Response: {"query": "query_value", "results": []}\ndata = response.json()\nprint(data["query"])'))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Hard", "output",
+        "What will the code print?",
+        "Rate limited! Retry after 60 seconds", "Success", "Server Error", "Not Found",
+        "A", "Status code 429 indicates rate limiting; the Retry-After header specifies when to retry.",
+        'import requests\nresponse = requests.get("https://api.example.com/data")\n# status_code=429, headers={"Retry-After": "60"}\nif response.status_code == 429:\n    retry = response.headers["Retry-After"]\n    print(f"Rate limited! Retry after {retry} seconds")'))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Medium", "output",
+        "What HTTP method will be used for this request?",
+        "PATCH", "PUT", "POST", "GET",
+        "A", "requests.patch() sends an HTTP PATCH request for partial resource updates.",
+        'import requests\nresponse = requests.patch("https://api.example.com/users/1",\n    json={"email": "new@example.com"})\nprint(response.request.method)'))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Hard", "output",
+        "What will be the output?",
+        "2.5", "2500", "0", "None",
+        "A", "response.elapsed.total_seconds() returns the time in seconds between sending the request and receiving the response.",
+        'import requests\nresponse = requests.get("https://api.example.com/slow-endpoint")\n# Assume the request took 2.5 seconds\nprint(response.elapsed.total_seconds())'))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Hard", "output",
+        "What will happen when this code runs?",
+        "A new access token will be obtained using the refresh token",
+        "The user will be prompted to log in",
+        "The request will fail with 401",
+        "The old token will continue working",
+        "A", "The code exchanges a refresh token for a new access token via the OAuth token endpoint.",
+        'import requests\nrefresh_data = {\n    "grant_type": "refresh_token",\n    "refresh_token": "ref_tok_xyz",\n    "client_id": "my_app"\n}\nresponse = requests.post("https://auth.example.com/oauth/token",\n    data=refresh_data)\nnew_token = response.json()["access_token"]\nprint("New token obtained")'))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Easy", "output",
+        "What exception will be raised?",
+        "requests.exceptions.ConnectionError", "requests.exceptions.Timeout",
+        "requests.exceptions.HTTPError", "No exception",
+        "A", "Connecting to a non-existent host raises a ConnectionError.",
+        'import requests\ntry:\n    response = requests.get("https://nonexistent.invalid/api")\nexcept requests.exceptions.ConnectionError:\n    print("Connection failed")'))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Medium", "output",
+        "What will be printed?",
+        "Request timed out", "Connection failed", "HTTP Error", "Success",
+        "A", "The timeout=0.001 causes the request to time out almost immediately, raising a Timeout exception.",
+        'import requests\ntry:\n    response = requests.get("https://api.example.com/data",\n        timeout=0.001)\nexcept requests.exceptions.Timeout:\n    print("Request timed out")'))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Hard", "output",
+        "What custom header will be sent?",
+        "X-Custom-Header: test-value", "Custom: test-value",
+        "X-Header: test", "Authorization: test-value",
+        "A", "The custom header X-Custom-Header with value test-value is explicitly set in the headers dictionary.",
+        'import requests\nheaders = {\n    "X-Custom-Header": "test-value",\n    "Accept": "application/json"\n}\nresponse = requests.get("https://api.example.com/data",\n    headers=headers)\nprint(f"X-Custom-Header: {response.request.headers[\'X-Custom-Header\']}")'))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Medium", "output",
+        "What type of GraphQL operation is this?",
+        "Query", "Mutation", "Subscription", "Fragment",
+        "A", "The 'query' key in the payload defines a GraphQL query operation to fetch user data.",
+        'import requests\nquery = """\n{\n  user(id: 1) {\n    name\n    email\n  }\n}\n"""\nresponse = requests.post("https://api.example.com/graphql",\n    json={"query": query})\nprint(response.json())'))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Hard", "output",
+        "What type of GraphQL operation is this?",
+        "Mutation", "Query", "Subscription", "Fragment",
+        "A", "The 'mutation' keyword indicates a write operation to create a new user.",
+        'import requests\nmutation = """\nmutation {\n  createUser(input: {name: "Alice", email: "alice@test.com"}) {\n    id\n    name\n  }\n}\n"""\nresponse = requests.post("https://api.example.com/graphql",\n    json={"query": mutation})\nprint(response.json())'))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Easy", "output",
+        "What will the final print statement output?",
+        "Redirected to: https://api.example.com/v2/users", "200", "301", "404",
+        "A", "requests follows redirects by default; response.url shows the final URL after redirect.",
+        'import requests\nresponse = requests.get("https://api.example.com/v1/users")\n# Server returns 301 redirect to /v2/users\nprint(f"Redirected to: {response.url}")'))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Medium", "output",
+        "What will be printed?",
+        "b\'Hello World\'", "Hello World", "None", "Error",
+        "A", "response.content returns the raw bytes of the response body.",
+        'import requests\nresponse = requests.get("https://api.example.com/text")\n# Response body is plain text: Hello World\nprint(response.content)'))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Easy", "output",
+        "What request method does this code use?",
+        "HEAD", "GET", "OPTIONS", "TRACE",
+        "A", "requests.head() sends an HTTP HEAD request to retrieve only the response headers.",
+        'import requests\nresponse = requests.head("https://api.example.com/users")\nprint(response.headers)\nprint(response.text)  # empty body'))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Hard", "output",
+        "How many total API calls will be made?",
+        "5", "1", "10", "Infinite",
+        "A", "The loop runs until next_url is None. With 50 items and limit=10, it takes 5 pages.",
+        'import requests\nnext_url = "https://api.example.com/items?limit=10"\ncount = 0\nwhile next_url:\n    response = requests.get(next_url)\n    data = response.json()\n    next_url = data.get("next")  # None after 5 pages\n    count += 1\n# Total items: 50, limit: 10\nprint(count)'))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Medium", "output",
+        "What security issue does this test check for?",
+        "IDOR - accessing another user's data without authorization",
+        "SQL Injection", "XSS", "CSRF",
+        "A", "The test changes the user ID in the URL to check if unauthorized access to another user's data is possible.",
+        'import requests\n# Logged in as user 1, trying to access user 2\'s data\ntoken = "valid_token_for_user_1"\nresponse = requests.get("https://api.example.com/users/2/profile",\n    headers={"Authorization": f"Bearer {token}"})\n# Should return 403, not 200\nprint(response.status_code)'))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Hard", "output",
+        "What vulnerability is this test probing?",
+        "SQL Injection", "IDOR", "XSS", "CSRF",
+        "A", "The payload contains SQL injection syntax (OR 1=1) attempting to bypass authentication.",
+        'import requests\npayload = {"username": "admin\' OR 1=1 --", "password": "anything"}\nresponse = requests.post("https://api.example.com/login",\n    json=payload)\nprint(response.status_code)\n# Should return 400 or 401, not 200'))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Medium", "output",
+        "What will this code measure?",
+        "The response time of the API call in seconds",
+        "The number of requests per second",
+        "The payload size",
+        "The server uptime",
+        "A", "The code measures elapsed time between sending and receiving using response.elapsed.",
+        'import requests\nimport time\nstart = time.time()\nresponse = requests.get("https://api.example.com/data")\nend = time.time()\nprint(f"Response time: {end - start:.3f} seconds")'))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Medium", "output",
+        "What does this validation check?",
+        "That the response JSON matches the expected schema structure",
+        "That the API is running",
+        "That authentication works",
+        "That the server is fast enough",
+        "A", "The code validates that the response contains the required fields with correct types (schema validation).",
+        'import requests\nresponse = requests.get("https://api.example.com/users/1")\ndata = response.json()\nassert "id" in data\nassert "name" in data\nassert "email" in data\nassert isinstance(data["id"], int)\nassert isinstance(data["name"], str)\nprint("Schema validation passed")'))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Hard", "output",
+        "What will the output be?",
+        "Received: Echo: Hello WebSocket", "Received: Hello WebSocket",
+        "Error", "Connection refused",
+        "A", "The WebSocket server echoes back the message with an 'Echo: ' prefix.",
+        'import websocket\nws = websocket.create_connection("ws://echo.example.com")\nws.send("Hello WebSocket")\nresult = ws.recv()\n# Server echoes with prefix\nprint(f"Received: {result}")\nws.close()'))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Easy", "output",
+        "Which API version is being called?",
+        "Version 2", "Version 1", "Version 3", "No version specified",
+        "A", "The URL path contains /v2/ indicating API version 2 is being called.",
+        'import requests\nresponse = requests.get("https://api.example.com/v2/users")\nprint(response.json())'))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Medium", "output",
+        "How is the API version specified in this request?",
+        "Via a custom header", "Via URL path", "Via query parameter", "Via content negotiation",
+        "A", "The API version is specified using the custom X-API-Version header.",
+        'import requests\nresponse = requests.get("https://api.example.com/users",\n    headers={"X-API-Version": "3"})\nprint(response.json())'))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Hard", "output",
+        "What pattern does this code implement?",
+        "Exponential backoff retry", "Circuit breaker", "Rate limiting", "Load balancing",
+        "A", "The code retries with increasing delays (1s, 2s, 4s) which is exponential backoff.",
+        'import requests\nimport time\nfor attempt in range(3):\n    response = requests.get("https://api.example.com/data")\n    if response.status_code == 200:\n        break\n    wait = 2 ** attempt  # 1, 2, 4 seconds\n    time.sleep(wait)\nprint(f"Final status: {response.status_code}")'))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Easy", "output",
+        "What will response.text contain?",
+        "The response body as a string", "The response headers",
+        "The status code", "The URL",
+        "A", "response.text returns the response body decoded as a Unicode string.",
+        'import requests\nresponse = requests.get("https://api.example.com/hello")\n# Server returns: {"message": "Hello"}\nprint(type(response.text))  # <class \'str\'>'))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Hard", "output",
+        "What will the response contain?",
+        "The allowed HTTP methods for the endpoint", "The resource data",
+        "An error message", "The API documentation",
+        "A", "OPTIONS request returns the allowed methods in the Allow header.",
+        'import requests\nresponse = requests.options("https://api.example.com/users")\nprint(response.headers.get("Allow"))\n# Output: GET, POST, OPTIONS'))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Medium", "output",
+        "What will be stored in the session?",
+        "The authentication cookie for subsequent requests",
+        "The username and password",
+        "The API key",
+        "Nothing",
+        "A", "Session objects persist cookies; after login, the session cookie is used for subsequent authenticated requests.",
+        'import requests\nsession = requests.Session()\nsession.post("https://api.example.com/login",\n    json={"username": "admin", "password": "secret"})\n# Session now has auth cookie\nresponse = session.get("https://api.example.com/dashboard")\nprint(response.status_code)'))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Medium", "output",
+        "What encoding will be used for the response?",
+        "utf-8", "ascii", "latin-1", "None",
+        "A", "response.encoding shows the encoding determined from the Content-Type header.",
+        'import requests\nresponse = requests.get("https://api.example.com/data")\n# Content-Type: application/json; charset=utf-8\nprint(response.encoding)'))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Easy", "output",
+        "What will be printed?",
+        "Client Error", "Server Error", "Success", "Redirect",
+        "A", "Status code 422 falls in the 4xx range which indicates a client error.",
+        'import requests\nresponse = requests.post("https://api.example.com/users",\n    json={"name": ""})\n# Status code: 422\nif 400 <= response.status_code < 500:\n    print("Client Error")\nelif 500 <= response.status_code < 600:\n    print("Server Error")\nelse:\n    print("Success")'))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Easy", "output",
+        "How many users will be returned?",
+        "5", "10", "All users", "0",
+        "A", "The limit parameter restricts the response to 5 items.",
+        'import requests\nresponse = requests.get("https://api.example.com/users",\n    params={"page": 1, "limit": 5})\ndata = response.json()\nprint(len(data["users"]))'))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Easy", "output",
+        "What fields will be returned in the response?",
+        "Only name and email", "All user fields", "Only id", "No fields",
+        "A", "GraphQL returns only the fields specified in the query: name and email.",
+        'import requests\nquery = \'{ user(id: 1) { name email } }\'\nresponse = requests.post("https://api.example.com/graphql",\n    json={"query": query})\nprint(response.json())'))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Hard", "output",
+        "What will happen if the API returns an extra field?",
+        "The test will still pass because it only checks required fields",
+        "The test will fail",
+        "An exception will be raised",
+        "The extra field will be removed",
+        "A", "The assertions only check for the presence and types of specific fields; extra fields are ignored.",
+        'import requests\nresponse = requests.get("https://api.example.com/users/1")\ndata = response.json()\n# Response: {"id": 1, "name": "Alice", "email": "a@b.com", "age": 30}\nassert "id" in data\nassert "name" in data\nassert isinstance(data["id"], int)\nprint("Contract test passed")'))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Easy", "output",
+        "What will the status code be?",
+        "401 Unauthorized", "200 OK", "403 Forbidden", "500 Internal Server Error",
+        "A", "Sending a request without authentication credentials results in 401 Unauthorized.",
+        'import requests\n# No authentication headers\nresponse = requests.get("https://api.example.com/protected/data")\nprint(response.status_code)  # 401'))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Hard", "output",
+        "What is this code testing?",
+        "Concurrent API request handling (throughput)", "Sequential response times",
+        "Single request latency", "Authentication speed",
+        "A", "ThreadPoolExecutor sends multiple concurrent requests to measure throughput.",
+        'import requests\nfrom concurrent.futures import ThreadPoolExecutor\n\ndef make_request(_):\n    return requests.get("https://api.example.com/data")\n\nwith ThreadPoolExecutor(max_workers=10) as executor:\n    results = list(executor.map(make_request, range(100)))\nprint(f"Completed: {len(results)} requests")'))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Medium", "output",
+        "What testing pattern is this code demonstrating?",
+        "Data-driven testing with parameterized inputs",
+        "Load testing", "Security testing", "Mock testing",
+        "A", "The code iterates over multiple test cases with different inputs and expected outputs.",
+        'import requests\ntest_cases = [\n    {"input": {"name": "Alice"}, "expected_status": 201},\n    {"input": {"name": ""}, "expected_status": 400},\n    {"input": {}, "expected_status": 400},\n]\nfor tc in test_cases:\n    resp = requests.post("https://api.example.com/users", json=tc["input"])\n    assert resp.status_code == tc["expected_status"]\nprint("All tests passed")'))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Medium", "output",
+        "What will the output be?",
+        "PUT", "POST", "PATCH", "GET",
+        "B", "requests.post() sends a POST request, so response.request.method is 'POST'.",
+        'import requests\nresponse = requests.post("https://api.example.com/items",\n    json={"name": "Widget", "price": 9.99})\nprint(response.request.method)'))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Hard", "output",
+        "What will this code print?",
+        "True", "False", "Error", "None",
+        "A", "The response contains valid JSON, so trying to parse it succeeds and json_valid is True.",
+        'import requests\nimport json\nresponse = requests.get("https://api.example.com/users")\ntry:\n    response.json()\n    json_valid = True\nexcept json.JSONDecodeError:\n    json_valid = False\nprint(json_valid)'))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Hard", "output",
+        "What caching behavior does this response indicate?",
+        "The response should not be cached", "Cache for 1 hour",
+        "Cache indefinitely", "Cache for 24 hours",
+        "A", "Cache-Control: no-store instructs clients and proxies not to cache the response.",
+        'import requests\nresponse = requests.get("https://api.example.com/sensitive-data")\nprint(response.headers.get("Cache-Control"))\n# Output: no-store'))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Hard", "output",
+        "What will be printed?",
+        "All 3 items processed, 1 failures", "All items succeeded",
+        "Error on first item", "0 items processed",
+        "A", "The code processes all items, collecting failures. Item 2 returns 500, so there is 1 failure out of 3.",
+        'import requests\nitems = [{"id": 1}, {"id": 2}, {"id": 3}]\nfailures = []\nfor item in items:\n    resp = requests.post("https://api.example.com/process", json=item)\n    if resp.status_code != 200:\n        failures.append(item["id"])\n# Assume item 2 returns 500, others return 200\nprint(f"All {len(items)} items processed, {len(failures)} failures")'))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Hard", "output",
+        "What does this test verify?",
+        "That the API response time is under the threshold",
+        "That the response body is correct",
+        "That authentication works",
+        "That the endpoint exists",
+        "A", "The assertion checks that elapsed time is under 2 seconds, verifying performance.",
+        'import requests\nresponse = requests.get("https://api.example.com/data")\nassert response.elapsed.total_seconds() < 2.0, \\\n    f"Response too slow: {response.elapsed.total_seconds()}s"\nprint("Performance check passed")'))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Medium", "output",
+        "What protocol upgrade is requested?",
+        "WebSocket", "HTTP/2", "HTTPS", "gRPC",
+        "A", "The Upgrade: websocket and Connection: Upgrade headers request a WebSocket protocol upgrade.",
+        'import requests\n# Simulating the initial WebSocket handshake\nheaders = {\n    "Upgrade": "websocket",\n    "Connection": "Upgrade",\n    "Sec-WebSocket-Version": "13"\n}\nresponse = requests.get("https://api.example.com/ws",\n    headers=headers)\nprint(response.status_code)  # 101'))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Medium", "output",
+        "What does this test check?",
+        "That sensitive data is not exposed in the response",
+        "That the API is fast",
+        "That the endpoint exists",
+        "That authentication works",
+        "A", "The test asserts that sensitive fields like password and SSN are not present in the API response.",
+        'import requests\nresponse = requests.get("https://api.example.com/users/1")\ndata = response.json()\nassert "password" not in data, "Password exposed!"\nassert "ssn" not in data, "SSN exposed!"\nprint("Sensitive data check passed")'))
+
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Medium", "output",
+        "What does this test validate about the API?",
+        "That the API returns HATEOAS links for navigation",
+        "That the API returns data",
+        "That authentication works",
+        "That pagination works",
+        "A", "The test checks for _links in the response, which is a HATEOAS pattern for discoverability.",
+        'import requests\nresponse = requests.get("https://api.example.com/users/1")\ndata = response.json()\nassert "_links" in data\nassert "self" in data["_links"]\nassert "orders" in data["_links"]\nprint("HATEOAS links present")'))
+
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Hard", "output",
+        "What content negotiation is happening?",
+        "Requesting XML format instead of the default JSON",
+        "Requesting JSON format",
+        "Requesting HTML format",
+        "No content negotiation",
+        "A", "The Accept header set to application/xml requests the server to return XML format.",
+        'import requests\nresponse = requests.get("https://api.example.com/users",\n    headers={"Accept": "application/xml"})\nprint(response.headers["Content-Type"])\n# Output: application/xml'))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Easy", "output",
+        "What is this test checking?",
+        "That the API returns the correct status code and data structure",
+        "API performance",
+        "API security",
+        "API documentation",
+        "A", "The test verifies the status code is 200 and the response contains an 'id' field - basic functional testing.",
+        'import requests\nresponse = requests.get("https://api.example.com/users/1")\nassert response.status_code == 200\nassert "id" in response.json()\nprint("Basic API test passed")'))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Medium", "output",
+        "What pagination metadata is included?",
+        "total, page, per_page, and total_pages", "Only the data items",
+        "Only the total count", "No metadata",
+        "A", "The response includes pagination metadata: total items, current page, items per page, and total pages.",
+        'import requests\nresponse = requests.get("https://api.example.com/users",\n    params={"page": 1, "per_page": 20})\ndata = response.json()\nprint(f"Total: {data[\'total\']}, Page: {data[\'page\']}, ")\nprint(f"Per Page: {data[\'per_page\']}, Pages: {data[\'total_pages\']}")'))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Easy", "output",
+        "What will the assertion check?",
+        "That the response size is under 1MB", "That the status code is 200",
+        "That the response is JSON", "That the headers are correct",
+        "A", "len(response.content) checks the response body size in bytes; the assertion verifies it is under 1MB.",
+        'import requests\nresponse = requests.get("https://api.example.com/large-data")\nassert len(response.content) < 1_000_000, "Response too large!"\nprint(f"Response size: {len(response.content)} bytes")'))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Easy", "output",
+        "What is this code checking?",
+        "That the response status code matches the expected value",
+        "That the server is running",
+        "The response time",
+        "The request headers",
+        "A", "The assertion verifies the status code is exactly 200, which is basic contract validation.",
+        'import requests\nresponse = requests.get("https://api.example.com/health")\nassert response.status_code == 200\nprint("Health check passed")'))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Hard", "output",
+        "What will the errors field contain?",
+        "An error about the non-existent field", "Nothing",
+        "A success message", "The query result",
+        "A", "Requesting a non-existent field in GraphQL returns an errors array describing the invalid field.",
+        'import requests\nquery = \'{ user(id: 1) { name nonExistentField } }\'\nresponse = requests.post("https://api.example.com/graphql",\n    json={"query": query})\ndata = response.json()\nprint(data.get("errors"))'))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Hard", "output",
+        "What is this script testing?",
+        "Mass assignment vulnerability by sending restricted fields",
+        "SQL injection", "IDOR", "XSS",
+        "A", "The test sends an 'is_admin' field that should not be modifiable by regular users - mass assignment check.",
+        'import requests\n# Regular user trying to elevate privileges\npayload = {\n    "name": "Regular User",\n    "email": "user@test.com",\n    "is_admin": True  # Should be rejected\n}\nresponse = requests.patch("https://api.example.com/users/me",\n    json=payload,\n    headers={"Authorization": "Bearer user_token"})\nuser = response.json()\nassert user.get("is_admin") != True, "Mass assignment vulnerability!"'))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Easy", "output",
+        "What type of connection does this code establish?",
+        "WebSocket connection", "HTTP connection",
+        "TCP connection", "UDP connection",
+        "A", "websocket.create_connection with ws:// scheme establishes a WebSocket connection.",
+        'import websocket\nws = websocket.create_connection("ws://echo.example.com/socket")\nprint("Connected")\nws.send("ping")\nresult = ws.recv()\nprint(f"Server says: {result}")\nws.close()'))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Hard", "output",
+        "What testing approach is demonstrated?",
+        "API test with setup and teardown (fixture pattern)",
+        "Load testing", "Security testing", "Contract testing",
+        "A", "The code creates test data (setup), runs the test, and cleans up (teardown) - the fixture pattern.",
+        'import requests\nBASE = "https://api.example.com"\n# Setup: create test user\nuser = requests.post(f"{BASE}/users",\n    json={"name": "Test"}).json()\n# Test: verify user exists\nresp = requests.get(f"{BASE}/users/{user[\'id\']}")\nassert resp.status_code == 200\n# Teardown: delete test user\nrequests.delete(f"{BASE}/users/{user[\'id\']}")\nprint("Test with fixture passed")'))
+
+    # ===================================================================
+    # Scenario questions (100) -- code_snippet is empty string
+    # ===================================================================
+
+    # --- REST Concepts scenarios ---
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Medium", "scenario",
+        "Your team is designing a new API. A developer suggests using verbs in endpoint URLs (e.g., /getUsers, /deleteUser). What is the correct REST approach?",
+        "Use nouns for resources (/users) and HTTP methods for actions", "Use verbs for clarity",
+        "Use a mix of both", "Use only query parameters for actions",
+        "A", "REST best practice uses nouns for resources and HTTP methods (GET, POST, DELETE) to define actions."))
+
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Hard", "scenario",
+        "An API returns the same data whether you make 1 or 10 identical GET requests. However, a POST to /orders creates a new order each time. A colleague asks why. What is the best explanation?",
+        "GET is idempotent and safe; POST is neither idempotent nor safe",
+        "GET caches responses; POST does not",
+        "GET is faster than POST",
+        "POST requires authentication; GET does not",
+        "A", "GET is both safe (no side effects) and idempotent. POST creates new resources each time, making it non-idempotent."))
+
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Easy", "scenario",
+        "A client sends a request to GET /api/products/42. What is the expected behavior?",
+        "Return the product with ID 42", "Create a new product with ID 42",
+        "Delete product 42", "Update product 42",
+        "A", "GET retrieves the resource identified by the URI, in this case the product with ID 42."))
+
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Medium", "scenario",
+        "You notice an API returns a 200 status for all requests, with error details only in the response body. What is wrong?",
+        "The API should use proper HTTP status codes (4xx, 5xx) for errors",
+        "Nothing is wrong; this is standard practice",
+        "The API should use only 500 for errors",
+        "Error details should be in headers, not the body",
+        "A", "Proper REST APIs use HTTP status codes to indicate success/failure, not just 200 with error details in the body."))
+
+    # --- HTTP Methods scenarios ---
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Easy", "scenario",
+        "A client needs to update a user's email address only, without changing other fields. Which HTTP method should be used?",
+        "PATCH", "PUT", "POST", "GET",
+        "A", "PATCH is for partial updates. PUT would require sending the entire resource representation."))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Medium", "scenario",
+        "An API endpoint /api/users supports GET and POST. A client sends a DELETE request to it. What should happen?",
+        "Return 405 Method Not Allowed", "Return 404 Not Found",
+        "Return 400 Bad Request", "Return 500 Internal Server Error",
+        "A", "405 Method Not Allowed is returned when the HTTP method is not supported for the given endpoint."))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Hard", "scenario",
+        "A developer uses POST to update resources, arguing it works the same as PUT. What is the problem with this approach?",
+        "POST is not idempotent, so retrying failed requests may create duplicate resources",
+        "POST is slower than PUT",
+        "POST cannot send JSON data",
+        "There is no problem; POST and PUT are interchangeable",
+        "A", "PUT is idempotent (safe to retry), while POST is not. Using POST for updates risks creating duplicates on retries."))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Easy", "scenario",
+        "You need to check if an API endpoint is available without downloading the response body. Which method should you use?",
+        "HEAD", "GET", "OPTIONS", "TRACE",
+        "A", "HEAD returns only the response headers without the body, ideal for availability checks."))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Medium", "scenario",
+        "A mobile app needs to replace a user's entire profile. Which HTTP method is appropriate?",
+        "PUT", "PATCH", "POST", "DELETE",
+        "A", "PUT replaces the entire resource with the provided representation."))
+
+    # --- Status Codes scenarios ---
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Easy", "scenario",
+        "A client sends a valid request but the server encounters a database error. What status code should be returned?",
+        "500 Internal Server Error", "400 Bad Request", "404 Not Found", "503 Service Unavailable",
+        "A", "500 Internal Server Error indicates an unexpected server-side error."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Medium", "scenario",
+        "An API receives a request for a resource that was permanently deleted. What is the most appropriate status code?",
+        "410 Gone", "404 Not Found", "204 No Content", "301 Moved Permanently",
+        "A", "410 Gone indicates the resource existed but has been permanently removed and will not return."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Hard", "scenario",
+        "A client sends a PUT request that would violate a unique constraint (duplicate email). What status code should the API return?",
+        "409 Conflict", "400 Bad Request", "422 Unprocessable Entity", "500 Internal Server Error",
+        "A", "409 Conflict indicates the request could not be completed due to a conflict with the current state of the resource."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Medium", "scenario",
+        "An API successfully processes a DELETE request but has no content to return. What status code should it use?",
+        "204 No Content", "200 OK", "202 Accepted", "404 Not Found",
+        "A", "204 No Content indicates successful processing with no response body to return."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Easy", "scenario",
+        "A user sends a request with an invalid JSON body. What status code should the API return?",
+        "400 Bad Request", "500 Internal Server Error", "422 Unprocessable Entity", "404 Not Found",
+        "A", "400 Bad Request indicates the server cannot process the request due to malformed client input."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Hard", "scenario",
+        "An API queues a long-running report generation task and will notify the client when complete. What status code should the initial response use?",
+        "202 Accepted", "200 OK", "201 Created", "204 No Content",
+        "A", "202 Accepted indicates the request has been accepted for processing but is not yet complete."))
+
+    # --- Request/Response scenarios ---
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Medium", "scenario",
+        "An API receives a request with Content-Type: application/xml but only supports JSON. What should it return?",
+        "415 Unsupported Media Type", "400 Bad Request", "406 Not Acceptable", "500 Internal Server Error",
+        "A", "415 Unsupported Media Type indicates the server does not support the request's content type."))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Easy", "scenario",
+        "A client needs to search for users named 'John' who are active. How should this be passed in a GET request?",
+        "As query parameters: /users?name=John&status=active", "In the request body as JSON",
+        "In the Authorization header", "As path parameters: /users/John/active",
+        "A", "GET requests should use query parameters for filtering, not request bodies."))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Hard", "scenario",
+        "An API needs to return a 50MB file. What is the best approach?",
+        "Use streaming response with Transfer-Encoding: chunked",
+        "Return the entire file in a single JSON response",
+        "Split it into multiple API calls automatically",
+        "Compress it to under 1MB",
+        "A", "Streaming with chunked transfer encoding allows efficient delivery of large payloads without memory issues."))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Medium", "scenario",
+        "A client sends Accept: application/xml but the API only supports JSON. What should the API return?",
+        "406 Not Acceptable", "200 OK with JSON", "415 Unsupported Media Type", "400 Bad Request",
+        "A", "406 Not Acceptable indicates the server cannot produce a response matching the client's Accept header."))
+
+    # --- Authentication scenarios ---
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Medium", "scenario",
+        "A developer stores JWT tokens in localStorage. What security concern does this raise?",
+        "XSS attacks can steal the token from localStorage",
+        "The token will expire too quickly",
+        "localStorage is too slow",
+        "JWTs cannot be stored in localStorage",
+        "A", "localStorage is accessible via JavaScript, making it vulnerable to XSS attacks that can steal tokens."))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Hard", "scenario",
+        "An API uses JWT tokens that never expire. What is the security risk and mitigation?",
+        "Stolen tokens grant permanent access; use short-lived tokens with refresh tokens",
+        "No risk since JWTs are encrypted",
+        "The only risk is large token size",
+        "Use longer tokens to increase security",
+        "A", "Non-expiring tokens mean stolen tokens provide indefinite access. Short-lived tokens with refresh tokens limit exposure."))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Easy", "scenario",
+        "An API requires authentication. A client sends a request without any credentials. What status code should be returned?",
+        "401 Unauthorized", "403 Forbidden", "400 Bad Request", "404 Not Found",
+        "A", "401 Unauthorized indicates the request lacks authentication credentials."))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Medium", "scenario",
+        "A third-party app needs access to a user's Google Calendar data. Which authentication mechanism is most appropriate?",
+        "OAuth 2.0", "Basic Authentication", "API Key", "Session cookies",
+        "A", "OAuth 2.0 allows third-party apps to access user resources without sharing credentials."))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Hard", "scenario",
+        "An API uses API keys sent as query parameters. During a security audit, this is flagged. Why?",
+        "Query parameters are logged in server logs, proxy logs, and browser history, exposing the key",
+        "Query parameters are too short for API keys",
+        "API keys in query params are slower",
+        "Query parameters cannot carry strings",
+        "A", "API keys in URLs appear in logs, browser history, and Referer headers, creating exposure risks."))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Medium", "scenario",
+        "A user's access token has expired but they have a valid refresh token. What should the client do?",
+        "Send the refresh token to the token endpoint to obtain a new access token",
+        "Ask the user to log in again",
+        "Use the expired access token anyway",
+        "Create a new account",
+        "A", "The client should exchange the refresh token for a new access token without requiring the user to re-authenticate."))
+
+    # --- Headers scenarios ---
+    qid += 1
+    questions.append(_q(qid, "Headers", "Medium", "scenario",
+        "Your API is called by a web app on a different domain and the browser blocks the request. What is the issue?",
+        "CORS is not configured; the server needs to send Access-Control-Allow-Origin header",
+        "The API is down",
+        "The browser does not support APIs",
+        "The URL is wrong",
+        "A", "Cross-Origin Resource Sharing (CORS) headers must be set on the server to allow cross-domain requests."))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Easy", "scenario",
+        "You want to ensure API responses are not cached by any intermediary. Which header should you set?",
+        "Cache-Control: no-store", "Cache-Control: max-age=0",
+        "Pragma: cache", "Expires: tomorrow",
+        "A", "Cache-Control: no-store prevents all caching of the response by browsers and proxies."))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Hard", "scenario",
+        "A browser sends an OPTIONS request before the actual POST request to your API. Why?",
+        "It is a CORS preflight request checking if the actual request is allowed",
+        "The browser has a bug",
+        "The POST method is not supported",
+        "The server requires OPTIONS before POST",
+        "A", "CORS preflight (OPTIONS) is automatically sent by browsers to check permissions before certain cross-origin requests."))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Medium", "scenario",
+        "You need to track API requests across multiple microservices for debugging. What header should you use?",
+        "X-Request-ID or X-Correlation-ID", "User-Agent", "Content-Type", "Cache-Control",
+        "A", "A unique request/correlation ID in headers enables tracing a single request across distributed services."))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Hard", "scenario",
+        "An API client sends If-None-Match with a cached ETag. The resource has not changed. What should the server return?",
+        "304 Not Modified with no body", "200 OK with the full resource",
+        "204 No Content", "404 Not Found",
+        "A", "If the ETag matches, the server returns 304 Not Modified, telling the client to use its cached copy."))
+
+    # --- Pagination scenarios ---
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Easy", "scenario",
+        "An API returns 10,000 user records in a single response. What is the problem and solution?",
+        "The response is too large; implement pagination with limit and offset",
+        "No problem; return all data at once",
+        "Use compression instead",
+        "Reduce the number of fields per user",
+        "A", "Large responses impact performance and memory; pagination returns manageable chunks of data."))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Medium", "scenario",
+        "While paginating through results using offset, a new record is inserted at the beginning of the dataset. What happens?",
+        "A record from the previous page may appear again on the next page (duplicate)",
+        "Nothing; offset pagination handles this automatically",
+        "The request will fail",
+        "All subsequent pages will be empty",
+        "A", "Offset pagination is unstable when data changes between requests; insertions cause duplicates."))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Hard", "scenario",
+        "Your API has millions of records and offset pagination is slow for deep pages (e.g., page 10000). What is a better approach?",
+        "Use cursor-based or keyset pagination for consistent performance",
+        "Increase server memory",
+        "Use larger page sizes",
+        "Cache all pages",
+        "A", "Cursor/keyset pagination avoids the OFFSET performance penalty that grows with page depth."))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Medium", "scenario",
+        "A mobile app needs to load more items as the user scrolls down (infinite scroll). Which pagination method is best?",
+        "Cursor-based pagination", "Page number pagination",
+        "Offset pagination", "No pagination",
+        "A", "Cursor-based pagination works well for infinite scroll as it handles data changes and provides a 'next' token."))
+
+    # --- Versioning scenarios ---
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Easy", "scenario",
+        "Your API needs to change the response format for /users, but existing clients depend on the current format. What should you do?",
+        "Create a new API version (e.g., /v2/users) while maintaining the current version",
+        "Change the format and notify all clients",
+        "Add a flag to toggle formats",
+        "Delay the change indefinitely",
+        "A", "Versioning allows introducing breaking changes in a new version while existing clients continue using the old one."))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Medium", "scenario",
+        "A team is debating between URL path versioning and header versioning. What is a key advantage of URL path versioning?",
+        "It is more visible and easier to test in a browser",
+        "It supports more versions",
+        "It is more RESTful",
+        "It is more secure",
+        "A", "URL path versioning is visible in the URL, making it easy to test, share, and understand."))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Hard", "scenario",
+        "An API has version 1, 2, and 3. Version 1 was deprecated a year ago. What should happen now?",
+        "Sunset version 1 after giving final notice to remaining consumers",
+        "Keep version 1 forever",
+        "Immediately remove version 1 without notice",
+        "Automatically redirect v1 to v3",
+        "A", "After the deprecation period, the version should be sunset with final notice, using Sunset headers if possible."))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Medium", "scenario",
+        "You add a new optional field to the API response. Does this require a new version?",
+        "No, adding optional fields is a backward-compatible change",
+        "Yes, any change requires a new version",
+        "Only if the field is required",
+        "Only if using header versioning",
+        "A", "Adding optional fields is non-breaking; existing clients can safely ignore new fields."))
+
+    # --- Error Handling scenarios ---
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Easy", "scenario",
+        "An API returns {\"error\": \"Something went wrong\"} for every error. What is the problem?",
+        "The error message is too generic; it should provide specific details for different error types",
+        "Nothing is wrong",
+        "The message is too long",
+        "It should use XML instead of JSON",
+        "A", "Generic errors make debugging difficult; APIs should return specific error codes and messages."))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Medium", "scenario",
+        "A microservice calls another service that is down. What pattern should be used to prevent cascading failures?",
+        "Circuit Breaker pattern", "Retry indefinitely",
+        "Ignore the failure", "Return 200 with empty data",
+        "A", "The Circuit Breaker pattern prevents cascading failures by stopping calls to a failing service after a threshold."))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Hard", "scenario",
+        "An API receives a valid JSON request, but the 'age' field contains -5. What status code and response is appropriate?",
+        "422 Unprocessable Entity with validation error details",
+        "400 Bad Request",
+        "500 Internal Server Error",
+        "200 OK with an error message",
+        "A", "422 Unprocessable Entity is appropriate when the syntax is valid but the content is semantically invalid."))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Medium", "scenario",
+        "A client retries a failed POST /orders request. The first request actually succeeded but the response was lost. What happens?",
+        "A duplicate order is created; the API should use idempotency keys to prevent this",
+        "Nothing, POST is idempotent",
+        "The server automatically detects duplicates",
+        "The second request will fail with 409",
+        "A", "Without idempotency keys, retrying a POST creates duplicates. Idempotency keys help prevent this."))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Easy", "scenario",
+        "An API error response includes the full database stack trace. What is the risk?",
+        "It exposes internal architecture details that could help attackers",
+        "No risk; it helps debugging",
+        "It makes the response too large",
+        "Stack traces are standard in API responses",
+        "A", "Stack traces expose technology details, file paths, and database info that attackers can exploit."))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Hard", "scenario",
+        "A client receives intermittent 503 errors from an API. What retry strategy should be implemented?",
+        "Exponential backoff with jitter and a maximum retry limit",
+        "Retry immediately without delay",
+        "Retry every 100ms",
+        "Never retry; fail immediately",
+        "A", "Exponential backoff with jitter prevents thundering herd problems while respecting the server's recovery time."))
+
+    # --- GraphQL Basics scenarios ---
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Easy", "scenario",
+        "A mobile app needs only the name and avatar of a user, but the REST API returns 20 fields. What is a better approach?",
+        "Use GraphQL to request only the specific fields needed",
+        "Use a custom REST endpoint for each use case",
+        "Use pagination to limit fields",
+        "Filter fields on the client side",
+        "A", "GraphQL allows clients to specify exactly which fields they need, solving over-fetching."))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Medium", "scenario",
+        "A page requires data from users, orders, and products endpoints. In REST, this requires 3 API calls. How can GraphQL help?",
+        "GraphQL can fetch all three in a single query request",
+        "GraphQL cannot help with this",
+        "GraphQL requires more API calls",
+        "GraphQL only works with one resource type",
+        "A", "GraphQL solves under-fetching by allowing a single query to request data from multiple resource types."))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Hard", "scenario",
+        "A GraphQL API is consuming excessive database resources because of deeply nested queries. What should be implemented?",
+        "Query depth limiting and complexity analysis",
+        "Remove all nested types",
+        "Switch to REST",
+        "Add more database indexes",
+        "A", "Query depth limiting and complexity analysis prevent abusive queries that could overload the server."))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Medium", "scenario",
+        "A developer wants to disable GraphQL introspection in production. Why is this a good practice?",
+        "Introspection reveals the entire schema, which could help attackers understand the API structure",
+        "Introspection slows down the server",
+        "Introspection uses too much memory",
+        "Introspection is never useful",
+        "A", "Disabling introspection in production prevents unauthorized discovery of the API schema."))
+
+    # --- WebSocket Testing scenarios ---
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Easy", "scenario",
+        "A chat application needs real-time message delivery. Why are WebSockets preferred over REST polling?",
+        "WebSockets maintain a persistent connection, reducing latency and server load",
+        "WebSockets are more secure",
+        "REST cannot handle text data",
+        "WebSockets use less bandwidth for large files",
+        "A", "WebSockets provide instant message delivery through a persistent bidirectional connection."))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Medium", "scenario",
+        "During WebSocket testing, the connection drops after 60 seconds of inactivity. What should be implemented?",
+        "Heartbeat/ping-pong mechanism to keep the connection alive",
+        "Send data every second",
+        "Increase server timeout to infinity",
+        "Disable timeouts",
+        "A", "Ping-pong heartbeats maintain idle connections and detect disconnections early."))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Hard", "scenario",
+        "A WebSocket server needs to handle 100,000 concurrent connections. What testing approach is needed?",
+        "Load testing with gradual connection ramp-up, monitoring memory and CPU per connection",
+        "Test with 10 connections and extrapolate",
+        "Only test message throughput",
+        "Skip testing; scale servers if needed",
+        "A", "WebSocket load testing requires monitoring per-connection resource usage with gradual ramp-up to realistic levels."))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Medium", "scenario",
+        "After a WebSocket reconnection, the client missed some messages. How should this be handled?",
+        "Implement message queuing and replay from last acknowledged message ID",
+        "Ignore missed messages",
+        "Resend all messages from the beginning",
+        "Ask the user to refresh the page",
+        "A", "Message queuing with acknowledgment IDs allows replaying only the missed messages after reconnection."))
+
+    # --- Contract Testing scenarios ---
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Easy", "scenario",
+        "Two teams (frontend and backend) are building an API. How can they work independently?",
+        "Define the API contract first using OpenAPI spec, then both teams develop against it",
+        "Frontend team waits for backend to finish",
+        "Backend team waits for frontend to finish",
+        "Both teams work without any coordination",
+        "A", "An API contract (OpenAPI spec) allows both teams to develop independently with a shared agreement."))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Medium", "scenario",
+        "A provider updates their API and accidentally breaks a consumer. How can this be prevented?",
+        "Implement consumer-driven contract tests that run in the provider's CI pipeline",
+        "Only test the provider's API manually",
+        "Ask consumers to test after each deploy",
+        "Freeze the API forever",
+        "A", "Consumer-driven contracts ensure provider changes do not break consumers by running automatically in CI."))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Hard", "scenario",
+        "Your microservice architecture has 20 services. Integration testing all combinations is impractical. What approach works?",
+        "Use contract testing to verify pairwise service interactions independently",
+        "Test only the most critical services",
+        "Skip integration testing entirely",
+        "Deploy and test in production",
+        "A", "Contract testing verifies each service pair independently, avoiding the combinatorial explosion of full integration testing."))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Medium", "scenario",
+        "A Pact test fails during provider verification. What should happen?",
+        "The provider team must either fix their API or negotiate a contract change with the consumer",
+        "Delete the failing pact",
+        "Skip the failing test",
+        "Deploy anyway",
+        "A", "Failed contract tests indicate a breaking change that must be resolved before deployment."))
+
+    # --- Performance Testing APIs scenarios ---
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Easy", "scenario",
+        "An API response time increases from 200ms to 5 seconds after deploying new code. What type of testing would have caught this?",
+        "Performance regression testing as part of CI/CD pipeline",
+        "Unit testing", "Contract testing", "Security testing",
+        "A", "Performance regression tests with baseline comparisons in CI/CD catch response time degradation."))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Medium", "scenario",
+        "An API performs well with 100 users but crashes at 500 users. What testing should have been done?",
+        "Load testing and stress testing to find the capacity limits",
+        "Only unit testing", "Only functional testing", "Only security testing",
+        "A", "Load and stress testing identify the maximum capacity and failure behavior under various user loads."))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Hard", "scenario",
+        "After running for 48 hours under normal load, an API starts responding slowly and eventually crashes. What caused this?",
+        "Likely a memory leak or resource exhaustion; soak testing would have caught it",
+        "The server ran out of disk space",
+        "Too many API keys were generated",
+        "The SSL certificate expired",
+        "A", "Soak testing (endurance testing) runs sustained load over long periods to detect memory leaks and resource exhaustion."))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Medium", "scenario",
+        "A Black Friday sale is expected to triple API traffic. How should you prepare?",
+        "Run load tests simulating 3x expected traffic and optimize bottlenecks",
+        "Hope the servers can handle it",
+        "Turn off non-essential features",
+        "Redirect users to a static page",
+        "A", "Load testing at expected peak levels reveals bottlenecks that can be optimized before the actual event."))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Easy", "scenario",
+        "You need to measure how quickly an API responds under normal conditions. Which metric is most relevant?",
+        "Average response time and P95 latency", "Number of endpoints",
+        "Response body size", "Number of headers",
+        "A", "Response time metrics (average, P95, P99) indicate how quickly the API serves requests under normal load."))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Hard", "scenario",
+        "An API shows good average response time but users report slowness. What metric should you investigate?",
+        "P99 latency to check tail-end response times",
+        "Average response time only",
+        "Total number of requests",
+        "Server CPU usage only",
+        "A", "P99 latency shows the worst-case experience; a good average can hide a slow tail affecting real users."))
+
+    # --- Security Testing APIs scenarios ---
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Easy", "scenario",
+        "An API returns user data including password hashes. What is the security concern?",
+        "Sensitive data exposure; passwords should never be included in API responses",
+        "No concern; hashes are safe",
+        "Only a problem if using HTTP",
+        "This only matters for admin APIs",
+        "A", "Password hashes should never be returned in API responses; they can be cracked offline."))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Medium", "scenario",
+        "A user can access other users' data by changing the ID in the URL (e.g., /users/2 while logged in as user 1). What vulnerability is this?",
+        "IDOR (Insecure Direct Object Reference)", "SQL Injection",
+        "XSS", "CSRF",
+        "A", "IDOR allows unauthorized access by manipulating resource identifiers without proper authorization checks."))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Hard", "scenario",
+        "An API accepts user input and includes it in SQL queries without sanitization. What testing should be performed?",
+        "SQL injection testing with various payloads and parameterized query verification",
+        "Only functional testing",
+        "Only load testing",
+        "Only contract testing",
+        "A", "SQL injection testing verifies that user input is properly sanitized and queries use parameterization."))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Medium", "scenario",
+        "An API has no rate limiting. What attack is it vulnerable to?",
+        "Brute force attacks and denial of service", "SQL injection",
+        "XSS", "CSRF",
+        "A", "Without rate limiting, attackers can send unlimited requests for brute force or denial-of-service attacks."))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Hard", "scenario",
+        "An API allows users to update their profile, but a tester discovers that sending is_admin: true in the request body elevates privileges. What vulnerability is this?",
+        "Mass assignment vulnerability", "SQL injection",
+        "IDOR", "XSS",
+        "A", "Mass assignment occurs when the API binds all input fields to the model without filtering protected fields."))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Easy", "scenario",
+        "A developer hardcodes an API key in the frontend JavaScript code. Why is this a security risk?",
+        "Anyone can view the source code and extract the API key",
+        "The API key will expire faster",
+        "JavaScript cannot handle API keys",
+        "Hardcoded keys are more secure",
+        "A", "Frontend code is visible to anyone; API keys in client-side code can be easily discovered and misused."))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Medium", "scenario",
+        "An API returns detailed error messages including table names and query details. What security practice is being violated?",
+        "Information disclosure; error messages should not expose internal details",
+        "No security practice is violated",
+        "The error format is wrong",
+        "The status code is incorrect",
+        "A", "Detailed error messages help attackers understand the system architecture and find vulnerabilities."))
+
+    # --- Test Automation Strategy scenarios ---
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Easy", "scenario",
+        "A team manually tests their API after every deployment, which takes 4 hours. How can this be improved?",
+        "Automate API tests and integrate them into the CI/CD pipeline",
+        "Hire more testers",
+        "Test less frequently",
+        "Only test critical endpoints",
+        "A", "Automated API tests in CI/CD provide fast feedback and reduce manual testing effort."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Medium", "scenario",
+        "An API test depends on another service being available. How can this be handled?",
+        "Use mock servers or service virtualization to simulate the dependency",
+        "Only test when the service is available",
+        "Skip the test if the service is down",
+        "Remove the dependency",
+        "A", "Mock servers simulate dependencies, making tests reliable and independent of external service availability."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Hard", "scenario",
+        "A test suite has 2000 API tests that take 3 hours to run. How can execution time be reduced?",
+        "Parallelize tests, prioritize by risk, and use test impact analysis",
+        "Remove half the tests",
+        "Run tests less frequently",
+        "Use faster hardware only",
+        "A", "Parallel execution, risk-based prioritization, and test impact analysis significantly reduce execution time."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Medium", "scenario",
+        "API test data keeps conflicting between parallel test runs. What is the solution?",
+        "Use unique test data for each run and implement proper setup/teardown",
+        "Disable parallel execution",
+        "Share a common dataset",
+        "Run tests only at night",
+        "A", "Isolated test data with proper setup/teardown ensures parallel test runs do not interfere with each other."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Easy", "scenario",
+        "A QA engineer needs to test an API that is still being developed. What can they use?",
+        "A mock server based on the API specification", "Wait until development is complete",
+        "Test against production", "Write tests without running them",
+        "A", "Mock servers based on the API spec allow testing to begin before the actual API is implemented."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Hard", "scenario",
+        "Your organization wants to implement API testing from the design phase. What approach should be used?",
+        "Shift-left testing with contract-first design and automated specification validation",
+        "Wait until coding is complete to start testing",
+        "Only do testing in QA environment",
+        "Manual testing only in production",
+        "A", "Shift-left testing starts at design by validating API specs and writing contract tests before implementation."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Medium", "scenario",
+        "A team writes API tests that frequently break due to test environment issues. What should they do?",
+        "Use service virtualization and containerized environments for reliable test infrastructure",
+        "Stop automated testing",
+        "Test only in production",
+        "Ignore flaky tests",
+        "A", "Service virtualization and containers provide stable, reproducible test environments."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Hard", "scenario",
+        "How should API tests be organized for a microservices architecture?",
+        "Use the test pyramid: many unit/contract tests, fewer integration tests, minimal E2E tests",
+        "Only E2E tests across all services",
+        "Only unit tests",
+        "No testing needed for microservices",
+        "A", "The test pyramid for microservices emphasizes fast unit/contract tests with selective integration and E2E tests."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Easy", "scenario",
+        "What is the first thing you should test when a new API endpoint is deployed?",
+        "A smoke test verifying the endpoint is reachable and returns expected status code",
+        "A full load test",
+        "A security penetration test",
+        "A 100-scenario regression test",
+        "A", "Smoke tests quickly verify basic functionality, confirming the endpoint is up and responsive."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Medium", "scenario",
+        "A test fails intermittently - sometimes passing, sometimes failing with the same code. What is this called and how should it be handled?",
+        "A flaky test; investigate root cause (timing, shared state, external deps) and fix or quarantine it",
+        "A broken test; delete it",
+        "A performance test; ignore it",
+        "A regression; revert the code",
+        "A", "Flaky tests erode confidence; they should be investigated for root causes like timing issues or shared state."))
+
+    # ===================================================================
+    # Code completion questions (100) -- code_snippet filled with ___ blanks
+    # ===================================================================
+
+    # --- REST Concepts / HTTP Methods code completion ---
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Easy", "code_completion",
+        "Fill in the blank to send a GET request.",
+        "requests.get", "requests.post", "requests.send", "requests.fetch",
+        "A", "requests.get() sends an HTTP GET request to the specified URL.",
+        'import requests\nresponse = ___(\"https://api.example.com/users\")\nprint(response.status_code)'))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Easy", "code_completion",
+        "Fill in the blank to send a POST request with JSON data.",
+        "requests.post", "requests.get", "requests.put", "requests.send",
+        "A", "requests.post() sends an HTTP POST request, and json= parameter serializes the dict as JSON.",
+        'import requests\nresponse = ___(\"https://api.example.com/users\",\n    json={\"name\": \"Alice\"})\nprint(response.status_code)'))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Easy", "code_completion",
+        "Fill in the blank to send a DELETE request.",
+        "requests.delete", "requests.remove", "requests.drop", "requests.destroy",
+        "A", "requests.delete() sends an HTTP DELETE request to remove a resource.",
+        'import requests\nresponse = ___(\"https://api.example.com/users/5\")\nprint(response.status_code)'))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Medium", "code_completion",
+        "Fill in the blank to send a PATCH request with partial update data.",
+        "requests.patch", "requests.put", "requests.post", "requests.update",
+        "A", "requests.patch() sends an HTTP PATCH request for partial resource updates.",
+        'import requests\nresponse = ___(\"https://api.example.com/users/1\",\n    json={\"email\": \"new@example.com\"})\nprint(response.status_code)'))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Medium", "code_completion",
+        "Fill in the blank to send a PUT request replacing the entire resource.",
+        "requests.put", "requests.patch", "requests.post", "requests.replace",
+        "A", "requests.put() sends an HTTP PUT request to replace the entire resource.",
+        'import requests\nresponse = ___(\"https://api.example.com/users/1\",\n    json={\"name\": \"Bob\", \"email\": \"bob@test.com\", \"age\": 30})\nprint(response.status_code)'))
+
+    # --- Request/Response code completion ---
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Easy", "code_completion",
+        "Fill in the blank to parse the JSON response body.",
+        "response.json()", "response.text()", "response.data()", "response.body()",
+        "A", "response.json() parses the response body as JSON and returns a Python dict or list.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/users/1\")\ndata = ___\nprint(data[\"name\"])'))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Easy", "code_completion",
+        "Fill in the blank to get the HTTP status code from the response.",
+        "response.status_code", "response.code", "response.status", "response.http_code",
+        "A", "response.status_code returns the integer HTTP status code of the response.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/users\")\nstatus = ___\nprint(f\"Status: {status}\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Medium", "code_completion",
+        "Fill in the blank to add query parameters to the request.",
+        "params", "query", "args", "data",
+        "A", "The params keyword argument adds query parameters to the URL.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/search\",\n    ___={\"q\": \"python\", \"page\": 1})\nprint(response.url)'))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Medium", "code_completion",
+        "Fill in the blank to get the response body as text.",
+        "response.text", "response.body", "response.data", "response.string",
+        "A", "response.text returns the response body decoded as a Unicode string.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/hello\")\nbody = ___\nprint(body)'))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Hard", "code_completion",
+        "Fill in the blank to get the raw bytes of the response body.",
+        "response.content", "response.bytes", "response.raw_data", "response.binary",
+        "A", "response.content returns the response body as bytes.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/file\")\nraw_bytes = ___\nwith open(\"output.bin\", \"wb\") as f:\n    f.write(raw_bytes)'))
+
+    # --- Authentication code completion ---
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Easy", "code_completion",
+        "Fill in the blank to add a Bearer token to the request headers.",
+        "\"Authorization\": f\"Bearer {token}\"", "\"Auth\": f\"Token {token}\"",
+        "\"Bearer\": token", "\"Token\": f\"Bearer {token}\"",
+        "A", "The Authorization header with 'Bearer' prefix is the standard way to send bearer tokens.",
+        'import requests\ntoken = \"my_access_token\"\nresponse = requests.get(\"https://api.example.com/data\",\n    headers={___})\nprint(response.status_code)'))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Medium", "code_completion",
+        "Fill in the blank to use Basic Authentication.",
+        "auth=HTTPBasicAuth(\"user\", \"pass\")", "headers={\"Auth\": \"user:pass\"}",
+        "auth=(\"user\", \"pass\", \"basic\")", "basic_auth=(\"user\", \"pass\")",
+        "A", "HTTPBasicAuth or a tuple (user, pass) passed to auth= sends Basic Authentication credentials.",
+        'import requests\nfrom requests.auth import HTTPBasicAuth\nresponse = requests.get(\"https://api.example.com/data\",\n    ___)\nprint(response.status_code)'))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Hard", "code_completion",
+        "Fill in the blank to send an OAuth 2.0 client credentials request.",
+        "\"grant_type\": \"client_credentials\"", "\"grant_type\": \"authorization_code\"",
+        "\"grant_type\": \"password\"", "\"grant_type\": \"refresh_token\"",
+        "A", "The client_credentials grant type is used for server-to-server authentication without user involvement.",
+        'import requests\nresponse = requests.post(\"https://auth.example.com/token\",\n    data={\n        ___,\n        \"client_id\": \"my_app\",\n        \"client_secret\": \"secret123\"\n    })\ntoken = response.json()[\"access_token\"]'))
+
+    # --- Headers code completion ---
+    qid += 1
+    questions.append(_q(qid, "Headers", "Easy", "code_completion",
+        "Fill in the blank to set the Accept header for JSON responses.",
+        "\"Accept\": \"application/json\"", "\"Content-Type\": \"application/json\"",
+        "\"Format\": \"json\"", "\"Response-Type\": \"json\"",
+        "A", "The Accept header tells the server the client wants JSON format.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/data\",\n    headers={___})\nprint(response.json())'))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Medium", "code_completion",
+        "Fill in the blank to access the Content-Type response header.",
+        "response.headers[\"Content-Type\"]", "response.content_type",
+        "response.type", "response.get_header(\"Content-Type\")",
+        "A", "Response headers are accessed via the response.headers dictionary.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/data\")\ncontent_type = ___\nprint(content_type)'))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Hard", "code_completion",
+        "Fill in the blank to send a custom correlation ID header for request tracing.",
+        "\"X-Correlation-ID\": correlation_id", "\"Trace-ID\": correlation_id",
+        "\"Request-Trace\": correlation_id", "\"Debug-ID\": correlation_id",
+        "A", "X-Correlation-ID is a common custom header for tracking requests across distributed systems.",
+        'import requests\nimport uuid\ncorrelation_id = str(uuid.uuid4())\nresponse = requests.get(\"https://api.example.com/data\",\n    headers={___})'))
+
+    # --- Status Codes code completion ---
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Easy", "code_completion",
+        "Fill in the blank to check if the response was successful.",
+        "response.ok", "response.success", "response.is_valid", "response.good",
+        "A", "response.ok returns True for status codes 200-299.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/data\")\nif ___:\n    print(\"Success!\")\nelse:\n    print(\"Failed!\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Medium", "code_completion",
+        "Fill in the blank to raise an exception for HTTP errors.",
+        "response.raise_for_status()", "response.check_status()", "response.verify()", "response.assert_ok()",
+        "A", "raise_for_status() raises an HTTPError for 4xx and 5xx status codes.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/data\")\n___\ndata = response.json()'))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Hard", "code_completion",
+        "Fill in the blank to handle different error status code ranges.",
+        "response.status_code >= 500", "response.status_code > 500",
+        "response.status_code == 500", "response.is_server_error",
+        "A", "Status codes 500 and above indicate server errors.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/data\")\nif response.status_code >= 400 and response.status_code < 500:\n    print(\"Client error\")\nelif ___:\n    print(\"Server error\")'))
+
+    # --- Error Handling code completion ---
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Easy", "code_completion",
+        "Fill in the blank to catch a connection error.",
+        "requests.exceptions.ConnectionError", "requests.ConnectionError",
+        "ConnectionRefusedError", "OSError",
+        "A", "requests.exceptions.ConnectionError is raised when a connection to the server fails.",
+        'import requests\ntry:\n    response = requests.get(\"https://api.example.com/data\")\nexcept ___ as e:\n    print(f\"Connection failed: {e}\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Medium", "code_completion",
+        "Fill in the blank to set a request timeout.",
+        "timeout=5", "max_time=5", "wait=5", "deadline=5",
+        "A", "The timeout parameter sets the maximum time (in seconds) to wait for a response.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/data\",\n    ___)\nprint(response.status_code)'))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Hard", "code_completion",
+        "Fill in the blank to implement retry logic with exponential backoff.",
+        "2 ** attempt", "attempt * 2", "attempt + 1", "10",
+        "A", "2 ** attempt produces exponential delays: 1, 2, 4, 8 seconds for attempts 0, 1, 2, 3.",
+        'import requests\nimport time\nfor attempt in range(4):\n    response = requests.get(\"https://api.example.com/data\")\n    if response.status_code == 200:\n        break\n    time.sleep(___)'))
+
+    # --- Pagination code completion ---
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Easy", "code_completion",
+        "Fill in the blank to request the second page of results.",
+        "\"page\": 2", "\"page\": 1", "\"offset\": 2", "\"skip\": 2",
+        "A", "Setting page to 2 requests the second page of paginated results.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/users\",\n    params={___, \"limit\": 10})\nprint(response.json())'))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Medium", "code_completion",
+        "Fill in the blank to get the next page URL from the response.",
+        "data.get(\"next\")", "data.get(\"page\")", "data.get(\"url\")", "data.get(\"link\")",
+        "A", "Many APIs include a 'next' field in the response containing the URL for the next page.",
+        'import requests\nnext_url = \"https://api.example.com/items?page=1\"\nwhile next_url:\n    response = requests.get(next_url)\n    data = response.json()\n    next_url = ___'))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Hard", "code_completion",
+        "Fill in the blank to implement cursor-based pagination.",
+        "\"cursor\": cursor", "\"page\": cursor", "\"offset\": cursor", "\"id\": cursor",
+        "A", "Cursor-based pagination uses the cursor value from the previous response to fetch the next page.",
+        'import requests\ncursor = None\nwhile True:\n    params = {\"limit\": 20}\n    if cursor:\n        params[___] = cursor\n    response = requests.get(\"https://api.example.com/items\", params=params)\n    data = response.json()\n    cursor = data.get(\"next_cursor\")\n    if not cursor:\n        break'))
+
+    # --- Versioning code completion ---
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Easy", "code_completion",
+        "Fill in the blank to call API version 2 using URL path versioning.",
+        "/v2/", "/v1/", "/api/", "/version2/",
+        "A", "URL path versioning includes the version number in the path, e.g., /v2/users.",
+        'import requests\nresponse = requests.get(\"https://api.example.com___users\")\nprint(response.json())'))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Medium", "code_completion",
+        "Fill in the blank to specify the API version via a custom header.",
+        "\"X-API-Version\": \"2\"", "\"API-Version\": \"2\"",
+        "\"Version\": \"2\"", "\"Accept-Version\": \"2\"",
+        "A", "X-API-Version is a common custom header for specifying the desired API version.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/users\",\n    headers={___})\nprint(response.json())'))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Hard", "code_completion",
+        "Fill in the blank to use content negotiation for API versioning.",
+        "\"Accept\": \"application/vnd.myapi.v2+json\"", "\"Accept\": \"application/json;v=2\"",
+        "\"Content-Type\": \"v2/json\"", "\"Version\": \"application/v2\"",
+        "A", "Content negotiation versioning uses vendor media types in the Accept header.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/users\",\n    headers={___})\nprint(response.json())'))
+
+    # --- GraphQL code completion ---
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Easy", "code_completion",
+        "Fill in the blank to send a GraphQL query.",
+        "json={\"query\": query}", "data=query", "body=query", "graphql=query",
+        "A", "GraphQL queries are sent as JSON with a 'query' key in the request body.",
+        'import requests\nquery = \"{ users { name email } }\"\nresponse = requests.post(\"https://api.example.com/graphql\",\n    ___)\nprint(response.json())'))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Medium", "code_completion",
+        "Fill in the blank to send a GraphQL mutation.",
+        "mutation", "query", "update", "modify",
+        "A", "GraphQL mutations use the 'mutation' keyword to define write operations.",
+        'import requests\noperation = \"\"\"\n___ {\n  createUser(name: \"Alice\") {\n    id\n    name\n  }\n}\n\"\"\"\nresponse = requests.post(\"https://api.example.com/graphql\",\n    json={\"query\": operation})'))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Hard", "code_completion",
+        "Fill in the blank to pass variables to a GraphQL query.",
+        "\"variables\": {\"id\": user_id}", "\"params\": {\"id\": user_id}",
+        "\"args\": {\"id\": user_id}", "\"input\": {\"id\": user_id}",
+        "A", "GraphQL variables are passed in the 'variables' field of the request JSON.",
+        'import requests\nuser_id = 42\nquery = \"query GetUser($id: ID!) { user(id: $id) { name email } }\"\nresponse = requests.post(\"https://api.example.com/graphql\",\n    json={\"query\": query, ___})'))
+
+    # --- WebSocket code completion ---
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Easy", "code_completion",
+        "Fill in the blank to create a WebSocket connection.",
+        "websocket.create_connection", "websocket.connect", "websocket.open", "websocket.new",
+        "A", "websocket.create_connection() establishes a WebSocket connection to the given URL.",
+        'import websocket\nws = ___(\"ws://echo.example.com\")\nws.send(\"Hello\")\nprint(ws.recv())\nws.close()'))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Medium", "code_completion",
+        "Fill in the blank to send a message over WebSocket.",
+        "ws.send", "ws.write", "ws.post", "ws.emit",
+        "A", "ws.send() sends a message through the WebSocket connection.",
+        'import websocket\nws = websocket.create_connection(\"ws://echo.example.com\")\n___(\"Hello Server\")\nresponse = ws.recv()\nprint(response)\nws.close()'))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Hard", "code_completion",
+        "Fill in the blank to receive a WebSocket message.",
+        "ws.recv()", "ws.read()", "ws.get()", "ws.receive()",
+        "A", "ws.recv() blocks until a message is received from the WebSocket server.",
+        'import websocket\nws = websocket.create_connection(\"ws://echo.example.com\")\nws.send(\"ping\")\nmessage = ___\nprint(f\"Received: {message}\")\nws.close()'))
+
+    # --- Contract Testing code completion ---
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Easy", "code_completion",
+        "Fill in the blank to assert the response contains the required field.",
+        "\"name\" in data", "data.has(\"name\")", "data.contains(\"name\")", "\"name\" == data",
+        "A", "The 'in' operator checks if a key exists in a dictionary.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/users/1\")\ndata = response.json()\nassert ___\nprint(\"Contract check passed\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Medium", "code_completion",
+        "Fill in the blank to validate the response field type.",
+        "isinstance(data[\"id\"], int)", "type(data[\"id\"]) is int",
+        "data[\"id\"].is_int()", "int(data[\"id\"])",
+        "A", "isinstance() checks if a value is of the expected type, which is standard for schema validation.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/users/1\")\ndata = response.json()\nassert ___\nassert isinstance(data[\"name\"], str)\nprint(\"Type validation passed\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Hard", "code_completion",
+        "Fill in the blank to validate the response against a JSON Schema.",
+        "validate(data, schema)", "check_schema(data, schema)",
+        "schema.validate(data)", "assert_schema(data, schema)",
+        "A", "jsonschema.validate() checks if data conforms to the provided JSON Schema.",
+        'import requests\nfrom jsonschema import validate\nschema = {\n    \"type\": \"object\",\n    \"properties\": {\"id\": {\"type\": \"integer\"}, \"name\": {\"type\": \"string\"}},\n    \"required\": [\"id\", \"name\"]\n}\nresponse = requests.get(\"https://api.example.com/users/1\")\ndata = response.json()\n___(data, schema)\nprint(\"Schema validation passed\")'))
+
+    # --- Performance Testing code completion ---
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Easy", "code_completion",
+        "Fill in the blank to measure the response time.",
+        "response.elapsed.total_seconds()", "response.time()",
+        "response.duration", "response.latency",
+        "A", "response.elapsed.total_seconds() returns the time between sending the request and receiving the response.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/data\")\ntime_taken = ___\nprint(f\"Response time: {time_taken}s\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Medium", "code_completion",
+        "Fill in the blank to assert response time is under the threshold.",
+        "response.elapsed.total_seconds() < 2.0", "response.time < 2.0",
+        "response.latency < 2000", "response.speed > 2.0",
+        "A", "Comparing elapsed time against a threshold ensures the API meets performance requirements.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/data\")\nassert ___, \"Response too slow!\"\nprint(\"Performance OK\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Hard", "code_completion",
+        "Fill in the blank to run concurrent API requests for load testing.",
+        "ThreadPoolExecutor(max_workers=10)", "ThreadPool(10)",
+        "ProcessPool(10)", "AsyncExecutor(10)",
+        "A", "ThreadPoolExecutor creates a pool of threads for concurrent execution.",
+        'import requests\nfrom concurrent.futures import ___\n\ndef call_api(_):\n    return requests.get(\"https://api.example.com/data\")\n\nwith ThreadPoolExecutor(max_workers=10) as executor:\n    results = list(executor.map(call_api, range(100)))'))
+
+    # --- Security Testing code completion ---
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Easy", "code_completion",
+        "Fill in the blank to test that the API requires authentication.",
+        "401", "200", "403", "500",
+        "A", "An unauthenticated request to a protected endpoint should return 401 Unauthorized.",
+        'import requests\n# No auth headers\nresponse = requests.get(\"https://api.example.com/protected\")\nassert response.status_code == ___\nprint(\"Auth required - PASS\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Medium", "code_completion",
+        "Fill in the blank to test for sensitive data exposure.",
+        "\"password\" not in data", "\"password\" in data",
+        "data[\"password\"] is None", "len(data[\"password\"]) == 0",
+        "A", "Asserting that 'password' is not in the response data ensures it is not exposed.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/users/1\")\ndata = response.json()\nassert ___\nprint(\"No sensitive data exposed\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Hard", "code_completion",
+        "Fill in the blank to test SQL injection resistance.",
+        "\"admin' OR 1=1 --\"", "\"admin\"", "\"' DROP TABLE users --\"", "\"1; SELECT * FROM users\"",
+        "A", "The SQL injection payload attempts to bypass authentication; the API should reject it.",
+        'import requests\npayload = {\"username\": ___, \"password\": \"test\"}\nresponse = requests.post(\"https://api.example.com/login\", json=payload)\nassert response.status_code in [400, 401]\nprint(\"SQL injection prevented\")'))
+
+    # --- Test Automation Strategy code completion ---
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Easy", "code_completion",
+        "Fill in the blank to assert the status code equals 200.",
+        "response.status_code == 200", "response.code == 200",
+        "response.status == 200", "response.ok == 200",
+        "A", "response.status_code contains the HTTP status code integer.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/health\")\nassert ___\nprint(\"Health check passed\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Medium", "code_completion",
+        "Fill in the blank to create a reusable API session with default headers.",
+        "requests.Session()", "requests.Client()", "requests.Connection()", "requests.API()",
+        "A", "requests.Session() creates a session that persists headers, cookies, and connection settings across requests.",
+        'import requests\nsession = ___\nsession.headers.update({\"Authorization\": \"Bearer token123\"})\nresponse = session.get(\"https://api.example.com/data\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Hard", "code_completion",
+        "Fill in the blank to use pytest parametrize for data-driven API testing.",
+        "@pytest.mark.parametrize", "@pytest.fixture", "@pytest.mark.skip", "@pytest.mark.xfail",
+        "A", "pytest.mark.parametrize runs the test function with different sets of parameters.",
+        'import pytest\nimport requests\n\n___(\"endpoint,expected_status\", [\n    (\"/users\", 200),\n    (\"/nonexistent\", 404),\n    (\"/admin\", 403),\n])\ndef test_endpoints(endpoint, expected_status):\n    resp = requests.get(f\"https://api.example.com{endpoint}\")\n    assert resp.status_code == expected_status'))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Easy", "code_completion",
+        "Fill in the blank to verify the response body contains a specific key.",
+        "\"id\" in response.json()", "response.has(\"id\")",
+        "response.contains(\"id\")", "\"id\" == response.json()",
+        "A", "The 'in' operator checks for key existence in the parsed JSON dictionary.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/users/1\")\nassert ___\nprint(\"Response contains id field\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Medium", "code_completion",
+        "Fill in the blank to set up test data before running the test.",
+        "setup_method", "before_test", "init_test", "prepare",
+        "A", "setup_method is called before each test method in a pytest class to prepare test data.",
+        'import requests\nimport pytest\n\nclass TestUserAPI:\n    def ___(self):\n        resp = requests.post(\"https://api.example.com/users\",\n            json={\"name\": \"TestUser\"})\n        self.user_id = resp.json()[\"id\"]\n\n    def test_get_user(self):\n        resp = requests.get(f\"https://api.example.com/users/{self.user_id}\")\n        assert resp.status_code == 200'))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Hard", "code_completion",
+        "Fill in the blank to mock an external API call in tests.",
+        "@responses.activate", "@mock.patch", "@pytest.fixture", "@responses.mock",
+        "A", "The responses library's @responses.activate decorator enables mocking of requests library calls.",
+        'import requests\nimport responses\n\n___\ndef test_api_call():\n    responses.add(responses.GET, \"https://api.example.com/data\",\n        json={\"result\": \"mocked\"}, status=200)\n    resp = requests.get(\"https://api.example.com/data\")\n    assert resp.json()[\"result\"] == \"mocked\"'))
+
+    # --- More code completion questions to reach 100 ---
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Hard", "code_completion",
+        "Fill in the blank to send a file upload via multipart form data.",
+        "files={\"file\": open(\"data.csv\", \"rb\")}", "data={\"file\": \"data.csv\"}",
+        "body={\"file\": open(\"data.csv\")}", "upload={\"file\": \"data.csv\"}",
+        "A", "The files parameter sends multipart form data for file uploads.",
+        'import requests\nresponse = requests.post(\"https://api.example.com/upload\",\n    ___)\nprint(response.status_code)'))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Medium", "code_completion",
+        "Fill in the blank to send form-encoded data instead of JSON.",
+        "data={\"username\": \"admin\", \"password\": \"secret\"}", "json={\"username\": \"admin\", \"password\": \"secret\"}",
+        "form={\"username\": \"admin\", \"password\": \"secret\"}", "body={\"username\": \"admin\", \"password\": \"secret\"}",
+        "A", "The data parameter sends application/x-www-form-urlencoded data.",
+        'import requests\nresponse = requests.post(\"https://api.example.com/login\",\n    ___)\nprint(response.status_code)'))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Medium", "code_completion",
+        "Fill in the blank to catch any request exception.",
+        "requests.exceptions.RequestException", "Exception",
+        "requests.Error", "HTTPError",
+        "A", "RequestException is the base class for all requests exceptions.",
+        'import requests\ntry:\n    response = requests.get(\"https://api.example.com/data\")\nexcept ___ as e:\n    print(f\"Request failed: {e}\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Hard", "code_completion",
+        "Fill in the blank to implement an idempotency key for POST requests.",
+        "\"Idempotency-Key\": idempotency_key", "\"Request-ID\": idempotency_key",
+        "\"Unique-Key\": idempotency_key", "\"Dedup-Key\": idempotency_key",
+        "A", "The Idempotency-Key header allows safe retries of POST requests without creating duplicates.",
+        'import requests\nimport uuid\nidempotency_key = str(uuid.uuid4())\nresponse = requests.post(\"https://api.example.com/orders\",\n    json={\"item\": \"widget\", \"quantity\": 1},\n    headers={___})'))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Medium", "code_completion",
+        "Fill in the blank to set the Content-Type header for JSON.",
+        "\"Content-Type\": \"application/json\"", "\"Type\": \"json\"",
+        "\"Format\": \"application/json\"", "\"Data-Type\": \"json\"",
+        "A", "Content-Type: application/json tells the server the request body is JSON-formatted.",
+        'import requests\nresponse = requests.post(\"https://api.example.com/data\",\n    headers={___},\n    data=\'{\"key\": \"value\"}\')'))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Easy", "code_completion",
+        "Fill in the blank to request 25 items per page.",
+        "\"limit\": 25", "\"count\": 25", "\"size\": 25", "\"max\": 25",
+        "A", "The limit parameter specifies the number of items to return per page.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/items\",\n    params={\"page\": 1, ___})\nprint(len(response.json()[\"items\"]))'))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Medium", "code_completion",
+        "Fill in the blank to verify the API uses HTTPS.",
+        "response.url.startswith(\"https://\")", "response.is_secure",
+        "response.protocol == \"https\"", "response.ssl == True",
+        "A", "Checking the URL prefix confirms the connection used HTTPS encryption.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/data\")\nassert ___\nprint(\"HTTPS verified\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Hard", "code_completion",
+        "Fill in the blank to test CORS headers in the response.",
+        "\"Access-Control-Allow-Origin\"", "\"CORS-Origin\"",
+        "\"Allow-Origin\"", "\"Cross-Origin\"",
+        "A", "Access-Control-Allow-Origin is the CORS header that specifies allowed origins.",
+        'import requests\nresponse = requests.options(\"https://api.example.com/data\")\nassert ___ in response.headers\nprint(\"CORS headers present\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Medium", "code_completion",
+        "Fill in the blank to use environment variables for the API base URL.",
+        "os.environ.get(\"API_BASE_URL\", \"http://localhost:8080\")",
+        "os.getenv(\"API_URL\")",
+        "env.get(\"API_BASE_URL\")",
+        "config.get(\"API_BASE_URL\")",
+        "A", "os.environ.get() retrieves environment variables with an optional default value.",
+        'import requests\nimport os\nBASE_URL = ___\nresponse = requests.get(f\"{BASE_URL}/health\")\nassert response.status_code == 200'))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Hard", "code_completion",
+        "Fill in the blank to create a pytest fixture that provides an authenticated API client.",
+        "@pytest.fixture", "@pytest.mark.parametrize", "@pytest.hookimpl", "@pytest.mark.usefixtures",
+        "A", "pytest.fixture creates reusable test setup components that can be injected into test functions.",
+        'import pytest\nimport requests\n\n___\ndef api_client():\n    session = requests.Session()\n    session.headers.update({\"Authorization\": \"Bearer test_token\"})\n    return session\n\ndef test_get_users(api_client):\n    resp = api_client.get(\"https://api.example.com/users\")\n    assert resp.status_code == 200'))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Medium", "code_completion",
+        "Fill in the blank to check that the response contains exactly the expected keys.",
+        "set(data.keys()) == expected_keys", "data.keys() == expected_keys",
+        "len(data) == len(expected_keys)", "data == expected_keys",
+        "A", "Comparing key sets ensures the response has exactly the expected fields, no more, no less.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/users/1\")\ndata = response.json()\nexpected_keys = {\"id\", \"name\", \"email\"}\nassert ___\nprint(\"Contract keys match\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Hard", "code_completion",
+        "Fill in the blank to verify the API response matches the OpenAPI spec status code.",
+        "response.status_code in expected_codes", "response.ok",
+        "response.status_code == 200", "response.is_valid()",
+        "A", "Checking the status code against expected codes from the spec ensures contract compliance.",
+        'import requests\n# From OpenAPI spec: GET /users should return 200 or 304\nexpected_codes = [200, 304]\nresponse = requests.get(\"https://api.example.com/users\")\nassert ___\nprint(\"Status code matches spec\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Medium", "code_completion",
+        "Fill in the blank to calculate average response time across multiple requests.",
+        "sum(times) / len(times)", "max(times)", "min(times)", "times[0]",
+        "A", "Average is calculated by dividing the sum of all times by the number of measurements.",
+        'import requests\ntimes = []\nfor _ in range(10):\n    resp = requests.get(\"https://api.example.com/data\")\n    times.append(resp.elapsed.total_seconds())\navg_time = ___\nprint(f\"Average response time: {avg_time:.3f}s\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Hard", "code_completion",
+        "Fill in the blank to calculate the P95 latency from response times.",
+        "sorted_times[int(len(sorted_times) * 0.95)]", "sorted_times[-1]",
+        "sorted_times[95]", "sum(sorted_times) / len(sorted_times) * 0.95",
+        "A", "P95 is found at the 95th percentile index of sorted response times.",
+        'import requests\ntimes = []\nfor _ in range(100):\n    resp = requests.get(\"https://api.example.com/data\")\n    times.append(resp.elapsed.total_seconds())\nsorted_times = sorted(times)\np95 = ___\nprint(f\"P95 latency: {p95:.3f}s\")'))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Medium", "code_completion",
+        "Fill in the blank to check for GraphQL errors in the response.",
+        "\"errors\" in result", "result.has_errors()",
+        "result[\"status\"] == \"error\"", "result.is_error()",
+        "A", "GraphQL responses include an 'errors' key when there are query errors.",
+        'import requests\nquery = \"{ user(id: 999) { name } }\"\nresponse = requests.post(\"https://api.example.com/graphql\",\n    json={\"query\": query})\nresult = response.json()\nif ___:\n    print(f\"GraphQL errors: {result[\'errors\']}\")'))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Hard", "code_completion",
+        "Fill in the blank to use a GraphQL fragment for reusable field selection.",
+        "...UserFields", "UserFields", "@UserFields", "#UserFields",
+        "A", "The spread operator (...) applies a fragment's fields to a query selection.",
+        'import requests\nquery = \"\"\"\nfragment UserFields on User {\n  id\n  name\n  email\n}\nquery {\n  user(id: 1) {\n    ___\n  }\n}\n\"\"\"\nresponse = requests.post(\"https://api.example.com/graphql\",\n    json={\"query\": query})'))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Medium", "code_completion",
+        "Fill in the blank to close the WebSocket connection.",
+        "ws.close()", "ws.disconnect()", "ws.end()", "ws.shutdown()",
+        "A", "ws.close() performs the WebSocket closing handshake and closes the connection.",
+        'import websocket\nws = websocket.create_connection(\"ws://echo.example.com\")\nws.send(\"Hello\")\nprint(ws.recv())\n___'))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Hard", "code_completion",
+        "Fill in the blank to set a timeout for WebSocket receive.",
+        "ws.settimeout(5)", "ws.timeout = 5",
+        "ws.set_recv_timeout(5)", "ws.recv_timeout(5)",
+        "A", "ws.settimeout() sets the timeout in seconds for subsequent WebSocket operations.",
+        'import websocket\nws = websocket.create_connection(\"ws://echo.example.com\")\n___\ntry:\n    message = ws.recv()\nexcept websocket.WebSocketTimeoutException:\n    print(\"No message within 5 seconds\")'))
+
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Easy", "code_completion",
+        "Fill in the blank to check if the response is JSON format.",
+        "\"application/json\" in content_type", "content_type == \"json\"",
+        "content_type.is_json()", "response.is_json",
+        "A", "Checking if 'application/json' is in the Content-Type header confirms JSON format.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/users\")\ncontent_type = response.headers.get(\"Content-Type\", \"\")\nassert ___\nprint(\"Response is JSON\")'))
+
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Medium", "code_completion",
+        "Fill in the blank to follow HATEOAS links in the response.",
+        "data[\"_links\"][\"next\"][\"href\"]", "data[\"next_url\"]",
+        "data[\"link\"]", "response.next_url",
+        "A", "HATEOAS responses include _links with href values for navigating related resources.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/users/1\")\ndata = response.json()\nnext_url = ___\nprint(f\"Next link: {next_url}\")'))
+
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Hard", "code_completion",
+        "Fill in the blank to implement conditional GET with ETag.",
+        "\"If-None-Match\": etag", "\"ETag\": etag",
+        "\"If-Match\": etag", "\"Cache-ETag\": etag",
+        "A", "If-None-Match sends the cached ETag; the server returns 304 if the resource has not changed.",
+        'import requests\n# First request to get ETag\nresp1 = requests.get(\"https://api.example.com/users/1\")\netag = resp1.headers.get(\"ETag\")\n# Conditional request\nresp2 = requests.get(\"https://api.example.com/users/1\",\n    headers={___})\nif resp2.status_code == 304:\n    print(\"Resource not modified\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Medium", "code_completion",
+        "Fill in the blank to specify the API version via query parameter.",
+        "\"version\": \"2\"", "\"v\": 2",
+        "\"api_version\": 2", "\"ver\": \"2\"",
+        "A", "Query parameter versioning passes the version as a URL parameter.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/users\",\n    params={___})\nprint(response.json())'))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Easy", "code_completion",
+        "Fill in the blank to check if the response indicates an error.",
+        "not response.ok", "response.error", "response.failed", "response.status == \"error\"",
+        "A", "response.ok is False for 4xx and 5xx status codes; negating it checks for errors.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/data\")\nif ___:\n    print(f\"Error: {response.status_code}\")\nelse:\n    print(\"Success\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Medium", "code_completion",
+        "Fill in the blank to add an API key as a query parameter.",
+        "\"api_key\": \"my_secret_key\"", "\"auth\": \"my_secret_key\"",
+        "\"token\": \"my_secret_key\"", "\"key\": \"my_secret_key\"",
+        "A", "API keys are commonly passed as a query parameter named api_key.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/data\",\n    params={___})\nprint(response.json())'))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Hard", "code_completion",
+        "Fill in the blank to decode a JWT token payload.",
+        "jwt.decode(token, options={\"verify_signature\": False})",
+        "base64.decode(token)",
+        "json.loads(token)",
+        "token.decode()",
+        "A", "jwt.decode with verify_signature=False decodes the JWT payload without verification (for inspection only).",
+        'import jwt\ntoken = \"eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyIjoiYWxpY2UifQ.signature\"\npayload = ___\nprint(payload)'))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Medium", "code_completion",
+        "Fill in the blank to implement offset-based pagination.",
+        "\"offset\": page * page_size", "\"offset\": page",
+        "\"offset\": page_size", "\"offset\": 0",
+        "A", "Offset is calculated as page number times page size to skip the correct number of records.",
+        'import requests\npage = 3\npage_size = 10\nresponse = requests.get(\"https://api.example.com/items\",\n    params={___, \"limit\": page_size})\nprint(response.json())'))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Easy", "code_completion",
+        "Fill in the blank to verify SSL certificate validation.",
+        "verify=True", "ssl=True", "check_ssl=True", "cert_check=True",
+        "A", "verify=True (the default) ensures SSL certificates are validated.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/data\",\n    ___)\nprint(\"SSL verified\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Easy", "code_completion",
+        "Fill in the blank to assert the response body is not empty.",
+        "len(response.text) > 0", "response.text != \"\"",
+        "response.body is not None", "response.has_content()",
+        "A", "Checking that response.text length is greater than 0 confirms the response body is not empty.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/data\")\nassert ___\nprint(\"Response is not empty\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Medium", "code_completion",
+        "Fill in the blank to log the request details for debugging.",
+        "response.request.url", "response.url",
+        "response.endpoint", "response.path",
+        "A", "response.request.url shows the exact URL that was sent in the request.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/users\",\n    params={\"page\": 1})\nprint(f\"Request URL: {___}\")\nprint(f\"Method: {response.request.method}\")\nprint(f\"Status: {response.status_code}\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Hard", "code_completion",
+        "Fill in the blank to create an API test that retries on transient failures.",
+        "@retry(stop=stop_after_attempt(3), wait=wait_exponential())",
+        "@retry(max_retries=3)",
+        "@auto_retry(3)",
+        "@with_retries(count=3)",
+        "A", "tenacity's @retry decorator with stop and wait strategies implements retry logic declaratively.",
+        'import requests\nfrom tenacity import retry, stop_after_attempt, wait_exponential\n\n___\ndef call_api():\n    response = requests.get(\"https://api.example.com/data\")\n    response.raise_for_status()\n    return response.json()'))
+
+    # ===================================================================
+    # ADDITIONAL QUESTIONS to reach exact counts:
+    # MCQ: need 6 more (194->200)
+    # Output: need 35 more (65->100)
+    # Scenario: need 21 more (79->100)
+    # Code completion: need 21 more (79->100)
+    # ===================================================================
+
+    # --- Additional MCQ (6) ---
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Easy", "mcq",
+        "What does API stand for?",
+        "Application Programming Interface", "Advanced Protocol Integration",
+        "Automated Process Interaction", "Application Process Interface",
+        "A", "API stands for Application Programming Interface, a set of rules for software communication."))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Easy", "mcq",
+        "How many standard HTTP methods are commonly used in REST APIs?",
+        "5 (GET, POST, PUT, PATCH, DELETE)", "3 (GET, POST, DELETE)",
+        "7 (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS)", "2 (GET, POST)",
+        "C", "There are 7 commonly used HTTP methods: GET, POST, PUT, PATCH, DELETE, HEAD, and OPTIONS."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Easy", "mcq",
+        "Which status code range indicates successful responses?",
+        "2xx", "1xx", "3xx", "4xx",
+        "A", "2xx status codes indicate successful HTTP responses (e.g., 200, 201, 204)."))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Easy", "mcq",
+        "What is an HTTP header?",
+        "A key-value pair sent with a request or response providing metadata",
+        "The first line of the URL",
+        "The title of the response body",
+        "A type of authentication token",
+        "A", "HTTP headers are key-value pairs that provide metadata about the request or response."))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Medium", "mcq",
+        "What is the main advantage of WebSocket over HTTP polling?",
+        "Lower latency and reduced overhead due to persistent connection",
+        "Better security", "Simpler implementation", "Wider browser support",
+        "A", "WebSocket avoids repeated HTTP handshakes, providing lower latency and less network overhead."))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Easy", "mcq",
+        "What is the primary goal of API performance testing?",
+        "To ensure the API meets response time and throughput requirements under load",
+        "To verify the API returns correct data",
+        "To check API security",
+        "To validate API contracts",
+        "A", "Performance testing ensures the API can handle expected load while meeting response time requirements."))
+
+    # --- Additional Output (35) ---
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Easy", "output",
+        "What HTTP method will be used?",
+        "GET", "POST", "PUT", "DELETE",
+        "A", "requests.get() sends a GET request.",
+        'import requests\nresponse = requests.get("https://api.example.com/products")\nprint(response.request.method)'))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Easy", "output",
+        "What will be printed if the server is healthy?",
+        "200", "201", "204", "404",
+        "A", "A health check endpoint typically returns 200 OK when the server is healthy.",
+        'import requests\nresponse = requests.get("https://api.example.com/health")\nprint(response.status_code)'))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Easy", "output",
+        "What will be printed?",
+        "dict", "list", "str", "int",
+        "A", "The JSON response is an object, which maps to a Python dict.",
+        'import requests\nresponse = requests.get("https://api.example.com/users/1")\n# Response: {"id": 1, "name": "Alice"}\nprint(type(response.json()).__name__)'))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Easy", "output",
+        "What will be printed?",
+        "The response headers as a dictionary-like object", "The request URL",
+        "The status code", "The response body",
+        "A", "response.headers returns a case-insensitive dictionary of response headers.",
+        'import requests\nresponse = requests.get("https://api.example.com/data")\nprint(type(response.headers).__name__)'))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Easy", "output",
+        "What will the status code be for a valid API key?",
+        "200", "401", "403", "500",
+        "A", "A valid API key grants access and the server returns 200 OK.",
+        'import requests\nresponse = requests.get("https://api.example.com/data",\n    headers={"X-API-Key": "valid_key_123"})\nprint(response.status_code)'))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Easy", "output",
+        "What will be printed?",
+        "False", "True", "None", "Error",
+        "A", "A 404 status code means response.ok is False.",
+        'import requests\nresponse = requests.get("https://api.example.com/nonexistent")\n# Status code: 404\nprint(response.ok)'))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Easy", "output",
+        "What query string will be appended to the URL?",
+        "?page=1&limit=20", "?p=1&l=20", "?start=1&end=20", "No query string",
+        "A", "The params dict is encoded as query parameters appended to the URL.",
+        'import requests\nresponse = requests.get("https://api.example.com/items",\n    params={"page": 1, "limit": 20})\nprint(response.request.url.split("?")[1])'))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Easy", "output",
+        "Which API version endpoint is being called?",
+        "/v1/products", "/v2/products", "/products", "/api/products",
+        "A", "The URL explicitly contains /v1/ indicating version 1 of the API.",
+        'import requests\nresponse = requests.get("https://api.example.com/v1/products")\nprint(response.request.path_url)'))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Easy", "output",
+        "What does this assertion verify?",
+        "That the response contains at least one item", "That the response is empty",
+        "That the list has exactly one item", "That the response is a string",
+        "A", "len() > 0 checks that the list has at least one element.",
+        'import requests\nresponse = requests.get("https://api.example.com/users")\ndata = response.json()\nassert len(data) > 0\nprint("Response has data")'))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Easy", "output",
+        "What will be printed?",
+        "The elapsed time in seconds as a float", "The status code",
+        "The response size", "The server name",
+        "A", "response.elapsed returns a timedelta; total_seconds() converts it to a float.",
+        'import requests\nresponse = requests.get("https://api.example.com/data")\nprint(response.elapsed.total_seconds())'))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Easy", "output",
+        "What header value will be checked?",
+        "The value of the Strict-Transport-Security header", "The status code",
+        "The response body", "The content type",
+        "A", "The test checks for the HSTS header which enforces HTTPS connections.",
+        'import requests\nresponse = requests.get("https://api.example.com/data")\nhsts = response.headers.get("Strict-Transport-Security")\nprint(f"HSTS: {hsts}")'))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Easy", "output",
+        "What does this test check?",
+        "That the response contains valid JSON", "That the server is up",
+        "That authentication works", "That the URL is correct",
+        "A", "response.json() will raise an exception if the response is not valid JSON.",
+        'import requests\nresponse = requests.get("https://api.example.com/users")\ntry:\n    data = response.json()\n    print("Valid JSON response")\nexcept ValueError:\n    print("Invalid JSON")'))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Medium", "output",
+        "What will the response contain?",
+        "A list of user names and emails only", "All user fields",
+        "An error", "Nothing",
+        "A", "The GraphQL query requests only the name and email fields from the users list.",
+        'import requests\nquery = "{ users { name email } }"\nresponse = requests.post("https://api.example.com/graphql",\n    json={"query": query})\ndata = response.json()\nprint(data["data"]["users"])'))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Medium", "output",
+        "What will be printed?",
+        "Connected", "Error", "Timeout", "Disconnected",
+        "A", "create_connection succeeds and the print statement executes.",
+        'import websocket\ntry:\n    ws = websocket.create_connection("ws://echo.example.com")\n    print("Connected")\n    ws.close()\nexcept Exception as e:\n    print(f"Error: {e}")'))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Hard", "output",
+        "How many requests will be made in total?",
+        "3", "1", "2", "4",
+        "A", "The session makes 3 separate requests: POST login, GET profile, and GET settings.",
+        'import requests\nsession = requests.Session()\nsession.post("https://api.example.com/login",\n    json={"user": "admin", "pass": "secret"})\nresp1 = session.get("https://api.example.com/profile")\nresp2 = session.get("https://api.example.com/settings")\nprint(f"Profile: {resp1.status_code}")\nprint(f"Settings: {resp2.status_code}")'))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Medium", "output",
+        "What will the URL look like?",
+        "https://api.example.com/search?q=python+api&sort=relevance", "https://api.example.com/search",
+        "https://api.example.com/search?query=python+api", "https://api.example.com/search/python+api",
+        "A", "The params dict is URL-encoded and appended as query parameters.",
+        'import requests\nresponse = requests.get("https://api.example.com/search",\n    params={"q": "python api", "sort": "relevance"})\nprint(response.url)'))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Medium", "output",
+        "What will the final status be?",
+        "200 after retrying", "500 on all attempts", "Timeout", "Connection Error",
+        "A", "The first two attempts return 500; the third attempt succeeds with 200.",
+        'import requests\nattempts = 0\nstatus = None\nfor i in range(3):\n    response = requests.get("https://api.example.com/flaky")\n    # Returns 500 twice, then 200\n    status = response.status_code\n    if status == 200:\n        break\nprint(f"Final status: {status}")'))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Medium", "output",
+        "What status code indicates the resource was created?",
+        "201", "200", "204", "301",
+        "B", "The print shows response.status_code which is 200 because the server returned 200, not 201. This is a common API design issue.",
+        'import requests\nresponse = requests.post("https://api.example.com/users",\n    json={"name": "Bob"})\n# Server returns 200 instead of 201\nprint(response.status_code)  # 200'))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Hard", "output",
+        "What will be printed?",
+        "Token is expired", "Token is valid", "Token is invalid", "Error",
+        "A", "The JWT decode raises ExpiredSignatureError because the token's exp claim is in the past.",
+        'import jwt\nfrom datetime import datetime, timedelta\n# Token was created with exp = now - 1 hour\ntoken = jwt.encode({"user": "alice", "exp": datetime.utcnow() - timedelta(hours=1)}, "secret")\ntry:\n    jwt.decode(token, "secret", algorithms=["HS256"])\n    print("Token is valid")\nexcept jwt.ExpiredSignatureError:\n    print("Token is expired")'))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Medium", "output",
+        "How many custom headers are sent with this request?",
+        "2", "1", "3", "0",
+        "A", "Two custom headers are set: X-Custom-Header and X-Request-Source.",
+        'import requests\nheaders = {\n    "X-Custom-Header": "value1",\n    "X-Request-Source": "test-suite"\n}\nresponse = requests.get("https://api.example.com/data",\n    headers=headers)\nprint(len([h for h in response.request.headers if h.startswith("X-")]))'))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Hard", "output",
+        "What is the total number of items collected?",
+        "100", "50", "10", "1000",
+        "A", "Each of the 10 pages returns 10 items, giving a total of 100 items.",
+        'import requests\nall_items = []\nfor page in range(1, 11):\n    response = requests.get("https://api.example.com/items",\n        params={"page": page, "limit": 10})\n    items = response.json()["items"]  # 10 items each\n    all_items.extend(items)\nprint(len(all_items))'))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Medium", "output",
+        "What does this test verify?",
+        "That the API rejects requests with an invalid token", "That the API accepts any token",
+        "That the server is running", "That the endpoint exists",
+        "A", "Sending an invalid/malformed token should result in 401 Unauthorized.",
+        'import requests\nresponse = requests.get("https://api.example.com/protected",\n    headers={"Authorization": "Bearer invalid_garbage_token"})\nassert response.status_code == 401\nprint("Invalid token rejected correctly")'))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Medium", "output",
+        "What metrics will this code calculate?",
+        "Min, max, and average response times", "Only average response time",
+        "Only the total time", "The number of failed requests",
+        "A", "The code collects response times and calculates minimum, maximum, and average values.",
+        'import requests\ntimes = []\nfor _ in range(20):\n    resp = requests.get("https://api.example.com/data")\n    times.append(resp.elapsed.total_seconds())\nprint(f"Min: {min(times):.3f}s")\nprint(f"Max: {max(times):.3f}s")\nprint(f"Avg: {sum(times)/len(times):.3f}s")'))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Medium", "output",
+        "What will happen if the 'email' field is missing from the response?",
+        "AssertionError will be raised", "Nothing, the test passes",
+        "A KeyError will be raised", "The test prints a warning",
+        "A", "The assert statement fails with AssertionError if 'email' is not in the response data.",
+        'import requests\nresponse = requests.get("https://api.example.com/users/1")\ndata = response.json()\nassert "id" in data\nassert "name" in data\nassert "email" in data\nprint("All required fields present")'))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Hard", "output",
+        "What will the response structure look like?",
+        "Nested data with user and their orders", "A flat list",
+        "Only user data", "An error",
+        "A", "GraphQL returns nested data matching the query structure, including the user and their related orders.",
+        'import requests\nquery = """\n{\n  user(id: 1) {\n    name\n    orders {\n      id\n      total\n    }\n  }\n}\n"""\nresponse = requests.post("https://api.example.com/graphql",\n    json={"query": query})\nprint(response.json()["data"]["user"])'))
+
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Easy", "output",
+        "What will the response URL path show?",
+        "/api/users", "/users", "/api/v1/users", "/data",
+        "A", "The URL path is /api/users as specified in the request.",
+        'import requests\nresponse = requests.get("https://api.example.com/api/users")\nprint(response.request.path_url)'))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Hard", "output",
+        "What will happen after sending 5 messages?",
+        "All 5 echo responses will be received and printed", "Only the first message echoes",
+        "The connection will close after 1 message", "An error will occur",
+        "A", "The echo server responds to each message; the loop sends 5 and receives 5 responses.",
+        'import websocket\nws = websocket.create_connection("ws://echo.example.com")\nfor i in range(5):\n    ws.send(f"Message {i}")\n    print(ws.recv())\nws.close()'))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Medium", "output",
+        "What will happen if the status is not 200?",
+        "The assertion fails with the custom error message showing the actual status",
+        "Nothing happens", "A retry is attempted", "The test is skipped",
+        "A", "The assert with a custom message raises AssertionError showing the actual status code if not 200.",
+        'import requests\nresponse = requests.get("https://api.example.com/users")\nassert response.status_code == 200, \\\n    f"Expected 200, got {response.status_code}"\nprint("Test passed")'))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Hard", "output",
+        "What does the Sunset header indicate?",
+        "The date after which this API version will no longer be available",
+        "The creation date of the API", "The last update date", "The cache expiry date",
+        "A", "The Sunset header specifies when the API version will be retired.",
+        'import requests\nresponse = requests.get("https://api.example.com/v1/users")\nsunset = response.headers.get("Sunset")\nprint(f"API v1 sunset date: {sunset}")\n# Output: API v1 sunset date: Sat, 01 Jan 2027 00:00:00 GMT'))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Hard", "output",
+        "What pattern does this implement?",
+        "Circuit breaker pattern", "Retry pattern", "Rate limiter", "Load balancer",
+        "A", "The code tracks failures and stops making requests after 3 consecutive failures (circuit open).",
+        'import requests\nfailure_count = 0\ncircuit_open = False\nfor _ in range(5):\n    if circuit_open:\n        print("Circuit OPEN - skipping request")\n        continue\n    resp = requests.get("https://api.example.com/unstable")\n    if resp.status_code >= 500:\n        failure_count += 1\n        if failure_count >= 3:\n            circuit_open = True\n    else:\n        failure_count = 0'))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Hard", "output",
+        "What vulnerability does this test check?",
+        "XSS (Cross-Site Scripting) by checking if script tags are sanitized",
+        "SQL Injection", "CSRF", "IDOR",
+        "A", "The test sends a script tag and checks if it is returned unsanitized, which would indicate XSS vulnerability.",
+        'import requests\nxss_payload = "<script>alert(\'xss\')</script>"\nresponse = requests.post("https://api.example.com/comments",\n    json={"text": xss_payload})\ndata = response.json()\nassert "<script>" not in data.get("text", ""), "XSS vulnerability!"\nprint("XSS check passed")'))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Medium", "output",
+        "What will the print statement show?",
+        "The allowed HTTP methods for the resource", "The response body",
+        "An error message", "The server version",
+        "A", "The Allow header in the OPTIONS response lists the HTTP methods supported by the endpoint.",
+        'import requests\nresponse = requests.options("https://api.example.com/users/1")\nprint(response.headers.get("Allow"))\n# Output: GET, PUT, PATCH, DELETE, HEAD, OPTIONS'))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Hard", "output",
+        "What will be the value of response_time?",
+        "A float representing the time between connect and response in seconds",
+        "An integer in milliseconds", "A string", "None",
+        "A", "elapsed is a timedelta and total_seconds() returns a float for precise timing.",
+        'import requests\nresponse = requests.get("https://api.example.com/data")\nresponse_time = response.elapsed.total_seconds()\nprint(f"Type: {type(response_time).__name__}")  # float'))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Medium", "output",
+        "What will the response contain?",
+        "A new access token and refresh token", "Only the access token",
+        "An error", "The user profile",
+        "A", "The OAuth 2.0 token endpoint returns both an access token and a refresh token.",
+        'import requests\nresponse = requests.post("https://auth.example.com/oauth/token",\n    data={\n        "grant_type": "authorization_code",\n        "code": "auth_code_123",\n        "redirect_uri": "https://myapp.com/callback",\n        "client_id": "my_app"\n    })\ntokens = response.json()\nprint(f"Access: {tokens[\'access_token\']}")\nprint(f"Refresh: {tokens[\'refresh_token\']}")'))
+
+    # --- 1 more output question ---
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Medium", "output",
+        "What does this code demonstrate about REST resource naming?",
+        "Using plural nouns for collection endpoints", "Using verbs for endpoints",
+        "Using singular nouns", "Using mixed case",
+        "A", "REST best practice uses plural nouns (/users, /products) for collection resource endpoints.",
+        'import requests\n# Good REST naming convention\nresponse = requests.get("https://api.example.com/users")\nusers = response.json()\nfor user in users:\n    detail = requests.get(f"https://api.example.com/users/{user[\'id\']}")\n    print(detail.json()["name"])'))
+
+    # --- Additional Scenario (21) ---
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Hard", "scenario",
+        "A team is building an API that needs to support both synchronous and asynchronous operations. For long-running tasks, what REST pattern should be used?",
+        "Return 202 Accepted with a status URL that clients poll for completion",
+        "Keep the HTTP connection open until the task completes",
+        "Return 200 with partial results",
+        "Use WebSockets for all operations",
+        "A", "The async REST pattern returns 202 with a Location header pointing to a status endpoint for polling."))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Hard", "scenario",
+        "A developer is building a batch API that processes multiple items in one request. Should they use POST or PUT?",
+        "POST, because the operation creates or processes multiple items and is not idempotent",
+        "PUT, because it modifies resources", "GET with a request body",
+        "PATCH for all batch operations",
+        "A", "POST is appropriate for non-idempotent batch operations that process multiple items."))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Hard", "scenario",
+        "An API receives a request with valid syntax but the requested operation would violate a business rule. What status code should be returned?",
+        "422 Unprocessable Entity", "400 Bad Request", "409 Conflict", "500 Internal Server Error",
+        "A", "422 Unprocessable Entity is appropriate when the request is syntactically valid but semantically incorrect."))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Hard", "scenario",
+        "An API endpoint needs to support both JSON and XML response formats. How should the client specify their preference?",
+        "Using the Accept header (e.g., Accept: application/json)", "Using a query parameter ?format=json",
+        "Using different endpoints", "Using the Content-Type header",
+        "A", "Content negotiation via the Accept header is the RESTful way to request a specific response format."))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Easy", "scenario",
+        "A developer needs to authenticate API requests from a backend service to another backend service. Which is the most appropriate method?",
+        "API keys or client credentials OAuth flow", "Username and password form login",
+        "Browser cookies", "Social media login",
+        "A", "Server-to-server communication typically uses API keys or OAuth client credentials for authentication."))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Easy", "scenario",
+        "A developer notices that repeated GET requests for the same resource are slow. What header can improve performance?",
+        "Cache-Control with appropriate max-age", "Authorization",
+        "Content-Type", "User-Agent",
+        "A", "Cache-Control with max-age allows clients and intermediaries to cache responses, reducing repeated requests."))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Easy", "scenario",
+        "An API returns a list endpoint but the response is very slow with thousands of items. What should be added?",
+        "Pagination with default page size to limit response data",
+        "Caching only", "Compression only", "More server resources",
+        "A", "Pagination limits the data returned per request, improving response time and resource usage."))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Easy", "scenario",
+        "A client is using API v1, and v2 has been released with new features. Can the client continue using v1?",
+        "Yes, as long as v1 has not been sunset/deprecated",
+        "No, clients must always use the latest version",
+        "Only if they contact support",
+        "Only for 30 days",
+        "A", "API versioning ensures older versions remain available until they are officially sunset."))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Easy", "scenario",
+        "An API returns HTTP 200 OK with an error message in the body. What is wrong with this approach?",
+        "Error conditions should use appropriate HTTP error status codes (4xx, 5xx)",
+        "Nothing is wrong", "The error should be in headers",
+        "Only 500 should be used for errors",
+        "A", "Using 200 for errors violates HTTP semantics and makes error handling difficult for clients."))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Easy", "scenario",
+        "A frontend developer needs data from users, their posts, and comments in one request. Why would GraphQL be better than REST here?",
+        "GraphQL can fetch all nested data in a single request, avoiding multiple REST calls",
+        "GraphQL is always faster", "GraphQL has better security",
+        "REST cannot return nested data",
+        "A", "GraphQL's ability to query nested/related data in one request solves REST's under-fetching problem."))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Easy", "scenario",
+        "A stock trading platform needs to push price updates to clients instantly. Why is WebSocket better than REST for this?",
+        "WebSocket allows the server to push data without the client requesting it",
+        "WebSocket uses less memory", "WebSocket is more secure",
+        "REST cannot handle numbers",
+        "A", "WebSocket's server push capability enables real-time data delivery without client polling."))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Easy", "scenario",
+        "A backend team wants to rename a JSON field from 'user_name' to 'username'. What should they check first?",
+        "If any consumers depend on the 'user_name' field via contract tests",
+        "If the database column is renamed",
+        "If the field is used in the UI",
+        "Nothing, just rename it",
+        "A", "Contract tests reveal which consumers depend on specific fields, preventing breaking changes."))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Easy", "scenario",
+        "After deploying a new feature, API response time doubled. What test could have prevented this?",
+        "Performance regression testing in the CI/CD pipeline",
+        "Unit testing only", "Manual code review", "Documentation update",
+        "A", "Performance regression tests with baselines in CI/CD catch degradation before deployment."))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Easy", "scenario",
+        "An API endpoint allows anyone to delete any user account without authentication. What is the primary issue?",
+        "Missing authentication and authorization on a destructive endpoint",
+        "The DELETE method should not be used",
+        "The endpoint URL is wrong",
+        "The status code is incorrect",
+        "A", "Destructive operations must require authentication and authorization to prevent unauthorized access."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Easy", "scenario",
+        "A developer wants to test their API endpoints but the database is shared with other developers. What approach avoids conflicts?",
+        "Use a dedicated test database or mock the database layer",
+        "Test only during off-hours",
+        "Skip database-dependent tests",
+        "Use production database",
+        "A", "Dedicated test databases or mocking prevent conflicts and ensure test isolation."))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Hard", "scenario",
+        "An API logs all request bodies for debugging purposes. A security auditor flags this. Why?",
+        "Request bodies may contain sensitive data like passwords and credit card numbers",
+        "Logging slows down the API",
+        "Logs take too much disk space",
+        "Logging is never necessary",
+        "A", "Logging request bodies can capture sensitive data. Logs should filter/mask sensitive fields."))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Hard", "scenario",
+        "A GraphQL API allows clients to write deeply nested queries that crash the server. How can the API protect itself?",
+        "Implement query depth limiting, complexity scoring, and rate limiting",
+        "Remove all nested types from the schema",
+        "Limit responses to 100 items",
+        "Switch to REST",
+        "A", "Depth limits, complexity analysis, and rate limiting prevent malicious or expensive queries from overwhelming the server."))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Hard", "scenario",
+        "Two microservices communicate via events. How can you apply contract testing to event-driven architectures?",
+        "Use message pact or async contract tests to verify event schemas between producer and consumer",
+        "Contract testing only works for REST APIs",
+        "Use integration tests only",
+        "Skip testing events",
+        "A", "Tools like Pact support async/message contract testing for event-driven architectures."))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Hard", "scenario",
+        "A WebSocket-based game server needs to handle message ordering and lost messages. What testing approach is needed?",
+        "Test message sequencing, delivery guarantees, and reconnection with message replay",
+        "Only test connection establishment",
+        "Test only message format",
+        "Test only disconnection",
+        "A", "Game servers require testing of message ordering, delivery guarantees, and recovery from connection drops."))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Hard", "scenario",
+        "An API handles 1000 requests/second normally. During a flash sale, it needs to handle 50,000 requests/second. What testing strategy is needed?",
+        "Spike testing simulating sudden load increase with auto-scaling verification",
+        "Regular load testing at 1000 rps",
+        "Only increase server count",
+        "Disable non-essential endpoints",
+        "A", "Spike testing validates the system's ability to handle sudden extreme load and auto-scaling behavior."))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Hard", "scenario",
+        "A company has 50 microservices with APIs. Testing all combinations is infeasible. What strategy should be adopted?",
+        "Use the testing pyramid: contract tests per service pair, selective integration tests, and minimal E2E tests",
+        "Only E2E tests", "Only unit tests", "Test in production only",
+        "A", "The testing pyramid with contract tests at the service boundary provides comprehensive coverage without combinatorial explosion."))
+
+    # --- Additional Code Completion (21) ---
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Easy", "code_completion",
+        "Fill in the blank to send a HEAD request.",
+        "requests.head", "requests.get", "requests.options", "requests.check",
+        "A", "requests.head() sends an HTTP HEAD request to retrieve only headers.",
+        'import requests\nresponse = ___(\"https://api.example.com/users\")\nprint(response.headers)'))
+
+    qid += 1
+    questions.append(_q(qid, "HTTP Methods", "Hard", "code_completion",
+        "Fill in the blank to send an OPTIONS request.",
+        "requests.options", "requests.get", "requests.head", "requests.info",
+        "A", "requests.options() sends an HTTP OPTIONS request to discover supported methods.",
+        'import requests\nresponse = ___(\"https://api.example.com/users\")\nprint(response.headers.get(\"Allow\"))'))
+
+    qid += 1
+    questions.append(_q(qid, "Request/Response", "Easy", "code_completion",
+        "Fill in the blank to send JSON data in a POST request.",
+        "json={\"name\": \"Alice\"}", "data={\"name\": \"Alice\"}",
+        "body={\"name\": \"Alice\"}", "payload={\"name\": \"Alice\"}",
+        "A", "The json parameter automatically serializes the dict and sets Content-Type to application/json.",
+        'import requests\nresponse = requests.post(\"https://api.example.com/users\",\n    ___)\nprint(response.status_code)'))
+
+    qid += 1
+    questions.append(_q(qid, "Headers", "Easy", "code_completion",
+        "Fill in the blank to send custom headers with the request.",
+        "headers={\"X-Custom\": \"value\"}", "custom={\"X-Custom\": \"value\"}",
+        "meta={\"X-Custom\": \"value\"}", "head={\"X-Custom\": \"value\"}",
+        "A", "The headers parameter accepts a dictionary of HTTP headers to send with the request.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/data\",\n    ___)\nprint(response.status_code)'))
+
+    qid += 1
+    questions.append(_q(qid, "Status Codes", "Easy", "code_completion",
+        "Fill in the blank to check for a 201 Created status.",
+        "response.status_code == 201", "response.code == 201",
+        "response.created", "response.status == 'created'",
+        "A", "response.status_code returns the integer HTTP status code for comparison.",
+        'import requests\nresponse = requests.post(\"https://api.example.com/users\",\n    json={\"name\": \"Bob\"})\nassert ___\nprint(\"User created successfully\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Easy", "code_completion",
+        "Fill in the blank to catch a timeout exception.",
+        "requests.exceptions.Timeout", "TimeoutError",
+        "requests.Timeout", "socket.timeout",
+        "A", "requests.exceptions.Timeout is raised when a request exceeds the timeout limit.",
+        'import requests\ntry:\n    response = requests.get(\"https://api.example.com/data\", timeout=5)\nexcept ___ as e:\n    print(f\"Request timed out: {e}\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Authentication", "Easy", "code_completion",
+        "Fill in the blank to send an API key in a custom header.",
+        "\"X-API-Key\": api_key", "\"Authorization\": api_key",
+        "\"API-Key\": api_key", "\"Key\": api_key",
+        "A", "X-API-Key is a common custom header name for API key authentication.",
+        'import requests\napi_key = \"my_secret_api_key\"\nresponse = requests.get(\"https://api.example.com/data\",\n    headers={___})'))
+
+    qid += 1
+    questions.append(_q(qid, "Pagination", "Hard", "code_completion",
+        "Fill in the blank to extract the next page URL from Link header.",
+        "response.links.get(\"next\", {}).get(\"url\")", "response.headers.get(\"Next-Page\")",
+        "response.next_url", "response.pagination[\"next\"]",
+        "A", "requests parses Link headers into a links dictionary with rel values as keys.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/items\")\nnext_url = ___\nif next_url:\n    print(f\"Next page: {next_url}\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Versioning", "Easy", "code_completion",
+        "Fill in the blank to add a version query parameter.",
+        "\"v\": 2", "\"version\": \"latest\"",
+        "\"api\": 2", "\"ver\": \"new\"",
+        "A", "Adding v=2 as a query parameter specifies API version 2.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/users\",\n    params={___})\nprint(response.json())'))
+
+    qid += 1
+    questions.append(_q(qid, "GraphQL Basics", "Easy", "code_completion",
+        "Fill in the blank to extract the data from a GraphQL response.",
+        "result[\"data\"]", "result[\"response\"]", "result[\"result\"]", "result[\"output\"]",
+        "A", "GraphQL responses have a 'data' key containing the query results.",
+        'import requests\nquery = \"{ users { name } }\"\nresponse = requests.post(\"https://api.example.com/graphql\",\n    json={\"query\": query})\nresult = response.json()\nusers = ___[\"users\"]\nprint(users)'))
+
+    qid += 1
+    questions.append(_q(qid, "WebSocket Testing", "Easy", "code_completion",
+        "Fill in the blank with the correct WebSocket URL scheme for encrypted connections.",
+        "wss://", "ws://", "https://", "http://",
+        "A", "wss:// is the WebSocket Secure protocol for encrypted WebSocket connections.",
+        'import websocket\nws = websocket.create_connection(\"___echo.example.com/socket\")\nws.send(\"Hello\")\nprint(ws.recv())\nws.close()'))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Easy", "code_completion",
+        "Fill in the blank to check that the status code is 200.",
+        "assert response.status_code == 200", "assert response.ok == True",
+        "if response.code == 200:", "response.check(200)",
+        "A", "Asserting status_code == 200 is a basic contract check for successful responses.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/users\")\n___\nprint(\"Status code contract met\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Easy", "code_completion",
+        "Fill in the blank to time a request using the time module.",
+        "time.time()", "time.now()", "time.clock()", "time.current()",
+        "A", "time.time() returns the current time in seconds since epoch for timing measurements.",
+        'import requests\nimport time\nstart = ___\nresponse = requests.get(\"https://api.example.com/data\")\nend = time.time()\nprint(f\"Duration: {end - start:.3f}s\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Easy", "code_completion",
+        "Fill in the blank to disable SSL verification (for testing only).",
+        "verify=False", "ssl=False", "check_cert=False", "secure=False",
+        "A", "verify=False disables SSL certificate verification (not recommended for production).",
+        'import requests\n# For testing only - do not use in production\nresponse = requests.get(\"https://self-signed.example.com/api\",\n    ___)\nprint(response.status_code)'))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Easy", "code_completion",
+        "Fill in the blank to verify the response contains the expected data.",
+        "assert data[\"name\"] == \"Alice\"", "data[\"name\"].equals(\"Alice\")",
+        "expect(data[\"name\"]).toBe(\"Alice\")", "verify data[\"name\"] == \"Alice\"",
+        "A", "Python's assert statement checks that the actual value matches the expected value.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/users/1\")\ndata = response.json()\n___\nprint(\"Data verification passed\")'))
+
+    qid += 1
+    questions.append(_q(qid, "REST Concepts", "Medium", "code_completion",
+        "Fill in the blank to check that the response includes pagination metadata.",
+        "\"total\" in data and \"page\" in data", "data.has_pagination()",
+        "data.is_paginated()", "\"paginated\" in data",
+        "A", "Checking for 'total' and 'page' keys verifies the response includes pagination metadata.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/users\",\n    params={\"page\": 1, \"limit\": 10})\ndata = response.json()\nassert ___\nprint(\"Pagination metadata present\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Error Handling", "Medium", "code_completion",
+        "Fill in the blank to get the error message from the response.",
+        "response.json().get(\"message\", \"Unknown error\")", "response.error_message",
+        "response.reason", "response.text",
+        "A", "API error responses typically include a 'message' field with a human-readable error description.",
+        'import requests\nresponse = requests.post(\"https://api.example.com/users\", json={})\nif not response.ok:\n    error_msg = ___\n    print(f\"Error: {error_msg}\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Contract Testing", "Medium", "code_completion",
+        "Fill in the blank to verify the response content type is JSON.",
+        "\"application/json\" in response.headers.get(\"Content-Type\", \"\")",
+        "response.is_json()",
+        "response.type == \"json\"",
+        "response.content_type == \"json\"",
+        "A", "Checking the Content-Type header for 'application/json' verifies the response format.",
+        'import requests\nresponse = requests.get(\"https://api.example.com/users\")\nassert ___\nprint(\"Content type is JSON\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Performance Testing APIs", "Hard", "code_completion",
+        "Fill in the blank to use asyncio for concurrent API requests.",
+        "asyncio.gather(*tasks)", "asyncio.run_all(tasks)",
+        "asyncio.parallel(tasks)", "asyncio.concurrent(tasks)",
+        "A", "asyncio.gather runs multiple coroutines concurrently and returns their results.",
+        'import aiohttp\nimport asyncio\n\nasync def fetch(session, url):\n    async with session.get(url) as resp:\n        return await resp.json()\n\nasync def main():\n    async with aiohttp.ClientSession() as session:\n        tasks = [fetch(session, f\"https://api.example.com/items/{i}\") for i in range(10)]\n        results = await ___\n        print(f\"Fetched {len(results)} items\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Security Testing APIs", "Medium", "code_completion",
+        "Fill in the blank to test that the API rejects oversized payloads.",
+        "413", "400", "500", "200",
+        "A", "HTTP 413 Payload Too Large is returned when the request body exceeds the server's size limit.",
+        'import requests\nlarge_payload = {\"data\": \"x\" * 10_000_000}  # ~10MB\nresponse = requests.post(\"https://api.example.com/data\",\n    json=large_payload)\nassert response.status_code == ___\nprint(\"Oversized payload rejected\")'))
+
+    qid += 1
+    questions.append(_q(qid, "Test Automation Strategy", "Medium", "code_completion",
+        "Fill in the blank to create a test that cleans up after itself.",
+        "requests.delete(f\"{BASE}/users/{user_id}\")", "pass",
+        "print(\"done\")", "return",
+        "A", "Deleting the test resource in the finally block ensures cleanup even if the test fails.",
+        'import requests\nBASE = \"https://api.example.com\"\nuser_id = None\ntry:\n    resp = requests.post(f\"{BASE}/users\", json={\"name\": \"Test\"})\n    user_id = resp.json()[\"id\"]\n    assert requests.get(f\"{BASE}/users/{user_id}\").status_code == 200\nfinally:\n    if user_id:\n        ___'))
+
+    return questions
+
+
+def main():
+    questions = generate_questions()
+    df = pd.DataFrame(questions)
+
+    columns = ["id", "subject", "topic", "difficulty", "type", "question",
+               "option_a", "option_b", "option_c", "option_d",
+               "correct_answer", "explanation", "code_snippet"]
+    df = df[columns]
+
+    output_path = r"D:\HackerRankSimulation\question_bank\api_testing_questions.csv"
+    df.to_csv(output_path, index=False, quoting=csv.QUOTE_ALL)
+
+    # Verification
+    verify_df = pd.read_csv(output_path)
+    print(f"Row count: {len(verify_df)}")
+
+    print("\nType distribution:")
+    for t, count in verify_df["type"].value_counts().items():
+        pct = count / len(verify_df) * 100
+        print(f"  {t}: {count} ({pct:.1f}%)")
+
+    print("\nDifficulty distribution:")
+    for d, count in verify_df["difficulty"].value_counts().items():
+        pct = count / len(verify_df) * 100
+        print(f"  {d}: {count} ({pct:.1f}%)")
+
+    print("\nTopic distribution:")
+    for topic, count in verify_df["topic"].value_counts().items():
+        print(f"  {topic}: {count}")
+
+
+if __name__ == "__main__":
+    main()

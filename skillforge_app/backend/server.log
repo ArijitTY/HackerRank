@@ -1,0 +1,29 @@
+[CODE-EXEC] Java compiler (javac) found
+[CODE-EXEC] Python (python) found
+
+============================================================
+  SkillForge Unified Assessment Platform
+============================================================
+  Local:    http://localhost:3000
+  Network:  http://172.21.96.1:3000
+
+  Super Admin: superadmin@skillforge.com / SuperAdmin@123
+  Tests:       4
+  Questions:   4000
+============================================================
+
+[CODE-EXEC] sql.js initialized
+[CODE-EXEC] Python 3 (python3) found
+
+============================================================
+  SkillForge Unified Assessment Platform
+============================================================
+  Local:    http://localhost:3000
+  Network:  http://127.0.0.1:3000
+
+  Super Admin: superadmin@skillforge.com / SuperAdmin@123
+  Tests:       5
+  Questions:   4000
+============================================================
+
+[CODE-EXEC] sql.js initialized
