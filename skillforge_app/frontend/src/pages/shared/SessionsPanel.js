@@ -9,17 +9,23 @@ import ConfirmModal from '../../components/ConfirmModal';
 const PURPLE = '#7c3aed';
 const PURPLE_LIGHT = '#a78bfa';
 
-const statusBadge = (status) => {
-  const map = {
-    active:    { bg: 'rgba(52,211,153,0.15)', color: '#34d399', label: 'Active' },
-    completed: { bg: 'rgba(96,165,250,0.15)', color: '#60a5fa', label: 'Completed' },
-    expired:   { bg: 'rgba(248,113,113,0.15)', color: '#f87171', label: 'Expired' },
-    cancelled: { bg: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)', label: 'Cancelled' },
-  };
-  const m = map[status] || map.cancelled;
-  return (
-    <span style={{ background: m.bg, color: m.color, padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{m.label}</span>
-  );
+const StatusBadge = ({ status }) => {
+  const common = { padding: '3px 12px', borderRadius: 99, fontSize: 12, fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 6 };
+  if (status === 'upcoming') {
+    return <span style={{ ...common, background: 'rgba(24,95,165,0.15)', color: '#378ADD', border: '1px solid rgba(24,95,165,0.3)' }}>Upcoming</span>;
+  }
+  if (status === 'active') {
+    return (
+      <span style={{ ...common, background: 'rgba(29,158,117,0.15)', color: '#1D9E75', border: '1px solid rgba(29,158,117,0.3)' }}>
+        <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#1D9E75', animation: 'onlineStatusPulse 2s infinite' }} />
+        Active
+      </span>
+    );
+  }
+  if (status === 'expired' || status === 'cancelled') {
+    return <span style={{ ...common, background: 'rgba(226,75,74,0.15)', color: '#E24B4A', border: '1px solid rgba(226,75,74,0.3)' }}>{status === 'cancelled' ? 'Cancelled' : 'Expired'}</span>;
+  }
+  return <span style={{ ...common, background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}>Completed</span>;
 };
 
 function buildSessionCodePreview(batchCode, dateFrom) {
@@ -62,6 +68,11 @@ export default function SessionsPanel({ apiPrefix = '/super', resultsPath = '/su
       setTests(flat);
     });
   }, [apiPrefix, load]);
+
+  useEffect(() => {
+    const id = setInterval(() => { load(); }, 120000);
+    return () => clearInterval(id);
+  }, [load]);
 
   const selectedBatch = useMemo(() => batches.find((b) => String(b.id) === String(form.batchId)), [batches, form.batchId]);
   const preview = useMemo(() => buildSessionCodePreview(selectedBatch?.code, form.dateFrom), [selectedBatch, form.dateFrom]);
@@ -138,9 +149,12 @@ export default function SessionsPanel({ apiPrefix = '/super', resultsPath = '/su
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'rgba(255,255,255,0.9)' }}>Drive Sessions</h2>
           <p style={{ margin: '4px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Schedule assessment drives for a batch and track results</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowCreate(true)} style={{ background: PURPLE }}>
-          + Create Session
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="btn btn-sm btn-outline" onClick={load} title="Refresh sessions">↻ Refresh</button>
+          <button className="btn btn-primary" onClick={() => setShowCreate(true)} style={{ background: PURPLE }}>
+            + Create Session
+          </button>
+        </div>
       </div>
 
       <div style={{ background: 'var(--surface, #0f1420)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, overflow: 'hidden' }}>
@@ -148,17 +162,17 @@ export default function SessionsPanel({ apiPrefix = '/super', resultsPath = '/su
           <table className="sf-table" style={{ width: '100%', minWidth: 1100, whiteSpace: 'nowrap' }}>
             <thead>
               <tr>
-                <th>CODE</th>
-                <th>NAME</th>
+                <th>SESSION CODE</th>
+                <th>SESSION NAME</th>
                 <th>BATCH</th>
                 <th>TEST</th>
-                <th>WINDOW</th>
+                <th>DATE WINDOW</th>
                 <th>TUNNEL</th>
                 <th>STATUS</th>
-                <th>CAND</th>
+                <th>CANDIDATES</th>
                 <th>APPEARED</th>
-                <th>PASS/FAIL</th>
-                <th>AVG %</th>
+                <th>PASS / FAIL</th>
+                <th>AVG SCORE</th>
                 <th>ACTIONS</th>
               </tr>
             </thead>
@@ -167,36 +181,59 @@ export default function SessionsPanel({ apiPrefix = '/super', resultsPath = '/su
               {!loading && sessions.length === 0 && (
                 <tr><td colSpan="12" style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.4)' }}>No sessions yet. Click "Create Session" to schedule your first drive.</td></tr>
               )}
-              {!loading && sessions.map((s) => (
-                <tr key={s.id}>
+              {!loading && [...sessions].sort((a, b) => {
+                const rank = (st) => st === 'active' ? 0 : st === 'upcoming' ? 1 : 2;
+                return rank(a.status) - rank(b.status);
+              }).map((s) => {
+                const isCompleted = s.status === 'completed' || s.status === 'expired' || s.status === 'cancelled';
+                const truncTest = s.testName && s.testName.length > 20 ? s.testName.slice(0, 20) + '…' : s.testName;
+                const noSubs = (s.passed || 0) + (s.failed || 0) === 0;
+                const avgColor = s.avgScore == null ? 'rgba(255,255,255,0.4)' : s.avgScore >= 60 ? '#1D9E75' : '#E24B4A';
+                return (
+                <tr key={s.id} style={isCompleted ? { opacity: 0.6 } : {}}>
                   <td style={{ ...TD }}>
                     <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: PURPLE_LIGHT, background: 'rgba(124,58,237,0.15)', padding: '3px 8px', borderRadius: 6 }}>{s.sessionCode}</span>
                   </td>
                   <td style={{ ...TD, fontSize: 13, color: 'rgba(255,255,255,0.9)' }}>{s.name}</td>
-                  <td style={{ ...TD, fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{s.batchCode}</td>
-                  <td style={{ ...TD, fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{s.testName}</td>
+                  <td style={{ ...TD }}>
+                    <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 600, color: PURPLE_LIGHT, background: 'rgba(124,58,237,0.12)', padding: '2px 8px', borderRadius: 6 }}>{s.batchCode}</span>
+                  </td>
+                  <td style={{ ...TD, fontSize: 12, color: 'rgba(255,255,255,0.7)' }} title={s.testName}>{truncTest}</td>
                   <td style={{ ...TD, fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>{formatDate(s.dateFrom)} → {formatDate(s.dateTo)}</td>
                   <td style={{ ...TD, fontSize: 11, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase' }}>{s.tunnelType}</td>
-                  <td style={TD}>{statusBadge(s.status)}</td>
+                  <td style={TD}><StatusBadge status={s.status} /></td>
                   <td style={{ ...TD, fontFamily: 'monospace', fontSize: 13 }}>{s.totalCandidates}</td>
                   <td style={{ ...TD, fontFamily: 'monospace', fontSize: 13 }}>{s.appeared}</td>
                   <td style={{ ...TD, fontFamily: 'monospace', fontSize: 13 }}>
-                    <span style={{ color: '#34d399' }}>{s.passed}</span>/<span style={{ color: '#f87171' }}>{s.failed}</span>
+                    {noSubs ? (
+                      <span style={{ color: 'rgba(255,255,255,0.3)' }}>-</span>
+                    ) : (
+                      <span>
+                        <span style={{ color: '#1D9E75', fontWeight: 500 }}>{s.passed}</span>
+                        <span style={{ color: 'rgba(255,255,255,0.3)' }}> / </span>
+                        <span style={{ color: '#E24B4A', fontWeight: 500 }}>{s.failed}</span>
+                      </span>
+                    )}
                   </td>
-                  <td style={{ ...TD, fontFamily: 'monospace', fontSize: 13 }}>{s.avgScore != null ? `${s.avgScore}%` : '-'}</td>
+                  <td style={{ ...TD, fontFamily: 'monospace', fontSize: 13, color: avgColor, fontWeight: 500 }}>
+                    {s.avgScore != null ? `${Number(s.avgScore).toFixed(1)}%` : '-'}
+                  </td>
                   <td style={TD}>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button className="btn btn-sm btn-outline" onClick={() => viewResults(s)} title="View Results">Results</button>
                       {s.status === 'active' && (
-                        <>
-                          <button className="btn btn-sm btn-outline" disabled={busyId === s.id} onClick={() => handleComplete(s)} title="Complete">Complete</button>
-                          <button className="btn btn-sm btn-outline" disabled={busyId === s.id} onClick={() => handleDelete(s)} title="Delete" style={{ borderColor: 'rgba(248,113,113,0.5)', color: '#f87171' }}>Delete</button>
-                        </>
+                        <button className="btn btn-sm btn-outline" disabled={busyId === s.id} onClick={() => handleComplete(s)} title="Complete">Complete</button>
+                      )}
+                      {s.status === 'upcoming' && (
+                        <button className="btn btn-sm btn-outline" disabled={busyId === s.id} onClick={() => handleDelete(s)} title="Delete" style={{ borderColor: 'rgba(248,113,113,0.5)', color: '#f87171' }}>Delete</button>
+                      )}
+                      {s.status === 'active' && (
+                        <button className="btn btn-sm btn-outline" disabled={busyId === s.id} onClick={() => handleDelete(s)} title="Delete" style={{ borderColor: 'rgba(248,113,113,0.5)', color: '#f87171' }}>Delete</button>
                       )}
                     </div>
                   </td>
                 </tr>
-              ))}
+              );})}
             </tbody>
           </table>
         </div>

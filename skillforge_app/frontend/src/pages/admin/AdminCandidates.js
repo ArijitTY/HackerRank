@@ -7,6 +7,8 @@ import { useToast } from '../../context/ToastContext';
 import CandidatePerformance from '../../components/CandidatePerformance';
 import ConfirmModal from '../../components/ConfirmModal';
 import DuplicateWarningModal from '../../components/DuplicateWarningModal';
+import OnlineStatusBadge from '../../components/OnlineStatusBadge';
+import { EmailField, PasswordField, validateEmail } from '../../components/CandidateFormFields';
 
 function BulkImportSummary({ result }) {
   const [showSkipped, setShowSkipped] = useState(false);
@@ -187,6 +189,13 @@ export default function AdminCandidates() {
   const [batches, setBatches] = useState([]);
   const [filterBatch, setFilterBatch] = useState('');
   const [form, setForm] = useState({ name: '', email: '', password: '', testId: '', maxAttempts: 1, batch_id: '' });
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [sortBy, setSortBy] = useState('name');
+  const [sortOrder, setSortOrder] = useState('asc');
+  const handleSort = (col) => {
+    if (sortBy === col) setSortOrder(o => o === 'asc' ? 'desc' : 'asc');
+    else { setSortBy(col); setSortOrder('asc'); }
+  };
   const [assignForm, setAssignForm] = useState({ testId: '', maxAttempts: 1 });
   const [error, setError] = useState('');
   const [assignError, setAssignError] = useState('');
@@ -246,25 +255,55 @@ export default function AdminCandidates() {
     const q = search.toLowerCase();
     return (c.name || '').toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q);
   });
+  const sortedCandidates = [...filtered].sort((a, b) => {
+    const key = sortBy === 'batch' ? (x => (x.batch_code || x.batchCode || '').toLowerCase())
+                                    : (x => (x.name || '').toLowerCase());
+    const av = key(a), bv = key(b);
+    if (av < bv) return sortOrder === 'asc' ? -1 : 1;
+    if (av > bv) return sortOrder === 'asc' ? 1 : -1;
+    return 0;
+  });
 
   const createCandidate = async (e) => {
     e.preventDefault();
     setError('');
+    const newErrors = {};
+    if (!form.name?.trim()) newErrors.name = 'Full name is required';
+    else if (form.name.trim().length < 2) newErrors.name = 'Name must be at least 2 characters';
+    const emailErr = validateEmail(form.email);
+    if (emailErr) newErrors.email = emailErr;
+    if (!form.password) newErrors.password = 'Password is required';
+    else if (form.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+    if (!form.batch_id) newErrors.batch_id = 'Please select a batch';
+    if (Object.keys(newErrors).length > 0) {
+      setFieldErrors(newErrors);
+      toast.error('Please fix the errors before submitting');
+      return;
+    }
     try {
-      await api.post('/admin/candidates', {
+      const res = await api.post('/admin/candidates', {
         name: form.name,
         email: form.email,
         password: form.password,
         testId: form.testId || undefined,
         maxAttempts: form.testId ? parseInt(form.maxAttempts) : undefined,
-        batch_id: form.batch_id || null,
+        batch_id: form.batch_id,
       });
-      setShowCreate(false);
+      const batchCode = res.data?.batchCode || (batches.find(b => b.id === form.batch_id)?.code) || '';
+      toast.success(`${form.name} added${batchCode ? ' to batch ' + batchCode : ''} successfully`);
+      setShowCreate(false); setFieldErrors({});
       setForm({ name: '', email: '', password: '', testId: '', maxAttempts: 1, batch_id: '' });
+      setFieldErrors({});
       fetchCandidates();
     } catch (err) {
       const data = err.response?.data || {};
+      if (data.error === 'INVALID_EMAIL') setFieldErrors(prev => ({ ...prev, email: data.message }));
+      if (data.error === 'PASSWORD_REQUIRED' || data.error === 'INVALID_PASSWORD') setFieldErrors(prev => ({ ...prev, password: data.message }));
       if (err.response?.status === 409 && (data.error === 'DUPLICATE_CANDIDATE' || data.error === 'EMAIL_EXISTS')) {
+        const existingBatch = data.existingCandidate?.batchCode || 'No batch';
+        toast.error(data.error === 'DUPLICATE_CANDIDATE'
+          ? `${form.name} with this email already exists in batch ${existingBatch}`
+          : `A candidate with email ${form.email} already exists in batch ${existingBatch}`);
         setDuplicateInfo({
           errorCode: data.error,
           message: data.message,
@@ -272,7 +311,9 @@ export default function AdminCandidates() {
         });
         return;
       }
-      setError(data.error || data.message || 'Failed to create candidate');
+      if (data.error === 'BATCH_NOT_FOUND') toast.error('Selected batch does not exist. Please refresh and try again.');
+      else if (data.error === 'BATCH_REQUIRED') toast.error('Batch is required to create a candidate.');
+      else toast.error(data.message || data.error || 'Failed to create candidate');
     }
   };
 
@@ -287,11 +328,14 @@ export default function AdminCandidates() {
         maxAttempts: parseInt(assignForm.maxAttempts),
       });
       setAssignSuccess('Test assigned successfully!');
+      const cand = candidates.find(c => c.id === showAssign);
+      toast.success(`Test assigned to ${cand?.name || 'candidate'} successfully`);
       setAssignForm({ testId: '', maxAttempts: 1 });
       fetchCandidates();
       setTimeout(() => { setShowAssign(null); setAssignSuccess(''); }, 1500);
     } catch (err) {
       setAssignError(err.response?.data?.error || 'Failed to assign test');
+      toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to assign test');
     }
   };
 
@@ -465,25 +509,31 @@ export default function AdminCandidates() {
         <table className="sf-table" style={{ minWidth:'900px', whiteSpace:'nowrap' }}>
           <thead>
             <tr>
-              <th>Name</th>
+              <th onClick={() => handleSort('name')} style={{ cursor: 'pointer', userSelect: 'none', color: sortBy === 'name' ? '#8B5CF6' : undefined }}>
+                Name <span style={{ marginLeft: 6, fontSize: 11, color: sortBy === 'name' ? '#8B5CF6' : 'rgba(255,255,255,0.25)' }}>{sortBy === 'name' ? (sortOrder === 'asc' ? '↑' : '↓') : '⇅'}</span>
+              </th>
               <th>Email</th>
-              <th>Batch</th>
+              <th onClick={() => handleSort('batch')} style={{ cursor: 'pointer', userSelect: 'none', color: sortBy === 'batch' ? '#8B5CF6' : undefined }}>
+                Batch <span style={{ marginLeft: 6, fontSize: 11, color: sortBy === 'batch' ? '#8B5CF6' : 'rgba(255,255,255,0.25)' }}>{sortBy === 'batch' ? (sortOrder === 'asc' ? '↑' : '↓') : '⇅'}</span>
+              </th>
               <th>Tests</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map(c => (
+            {sortedCandidates.map(c => (
               <tr
                 key={c.id}
                 onClick={(e) => { if (e.target.closest('button') || e.target.closest('input') || e.target.closest('a')) return; setPerfCandidateId(c.id); }}
                 style={{ cursor: 'pointer' }}
               >
                 <td>
-                  <div className="user-cell">
-                    <div className="avatar-sm">{(c.name || '?')[0].toUpperCase()}</div>
-                    <span className="user-name">{c.name}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#534AB7,#8B5CF6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 600, color: '#fff', flexShrink: 0, textTransform: 'uppercase' }}>
+                      {c.name?.charAt(0)?.toUpperCase() || '?'}
+                    </div>
+                    <div style={{ color: '#fff', fontWeight: 500, fontSize: 14 }}>{c.name}</div>
                   </div>
                 </td>
                 <td><span className="mono text-dim">{c.email}</span></td>
@@ -493,15 +543,8 @@ export default function AdminCandidates() {
                 </td>
                 <td>
                   {(() => {
-                    const s = onlineStatus[c.id] || { status: 'offline', lastSeen: null };
-                    const online = s.status === 'online';
-                    const title = s.lastSeen ? `Last seen: ${s.lastSeen}` : 'Never seen';
-                    return (
-                      <span title={title} className={`badge ${online ? 'badge-success' : 'badge-danger'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: online ? '#10b981' : '#ef4444', display: 'inline-block' }} />
-                        {online ? 'Online' : 'Offline'}
-                      </span>
-                    );
+                    const s = onlineStatus[c.id] || { status: 'offline', lastSeenRelative: null };
+                    return <OnlineStatusBadge status={s.status} lastSeenRelative={s.lastSeenRelative} size="md" />;
                   })()}
                 </td>
                 <td>
@@ -532,33 +575,63 @@ export default function AdminCandidates() {
 
       {/* Create Modal */}
       {showCreate && (
-        <div className="modal-overlay" onClick={() => setShowCreate(false)}>
+        <div className="modal-overlay" onClick={() => { setShowCreate(false); setFieldErrors({}); }}>
           <div className="modal-content glass-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Create Candidate</h3>
-              <button className="modal-close" onClick={() => setShowCreate(false)}>&times;</button>
+              <button className="modal-close" onClick={() => { setShowCreate(false); setFieldErrors({}); }}>&times;</button>
             </div>
             <form onSubmit={createCandidate} autoComplete="off" style={{ display: 'contents' }}>
               <div className="modal-body">
               <input type="text" style={{display:'none'}} aria-hidden="true" autoComplete="username" readOnly tabIndex={-1}/>
               <input type="password" style={{display:'none'}} aria-hidden="true" autoComplete="current-password" readOnly tabIndex={-1}/>
+              {batches.filter(b => b.isActive).length === 0 && (
+                <div style={{ padding: '12px 16px', borderRadius: 8, background: 'rgba(186,117,23,0.1)', border: '1px solid rgba(186,117,23,0.3)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ color: '#BA7517' }}>⚠</span>
+                  <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>
+                    No batches available.
+                    <a href="/admin/batches" style={{ color: '#8B5CF6', marginLeft: 4 }}>Create a batch first</a>
+                  </span>
+                </div>
+              )}
               <div className="form-group">
-                <label className="form-label">Name</label>
+                <label className="form-label">Name <span style={{ color: '#E24B4A' }}>*</span></label>
                 <input className="form-input" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Full name" autoComplete="off" name="new-candidate-name" />
               </div>
               <div className="form-group">
-                <label className="form-label">Email</label>
-                <input className="form-input" type="email" required value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="email@example.com" autoComplete="off" name="new-candidate-email" />
+                <EmailField
+                  value={form.email}
+                  onChange={v => setForm(prev => ({ ...prev, email: v }))}
+                  error={fieldErrors.email}
+                  onError={err => setFieldErrors(prev => ({ ...prev, email: err }))}
+                />
               </div>
               <div className="form-group">
-                <label className="form-label">Password</label>
-                <input className="form-input" type="password" required value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Set a password" autoComplete="new-password" name="new-candidate-password" />
+                <PasswordField
+                  value={form.password}
+                  onChange={v => setForm(prev => ({ ...prev, password: v }))}
+                  error={fieldErrors.password}
+                  onError={err => setFieldErrors(prev => ({ ...prev, password: err }))}
+                />
               </div>
               <div className="form-group">
-                <label className="form-label">Batch <span className="text-dim">(optional)</span></label>
-                <select className="form-select" value={form.batch_id} onChange={e => setForm({ ...form, batch_id: e.target.value })} style={{ width: '100%' }}>
-                  <option value="">-- No batch --</option>
-                  {batches.filter(b => b.isActive).map(b => <option key={b.id} value={b.id}>{b.code} — {b.name}</option>)}
+                <label className="form-label">Batch <span style={{ color: '#E24B4A' }}>*</span></label>
+                <select
+                  className="form-select"
+                  required
+                  value={form.batch_id}
+                  onChange={e => setForm({ ...form, batch_id: e.target.value })}
+                  style={{ width: '100%', border: !form.batch_id ? '1px solid rgba(226,75,74,0.4)' : undefined }}
+                >
+                  <option value="" disabled>-- Select Batch (Required) --</option>
+                  {batches.filter(b => b.isActive).length === 0 && (
+                    <option disabled>No batches available - Create a batch first</option>
+                  )}
+                  {batches.filter(b => b.isActive).map(b => (
+                    <option key={b.id} value={b.id}>
+                      {b.code} — {b.name}{b.candidateCount != null ? ` (${b.candidateCount} candidates)` : ''}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="form-group">
@@ -581,8 +654,8 @@ export default function AdminCandidates() {
               )}
               </div>
               <div className="modal-actions">
-                <button type="button" className="btn btn-outline" onClick={() => setShowCreate(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Create Candidate</button>
+                <button type="button" className="btn btn-outline" onClick={() => { setShowCreate(false); setFieldErrors({}); }}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={batches.filter(b => b.isActive).length === 0}>Create Candidate</button>
               </div>
             </form>
           </div>
@@ -729,7 +802,7 @@ export default function AdminCandidates() {
           message={duplicateInfo.message}
           existingCandidate={duplicateInfo.existingCandidate}
           onGoBack={() => setDuplicateInfo(null)}
-          onDismiss={() => { setDuplicateInfo(null); setShowCreate(false); }}
+          onDismiss={() => { setDuplicateInfo(null); setShowCreate(false); setFieldErrors({}); }}
         />
       )}
 

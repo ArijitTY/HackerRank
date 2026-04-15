@@ -815,11 +815,46 @@ export default function BatchesView({ apiPrefix = '/super' }) {
               </div>
               {editing && (
                 <div className="form-group">
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
-                    <input type="checkbox" checked={form.isActive}
-                      onChange={e => setForm({ ...form, isActive: e.target.checked })} />
-                    Active
-                  </label>
+                  <div
+                    onClick={() => setForm(prev => ({ ...prev, isActive: !prev.isActive }))}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '12px 14px',
+                      background: 'rgba(255,255,255,0.04)',
+                      borderRadius: 8,
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      cursor: 'pointer',
+                      marginTop: 4,
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.isActive}
+                      onChange={e => { e.stopPropagation(); setForm(prev => ({ ...prev, isActive: !prev.isActive })); }}
+                      onClick={e => e.stopPropagation()}
+                      style={{ width: 16, height: 16, accentColor: '#8B5CF6', cursor: 'pointer', flexShrink: 0 }}
+                    />
+                    <div>
+                      <div style={{ color: '#ffffff', fontSize: 13, fontWeight: 500 }}>Active</div>
+                      <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 1 }}>
+                        {form.isActive ? 'Batch is active and visible to candidates' : 'Batch is deactivated'}
+                      </div>
+                    </div>
+                    <span style={{
+                      marginLeft: 'auto',
+                      fontSize: 11,
+                      padding: '3px 10px',
+                      borderRadius: 99,
+                      background: form.isActive ? 'rgba(29,158,117,0.15)' : 'rgba(226,75,74,0.15)',
+                      color: form.isActive ? '#1D9E75' : '#E24B4A',
+                      border: '1px solid ' + (form.isActive ? 'rgba(29,158,117,0.3)' : 'rgba(226,75,74,0.3)'),
+                      fontWeight: 500,
+                    }}>
+                      {form.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>

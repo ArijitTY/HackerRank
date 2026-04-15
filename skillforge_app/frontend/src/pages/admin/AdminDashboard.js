@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api';
+import OnlineStatusBadge from '../../components/OnlineStatusBadge';
 
 const scoreColor = (pct) => pct >= 70 ? '#a78bfa' : pct >= 50 ? '#34d399' : pct >= 30 ? '#fbbf24' : '#f87171';
 const initialOf = (s) => (s || '?').trim().charAt(0).toUpperCase();
@@ -92,11 +93,9 @@ export default function AdminDashboard() {
   const tests = (data.testStats || []).filter(t => t.totalAttempts > 0);
 
   const candidateRows = candidates.slice(0, 10).map(c => {
-    const s = onlineStatus[c.id] || { status: 'offline' };
+    const s = onlineStatus[c.id] || { status: 'offline', lastSeenRelative: null };
     const inTest = c.active_session || c.in_test;
-    const label = inTest ? 'In Test' : s.status === 'online' ? 'Online' : 'Offline';
-    const color = inTest ? '#3b82f6' : s.status === 'online' ? '#10b981' : '#64748b';
-    return { ...c, label, color };
+    return { ...c, _status: inTest ? 'in_test' : (s.status || 'offline'), _lastSeenRelative: s.lastSeenRelative };
   });
 
   return (
@@ -145,9 +144,7 @@ export default function AdminDashboard() {
                 <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.9)', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name || c.email}</div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.email}</div>
               </div>
-              <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: c.color + '22', color: c.color, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: c.color }} /> {c.label}
-              </span>
+              <OnlineStatusBadge status={c._status} lastSeenRelative={c._lastSeenRelative} size="sm" />
             </div>
           ))}
         </div>

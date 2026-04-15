@@ -48,6 +48,23 @@ export const formatTime = (raw) => {
   return `${h}:${minutes} ${ampm}`;
 };
 
+// Format a duration in seconds to "Xh Ym" / "Xm Ys" / "Xs".
+// Tolerates milliseconds stored by mistake and null/0/negative values.
+export const formatTimeTaken = (seconds) => {
+  const n = Number(seconds);
+  if (!n || isNaN(n)) return '-';
+  let s = Math.floor(n);
+  if (s > 86400) s = Math.floor(s / 1000);
+  if (s <= 0 || s > 86400) return '-';
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const r = s % 60;
+  const pad = (x) => String(x).padStart(2, '0');
+  if (h > 0) return `${h}h ${pad(m)}m`;
+  if (m > 0) return `${m}m ${pad(r)}s`;
+  return `${r}s`;
+};
+
 // Backwards-compatible aliases (callers still import these).
 export const formatIST = formatDateTime;
 export const formatISTDate = formatDate;

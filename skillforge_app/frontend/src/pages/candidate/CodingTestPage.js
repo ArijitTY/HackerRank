@@ -234,6 +234,13 @@ export default function CodingTestPage({ user, testId, sessionId, problems, tota
   useEffect(() => { if (calcTimeLeft() <= 0) doFinish(); }, []); // eslint-disable-line
 
   useEffect(() => {
+    const ping = () => api.get('/candidate/ping').catch(() => {});
+    ping();
+    const pingId = setInterval(ping, 90 * 1000);
+    return () => clearInterval(pingId);
+  }, []);
+
+  useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) { clearInterval(timer); doFinish(); return 0; }

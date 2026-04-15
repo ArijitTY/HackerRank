@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 import { formatDate, formatDateTime } from '../utils/dateUtils';
+import OnlineStatusBadge from './OnlineStatusBadge';
 
 const CARD_BG = 'rgba(255,255,255,0.03)';
 const CARD_BORDER = '1px solid rgba(255,255,255,0.08)';
@@ -137,6 +138,51 @@ function Section({ title, children }) {
   );
 }
 
+function DashStat({ value, label, color, bg, border, labelColor }) {
+  return (
+    <div style={{ background: bg, borderRadius: 12, padding: '1rem', textAlign: 'center', border: '1px solid ' + border }}>
+      <div style={{ fontSize: 28, fontWeight: 600, color, lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: 11, color: labelColor, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 6 }}>{label}</div>
+    </div>
+  );
+}
+
+function MiniStat({ value, label, color, emphasize }) {
+  return (
+    <div style={{ background: emphasize ? 'rgba(226,75,74,0.08)' : 'rgba(255,255,255,0.03)', borderRadius: 10, padding: 12, textAlign: 'center', border: '1px solid ' + (emphasize ? 'rgba(226,75,74,0.2)' : 'rgba(255,255,255,0.06)') }}>
+      <div style={{ fontSize: 22, fontWeight: 600, color, lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>{label}</div>
+    </div>
+  );
+}
+
+function GradeBar({ dist }) {
+  const order = ['A+','A','B','C','D','F'];
+  const colors = { 'A+':'#534AB7', 'A':'#1D9E75', 'B':'#185FA5', 'C':'#BA7517', 'D':'#854F0B', 'F':'#A32D2D' };
+  const total = order.reduce((a, g) => a + (dist[g] || 0), 0);
+  if (total === 0) {
+    return (
+      <div style={{ display: 'flex', height: 28, borderRadius: 8, overflow: 'hidden', background: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>
+        No attempts yet
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: 'flex', height: 28, borderRadius: 8, overflow: 'hidden', gap: 2 }}>
+      {order.map(g => {
+        const count = dist[g] || 0;
+        if (count === 0) return null;
+        const pct = (count / total) * 100;
+        return (
+          <div key={g} title={`${g}: ${count}`} style={{ width: pct + '%', background: colors[g], display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: '#fff', minWidth: 28, transition: 'width 0.3s ease' }}>
+            {g}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function SkeletonCard() {
   return <div style={{ flex: '1 1 180px', minWidth: 180, height: 72, background: 'rgba(255,255,255,0.04)', border: CARD_BORDER, borderRadius: 12, animation: 'sfpulse 1.2s ease-in-out infinite' }} />;
 }
@@ -164,7 +210,8 @@ export default function CandidatePerformance({ candidateId, apiPrefix, onClose }
   const recent = data?.recentActivity || [];
   const grades = data?.gradeDistribution || { 'A+':0, 'A':0, 'B':0, 'C':0, 'D':0, 'F':0 };
 
-  const statusOnline = (candidate?.status || '').toLowerCase() === 'online';
+  const candidateStatus = (candidate?.status || 'offline').toLowerCase();
+  const candidateLastSeenRelative = candidate?.lastSeenRelative || null;
 
   return (
     <>
@@ -178,11 +225,11 @@ export default function CandidatePerformance({ candidateId, apiPrefix, onClose }
         style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 500, opacity: visible ? 1 : 0, transition: 'opacity .3s' }}
       />
       <div className="modal-scroll" style={{
-        position: 'fixed', top: 0, right: 0, height: '100vh', width: '75vw', maxWidth: 1400,
+        position: 'fixed', top: 0, right: 0, height: '100vh', width: 480,
         background: '#0b0f1a', color: '#e5e7eb',
         borderLeft: '1px solid rgba(255,255,255,0.08)', zIndex: 501,
         transform: visible ? 'translateX(0)' : 'translateX(100%)',
-        transition: 'transform .3s ease', overflowY: 'auto', padding: '28px 32px',
+        transition: 'transform .3s ease', overflowY: 'auto', padding: 0,
         boxShadow: '-20px 0 60px rgba(0,0,0,0.6)',
       }}>
         {/* Close */}
@@ -221,121 +268,82 @@ export default function CandidatePerformance({ candidateId, apiPrefix, onClose }
 
         {!loading && !error && data && (
           <>
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 22, paddingRight: 40 }}>
-              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#a78bfa)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, color: '#fff' }}>
+            {/* PROFILE HEADER */}
+            <div style={{ padding: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg,#534AB7,#8B5CF6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 600, color: '#fff', flexShrink: 0 }}>
                 {(candidate?.name || '?')[0].toUpperCase()}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  <div style={{ fontSize: 22, fontWeight: 600, color: '#f3f4f6' }}>{candidate?.name || 'Unknown'}</div>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6, background: statusOnline ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.12)', color: statusOnline ? '#34d399' : '#f87171' }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: statusOnline ? '#34d399' : '#f87171', display: 'inline-block' }} />
-                    {statusOnline ? 'Online' : 'Offline'}
-                  </span>
-                </div>
-                <div style={{ fontSize: 13, color: MUTED, marginTop: 2 }}>{candidate?.email}</div>
-                <div style={{ fontSize: 12, color: MUTED_DIM, marginTop: 2 }}>
-                  Created by {candidate?.createdBy || '-'} · {formatDate(candidate?.createdAt)}
+                <h2 style={{ color: '#fff', fontSize: 20, fontWeight: 500, margin: '0 0 4px' }}>{candidate?.name || 'Unknown'}</h2>
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, margin: '0 0 6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{candidate?.email}</p>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  {candidate?.batchCode && (
+                    <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 99, background: 'rgba(139,92,246,0.2)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa' }}>
+                      {candidate.batchCode}
+                    </span>
+                  )}
+                  <OnlineStatusBadge status={candidateStatus} lastSeenRelative={candidateLastSeenRelative} size="sm" />
                 </div>
               </div>
             </div>
 
-            {/* Stat cards */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-              <StatCard color="#60a5fa" icon="📋" label="Tests Assigned" value={stats.totalAssigned} />
-              <StatCard color="#a78bfa" icon="▶" label="Attempted" value={stats.totalAttempted} sub={`${stats.totalCompleted} completed`} />
-              <StatCard color="#34d399" icon="✓" label="Pass Rate" value={`${Number(stats.passRate).toFixed(1)}%`} sub={`${stats.totalPassed}/${stats.totalCompleted}`} />
-              <StatCard color="#2dd4bf" icon="∅" label="Avg Score" value={`${Number(stats.averageScore).toFixed(1)}%`} />
-              <StatCard color="#fbbf24" icon="🏆" label="Best Score" value={`${Number(stats.bestScore).toFixed(1)}%`} />
-              <StatCard color={stats.violations > 0 ? '#f87171' : MUTED} icon="⚠" label="Violations" value={stats.violations} />
+            {/* STATS CARDS */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <DashStat value={stats.totalAssigned || 0} label="Total" color="#8B5CF6" bg="rgba(255,255,255,0.05)" border="rgba(255,255,255,0.08)" labelColor="rgba(255,255,255,0.4)" />
+              <DashStat value={stats.available || 0} label="Available" color="#1D9E75" bg="rgba(29,158,117,0.08)" border="rgba(29,158,117,0.15)" labelColor="rgba(29,158,117,0.5)" />
+              <DashStat value={stats.inProgress || 0} label="In Progress" color="#BA7517" bg="rgba(186,117,23,0.08)" border="rgba(186,117,23,0.15)" labelColor="rgba(186,117,23,0.5)" />
+              <DashStat value={stats.totalCompleted || 0} label="Completed" color="#378ADD" bg="rgba(24,95,165,0.08)" border="rgba(24,95,165,0.15)" labelColor="rgba(55,138,221,0.5)" />
             </div>
 
-            {/* Grade Distribution */}
-            <GradeDistribution dist={grades} />
+            {/* PERFORMANCE STATS */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <MiniStat value={`${Math.round(Number(stats.passRate) || 0)}%`} label="Pass Rate" color={(stats.passRate || 0) >= 60 ? '#1D9E75' : '#E24B4A'} />
+              <MiniStat value={`${Math.round(Number(stats.averageScore) || 0)}%`} label="Avg Score" color="#a78bfa" />
+              <MiniStat value={stats.violations || 0} label="Violations" color={stats.violations > 0 ? '#E24B4A' : '#1D9E75'} emphasize={stats.violations > 0} />
+            </div>
 
-            {/* Test History */}
-            <Section title="Test History">
+            {/* GRADE DISTRIBUTION */}
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Grade Distribution</div>
+              <GradeBar dist={grades} />
+              <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
+                {['A+','A','B','C','D','F'].map(g => (
+                  <span key={g} style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{g}: {grades[g] || 0}</span>
+                ))}
+              </div>
+            </div>
+
+            {/* TEST HISTORY */}
+            <div style={{ padding: '1.25rem 1.5rem' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Test History</div>
               {results.length === 0 ? (
-                <div style={{ background: CARD_BG, border: CARD_BORDER, borderRadius: 12, padding: 24, textAlign: 'center', color: MUTED }}>No tests attempted yet</div>
+                <div style={{ textAlign: 'center', padding: '2rem', color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>No tests attempted yet</div>
               ) : (
-                <div className="table-scroll-wrapper" style={{ display: 'block', width: '100%', overflowX: 'auto', background: CARD_BG, border: CARD_BORDER, borderRadius: 12 }}>
-                  <table style={{ minWidth: 900, whiteSpace: 'nowrap', width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                    <thead>
-                      <tr style={{ color: MUTED, textAlign: 'left' }}>
-                        <th style={{ padding: '10px 12px', fontWeight: 600 }}>Test Name</th>
-                        <th style={{ padding: '10px 12px', fontWeight: 600 }}>Type</th>
-                        <th style={{ padding: '10px 12px', fontWeight: 600 }}>Score</th>
-                        <th style={{ padding: '10px 12px', fontWeight: 600 }}>%</th>
-                        <th style={{ padding: '10px 12px', fontWeight: 600 }}>Grade</th>
-                        <th style={{ padding: '10px 12px', fontWeight: 600 }}>Result</th>
-                        <th style={{ padding: '10px 12px', fontWeight: 600 }}>Time</th>
-                        <th style={{ padding: '10px 12px', fontWeight: 600 }}>Date</th>
-                        <th style={{ padding: '10px 12px', fontWeight: 600 }}>Attempt</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {results.map((r, i) => (
-                        <tr key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                          <td style={{ padding: '10px 12px', color: '#e5e7eb' }}>{r.testName}</td>
-                          <td style={{ padding: '10px 12px' }}><TypeBadge type={r.testType} /></td>
-                          <td style={{ padding: '10px 12px', color: MUTED }}>{r.score != null ? `${r.score}${r.totalQuestions ? '/' + r.totalQuestions : ''}` : '-'}</td>
-                          <td style={{ padding: '10px 12px', color: '#e5e7eb', fontWeight: 600 }}>{r.percentage != null ? `${Number(r.percentage).toFixed(1)}%` : '-'}</td>
-                          <td style={{ padding: '10px 12px' }}><GradeBadge grade={r.grade} /></td>
-                          <td style={{ padding: '10px 12px' }}>{r.percentage != null ? <ResultBadge passed={!!r.passed} /> : <span style={{ color: MUTED_DIM }}>-</span>}</td>
-                          <td style={{ padding: '10px 12px', color: MUTED }}>{formatDuration(r.timeTaken)}</td>
-                          <td style={{ padding: '10px 12px', color: MUTED }}>{formatDateTime(r.submittedAt || r.startedAt)}</td>
-                          <td style={{ padding: '10px 12px', color: MUTED }}>#{r.attemptNumber || 1}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </Section>
-
-            {/* Assigned Tests */}
-            <Section title="Assigned Tests">
-              {assigned.length === 0 ? (
-                <div style={{ background: CARD_BG, border: CARD_BORDER, borderRadius: 12, padding: 24, textAlign: 'center', color: MUTED }}>No tests assigned</div>
-              ) : (
-                <div style={{ background: CARD_BG, border: CARD_BORDER, borderRadius: 12, padding: 6 }}>
-                  {assigned.map((a, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderTop: i ? '1px solid rgba(255,255,255,0.05)' : 'none', flexWrap: 'wrap' }}>
-                      <div style={{ flex: '1 1 200px', minWidth: 160, color: '#e5e7eb', fontSize: 13, fontWeight: 500 }}>{a.testName}</div>
-                      <TypeBadge type={a.testType} />
-                      <StatusBadge status={a.status} />
-                      <div style={{ fontSize: 12, color: MUTED }}>
-                        Attempts: <span style={{ color: '#e5e7eb', fontWeight: 600 }}>{a.attemptCount}/{a.maxAttempts || '∞'}</span>
-                      </div>
-                      <div style={{ fontSize: 12, color: MUTED_DIM }}>
-                        {a.availableFrom ? formatDate(a.availableFrom) : '-'} → {a.availableUntil ? formatDate(a.availableUntil) : '-'}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Section>
-
-            {/* Recent Activity */}
-            <Section title="Recent Activity">
-              {recent.length === 0 ? (
-                <div style={{ background: CARD_BG, border: CARD_BORDER, borderRadius: 12, padding: 24, textAlign: 'center', color: MUTED }}>No recent activity</div>
-              ) : (
-                <div style={{ background: CARD_BG, border: CARD_BORDER, borderRadius: 12, padding: 14 }}>
-                  {recent.map((r, i) => (
-                    <div key={r.id || i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 0', borderTop: i ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
-                      <span style={{ width: 8, height: 8, marginTop: 6, borderRadius: '50%', background: '#a78bfa', flexShrink: 0 }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {results.map((r, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)' }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, color: '#e5e7eb' }}>{r.action}</div>
-                        <div style={{ fontSize: 11, color: MUTED_DIM, marginTop: 2 }}>{formatDateTime(r.createdAt)}</div>
+                        <div style={{ color: '#fff', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.testName}</div>
+                        <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 2 }}>{formatDateTime(r.submittedAt || r.startedAt)}</div>
                       </div>
+                      <div style={{ textAlign: 'center', flexShrink: 0 }}>
+                        <div style={{ color: '#fff', fontSize: 13, fontWeight: 500 }}>{r.score != null ? `${r.score}${r.totalQuestions ? '/' + r.totalQuestions : ''}` : '-'}</div>
+                        <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>{r.percentage != null ? `${Math.round(Number(r.percentage))}%` : '-'}</div>
+                      </div>
+                      <GradeBadge grade={r.grade} />
+                      {r.percentage != null && (
+                        <span style={{ padding: '3px 10px', borderRadius: 99, fontSize: 11, fontWeight: 500, flexShrink: 0,
+                          background: r.passed ? 'rgba(29,158,117,0.15)' : 'rgba(226,75,74,0.15)',
+                          color: r.passed ? '#1D9E75' : '#E24B4A',
+                          border: '1px solid ' + (r.passed ? 'rgba(29,158,117,0.3)' : 'rgba(226,75,74,0.3)') }}>
+                          {r.passed ? 'Pass' : 'Fail'}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
-            </Section>
-
+            </div>
             <div style={{ height: 40 }} />
           </>
         )}

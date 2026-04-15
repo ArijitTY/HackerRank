@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../../api';
 import ConfirmModal from '../../components/ConfirmModal';
+import { useToast } from '../../context/ToastContext';
 
 const SUBJECT_COLORS = {
   Python: '#3b82f6', Python_Selenium: '#8b5cf6', Pytest: '#10b981',
@@ -15,7 +16,9 @@ const SUBJECT_LABELS = {
 };
 
 export default function DesignTestPage({ apiPrefix = '/super' }) {
+  const toast = useToast();
   const [tests, setTests] = useState([]);
+  const [editingTest, setEditingTest] = useState(null);
   const [stats, setStats] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -38,8 +41,6 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
     durationMinutes: 60,
     passingPercentage: 60,
     codingProblemCount: 0,
-    availableFrom: '',
-    availableUntil: '',
   });
 
   const fetchData = async () => {
@@ -79,12 +80,15 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
     setDeleting(true);
     try {
       await api.delete(`${apiPrefix}/design-test/${deleteConfirm.id}/hard`);
+      toast.success(`${deleteConfirm.name} has been deleted`);
       setDeleteConfirm(null);
       setSuccess(`Test "${deleteConfirm.name}" permanently deleted.`);
       setTimeout(() => setSuccess(''), 3000);
       fetchData();
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to delete test');
+      const msg = err.response?.data?.message || err.response?.data?.error || 'Failed to delete test';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setDeleting(false);
     }
@@ -202,9 +206,9 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
     setCreating(true);
     try {
       const totalQ = form.totalQuestions;
-      await api.post(`${apiPrefix}/design-test`, {
+      const payload = {
         name: form.name.trim(),
-        description: form.description.trim(),
+        description: (form.description || '').trim(),
         subjects: form.subjects,
         totalQuestions: totalQ,
         difficultyDistribution: { Easy: form.easy, Medium: form.medium, Hard: form.hard },
@@ -214,20 +218,63 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
           scenario: Math.round((form.scenario / 100) * totalQ),
           code_completion: Math.round((form.code_completion / 100) * totalQ)
         },
-        durationMinutes: form.durationMinutes,
-        passingPercentage: form.passingPercentage,
-        codingProblemCount: form.codingProblemCount || 0,
-        availableFrom: form.availableFrom || null,
-        availableUntil: form.availableUntil || null,
-      });
-      setSuccess('Test created successfully!');
+        durationMinutes: Number(form.durationMinutes) || 60,
+        passingPercentage: Number(form.passingPercentage) || 60,
+        codingProblemCount: Number(form.codingProblemCount) || 0,
+      };
+      if (editingTest) {
+        await api.put(`${apiPrefix}/design-test/${editingTest.id}`, payload);
+        toast.success(`${form.name.trim()} has been updated`);
+      } else {
+        await api.post(`${apiPrefix}/design-test`, payload);
+        toast.success(`${form.name.trim()} has been created successfully`);
+      }
+      setSuccess(editingTest ? 'Test updated!' : 'Test created successfully!');
       setShowCreate(false);
-      setForm({ name: '', description: '', subjects: [], totalQuestions: 50, easy: 30, medium: 50, hard: 20, mcq: 50, output: 25, scenario: 15, code_completion: 10, durationMinutes: 60, passingPercentage: 60, codingProblemCount: 0, availableFrom: '', availableUntil: '' });
+      setEditingTest(null);
+      setForm({ name: '', description: '', subjects: [], totalQuestions: 50, easy: 30, medium: 50, hard: 20, mcq: 50, output: 25, scenario: 15, code_completion: 10, durationMinutes: 60, passingPercentage: 60, codingProblemCount: 0 });
       fetchData();
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to create test');
+      const msg = err.response?.data?.message || err.response?.data?.error || 'Failed to save test';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const openEdit = (t) => {
+    const subjectsArr = t.subjects_json ? JSON.parse(t.subjects_json) : [];
+    const diff = t.difficulty_json ? JSON.parse(t.difficulty_json) : { Easy: 30, Medium: 50, Hard: 20 };
+    const typeQ = t.type_quotas_json ? JSON.parse(t.type_quotas_json) : {};
+    const totalQ = t.total_questions || 0;
+    const pct = (n) => totalQ ? Math.round((Number(n || 0) / totalQ) * 100) : 0;
+    setForm({
+      name: t.name ?? '',
+      description: t.description ?? '',
+      subjects: subjectsArr,
+      totalQuestions: totalQ,
+      easy: diff.Easy ?? 30, medium: diff.Medium ?? 50, hard: diff.Hard ?? 20,
+      mcq: pct(typeQ.mcq) || 50,
+      output: pct(typeQ.output) || 25,
+      scenario: pct(typeQ.scenario) || 15,
+      code_completion: pct(typeQ.code_completion) || 10,
+      durationMinutes: t.duration_minutes ?? 60,
+      passingPercentage: t.passing_percentage ?? 60,
+      codingProblemCount: t.coding_problem_count ?? 0,
+    });
+    setEditingTest(t);
+    setShowCreate(true);
+    setError('');
+  };
+
+  const handleToggleStatus = async (t) => {
+    try {
+      const r = await api.put(`${apiPrefix}/design-test/${t.id}/toggle-status`);
+      toast.success(r.data?.is_active ? `${t.name} is now active` : `${t.name} has been deactivated`);
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to toggle status');
     }
   };
 
@@ -268,10 +315,10 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
       <style>{spinnerStyle}</style>
       <div style={S.header}>
         <div>
-          <h1 style={S.title}>Design Test</h1>
-          <p style={S.sub}>Create custom assessments from the question bank</p>
+          <h1 style={S.title}>{editingTest ? `Edit Test — ${editingTest.name}` : 'Design Test'}</h1>
+          <p style={S.sub}>{editingTest ? 'Update an existing test' : 'Create custom assessments from the question bank'}</p>
         </div>
-        <button style={S.createBtn} onClick={() => setShowCreate(!showCreate)}>
+        <button style={S.createBtn} onClick={() => { if (showCreate) { setEditingTest(null); } setShowCreate(!showCreate); }}>
           {showCreate ? 'Cancel' : '+ Create Test'}
         </button>
       </div>
@@ -315,11 +362,11 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
               <div>
                 <label style={S.label}>Test Name *</label>
-                <input style={S.input} placeholder="e.g. Python + SQL Assessment" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+                <input style={S.input} placeholder="e.g. Python + SQL Assessment" value={form.name ?? ''} onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))} />
               </div>
               <div>
                 <label style={S.label}>Description</label>
-                <input style={S.input} placeholder="Brief description..." value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+                <input style={S.input} placeholder="Brief description..." value={form.description ?? ''} onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))} />
               </div>
             </div>
 
@@ -342,36 +389,24 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, marginBottom: 24 }}>
               <div>
                 <label style={S.label}>MCQ Questions</label>
-                <input type="number" className="no-spin" style={S.numInput} min={0} max={500} value={form.totalQuestions} onFocus={e => e.target.select()} onChange={e => { const v = e.target.value; if (v === '') return; setForm({ ...form, totalQuestions: parseInt(v) || 0 }); }} onBlur={e => { if (e.target.value === '') setForm({ ...form, totalQuestions: 0 }); }} />
+                <input type="number" className="no-spin" style={S.numInput} min={0} max={500} value={form.totalQuestions ?? ''} onFocus={e => e.target.select()} onChange={e => { const v = e.target.value; setForm(prev => ({ ...prev, totalQuestions: v === '' ? '' : (parseInt(v) || 0) })); }} onBlur={e => { if (e.target.value === '') setForm(prev => ({ ...prev, totalQuestions: 0 })); }} />
                 {form.totalQuestions > selectedQuestionPool && selectedQuestionPool > 0 && (
                   <div style={{ fontSize: 11, color: '#f87171', marginTop: 4 }}>Max: {selectedQuestionPool}</div>
                 )}
               </div>
               <div>
                 <label style={S.label}>Duration (min)</label>
-                <input type="number" className="no-spin" style={S.numInput} min={5} max={300} value={form.durationMinutes} onFocus={e => e.target.select()} onChange={e => { const v = e.target.value; if (v === '') return; setForm({ ...form, durationMinutes: parseInt(v) || 60 }); }} onBlur={e => { if (e.target.value === '') setForm({ ...form, durationMinutes: 60 }); }} />
+                <input type="number" className="no-spin" style={S.numInput} min={1} max={480} value={form.durationMinutes ?? ''} onFocus={e => e.target.select()} onChange={e => { const v = e.target.value; setForm(prev => ({ ...prev, durationMinutes: v === '' ? '' : (parseInt(v) || 0) })); }} onBlur={e => { if (e.target.value === '') setForm(prev => ({ ...prev, durationMinutes: 60 })); }} />
               </div>
               <div>
                 <label style={S.label}>Passing %</label>
-                <input type="number" className="no-spin" style={S.numInput} min={1} max={100} value={form.passingPercentage} onFocus={e => e.target.select()} onChange={e => { const v = e.target.value; if (v === '') return; setForm({ ...form, passingPercentage: parseInt(v) || 60 }); }} onBlur={e => { if (e.target.value === '') setForm({ ...form, passingPercentage: 60 }); }} />
+                <input type="number" className="no-spin" style={S.numInput} min={1} max={100} value={form.passingPercentage ?? ''} onFocus={e => e.target.select()} onChange={e => { const v = e.target.value; setForm(prev => ({ ...prev, passingPercentage: v === '' ? '' : (parseInt(v) || 0) })); }} onBlur={e => { if (e.target.value === '') setForm(prev => ({ ...prev, passingPercentage: 60 })); }} />
               </div>
               <div>
                 <label style={S.label}>Pool Available</label>
                 <div style={{ fontSize: 20, fontWeight: 700, color: selectedQuestionPool >= form.totalQuestions ? '#10b981' : '#f87171', fontFamily: 'monospace', paddingTop: 6 }}>
                   {selectedQuestionPool}
                 </div>
-              </div>
-            </div>
-
-            {/* Schedule window */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-              <div>
-                <label style={S.label}>Available From <span style={{ color: 'rgba(255,255,255,0.3)', fontWeight: 400, textTransform: 'none' }}>(optional)</span></label>
-                <input type="datetime-local" style={{ ...S.input, fontSize: 13, padding: '8px 12px' }} value={form.availableFrom} onChange={e => setForm({ ...form, availableFrom: e.target.value })} />
-              </div>
-              <div>
-                <label style={S.label}>Available Until <span style={{ color: 'rgba(255,255,255,0.3)', fontWeight: 400, textTransform: 'none' }}>(optional)</span></label>
-                <input type="datetime-local" style={{ ...S.input, fontSize: 13, padding: '8px 12px' }} value={form.availableUntil} onChange={e => setForm({ ...form, availableUntil: e.target.value })} />
               </div>
             </div>
 
@@ -494,7 +529,7 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <label style={{ ...S.label, margin: 0, fontSize: 12 }}>Count:</label>
-                  <input type="number" className="no-spin" style={S.numInput} min={0} max={Math.min(pythonCodingAvailable, 20)} value={form.codingProblemCount} onFocus={e => e.target.select()} onChange={e => { const v = e.target.value; if (v === '') return; setForm({ ...form, codingProblemCount: parseInt(v) || 0 }); }} onBlur={e => { if (e.target.value === '') setForm({ ...form, codingProblemCount: 0 }); }} />
+                  <input type="number" className="no-spin" style={S.numInput} min={0} max={Math.min(pythonCodingAvailable, 20)} value={form.codingProblemCount ?? ''} onFocus={e => e.target.select()} onChange={e => { const v = e.target.value; setForm(prev => ({ ...prev, codingProblemCount: v === '' ? '' : (parseInt(v) || 0) })); }} onBlur={e => { if (e.target.value === '') setForm(prev => ({ ...prev, codingProblemCount: 0 })); }} />
                   <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>/ {pythonCodingAvailable}</span>
                 </div>
               </div>
@@ -523,7 +558,7 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
             {!diffValid && <div style={{ ...S.error, marginBottom: 8 }}>⚠ Difficulty percentages must sum to 100 (currently {diffTotal}%)</div>}
             {!typeValid && <div style={{ ...S.error, marginBottom: 8 }}>⚠ Question type percentages must sum to 100 (currently {typeTotal}%)</div>}
             <button type="submit" disabled={creating} style={{ ...S.createBtn, opacity: creating ? 0.5 : 1, width: '100%', justifyContent: 'center', padding: '14px 24px', fontSize: 15 }}>
-              {creating ? 'Creating...' : 'Create Test'}
+              {creating ? (editingTest ? 'Saving...' : 'Creating...') : (editingTest ? 'Save Changes' : 'Create Test')}
             </button>
           </div>
         </form>
@@ -549,12 +584,17 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
                   <h3 style={{ fontSize: 16, fontWeight: 600, color: 'rgba(255,255,255,0.9)', margin: 0 }}>{t.name}</h3>
                   {t.description && <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>{t.description}</p>}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                  {t.is_active === 1 && (
-                    <button onClick={() => handleDelete(t.id, t.name)} style={{ background: 'none', border: 'none', color: '#f59e0b', cursor: 'pointer', fontSize: 12, opacity: 0.8, padding: '3px 8px', borderRadius: 6 }} title="Deactivate test (keeps data)">Deactivate</button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
+                  {t.is_active
+                    ? <span style={{ padding: '2px 10px', borderRadius: 99, fontSize: 11, fontWeight: 500, background: 'rgba(29,158,117,0.15)', color: '#1D9E75', border: '1px solid rgba(29,158,117,0.3)' }}>Active</span>
+                    : <span style={{ padding: '2px 10px', borderRadius: 99, fontSize: 11, fontWeight: 500, background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.45)', border: '1px solid rgba(255,255,255,0.1)' }}>Inactive</span>}
+                  <button onClick={() => openEdit(t)} style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', color: '#8B5CF6', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 500 }} title="Edit test">✏ Edit</button>
+                  {t.is_active ? (
+                    <button onClick={() => handleToggleStatus(t)} style={{ background: 'transparent', border: '1px solid rgba(186,117,23,0.4)', color: '#BA7517', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>Deactivate</button>
+                  ) : (
+                    <button onClick={() => handleToggleStatus(t)} style={{ background: 'rgba(29,158,117,0.15)', border: '1px solid rgba(29,158,117,0.3)', color: '#1D9E75', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>Activate</button>
                   )}
-                  {!t.is_active && <span style={S.badge('#64748b')}>Inactive</span>}
-                  <button onClick={() => setDeleteConfirm({ id: t.id, name: t.name, submittedCount: t.submitted_count || 0 })} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171', cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 6, fontFamily: 'inherit' }} title="Permanently delete test and all its data">Delete</button>
+                  <button onClick={() => setDeleteConfirm({ id: t.id, name: t.name, submittedCount: t.submitted_count || 0 })} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171', cursor: 'pointer', fontSize: 12, fontWeight: 500, padding: '5px 12px', borderRadius: 6 }} title="Permanently delete test and all its data">Delete</button>
                 </div>
               </div>
 

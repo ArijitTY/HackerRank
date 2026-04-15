@@ -30,11 +30,17 @@ const csvEscape = (v) => {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 const formatTimeTaken = (secs) => {
-  if (secs == null || secs <= 0 || isNaN(secs)) return '-';
-  const s = Math.round(secs);
-  const m = Math.floor(s / 60);
+  if (secs == null || isNaN(secs)) return '-';
+  let s = Math.floor(Number(secs));
+  if (s > 86400) s = Math.floor(s / 1000);
+  if (s <= 0 || s > 86400) return '-';
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
   const r = s % 60;
-  return `${m}m ${r}s`;
+  const pad = (x) => String(x).padStart(2, '0');
+  if (h > 0) return `${h}h ${pad(m)}m`;
+  if (m > 0) return `${m}m ${pad(r)}s`;
+  return `${r}s`;
 };
 const computeTimeSeconds = (r) => {
   if (r.time_taken_seconds != null && r.time_taken_seconds > 0) return r.time_taken_seconds;
@@ -530,20 +536,64 @@ export default function ResultsView({ apiPrefix = '/super' }) {
                 <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)' }}>{formatDateTime(detail.end_time || detail.submitted_at || detail.completed_at)}</div>
               </div>
             </div>
+            {detail.summary && (
+              <div style={{ display: 'flex', gap: 16, marginBottom: 14, fontSize: 13 }}>
+                <span style={{ color: '#1D9E75' }}>✓ {detail.summary.mcqCorrect} Correct</span>
+                <span style={{ color: '#E24B4A' }}>✗ {detail.summary.mcqWrong} Wrong</span>
+                <span style={{ color: '#BA7517' }}>— {detail.summary.mcqSkipped} Skipped</span>
+                <span style={{ color: 'rgba(255,255,255,0.4)' }}>· {detail.summary.mcqTotal} Total</span>
+              </div>
+            )}
             {(detail.questions || []).length > 0 && (
               <div>
                 <h4 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase' }}>Question Review</h4>
-                {(detail.questions || []).map((q, i) => (
-                  <div key={i} style={{ padding: 16, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, marginBottom: 12 }}>
+                {(detail.questions || []).map((q, i) => {
+                  const cardBg = q.isSkipped ? 'rgba(186,117,23,0.07)' : q.isCorrect ? 'rgba(29,158,117,0.07)' : 'rgba(226,75,74,0.07)';
+                  const cardBorder = q.isSkipped ? 'rgba(186,117,23,0.25)' : q.isCorrect ? 'rgba(29,158,117,0.25)' : 'rgba(226,75,74,0.25)';
+                  return (
+                  <div key={i} style={{ padding: 16, background: cardBg, border: '1px solid ' + cardBorder, borderRadius: 8, marginBottom: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                       <span style={{ fontFamily: 'monospace', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Q{q.displayId || i + 1}</span>
-                      <span className={`badge ${(q.isCorrect || q.is_correct) ? 'badge-success' : 'badge-danger'}`}>
-                        {(q.isCorrect || q.is_correct) ? 'Correct' : q.userAnswer == null && q.selected_option == null ? 'Skipped' : 'Wrong'}
-                      </span>
+                      {q.isSkipped && <span style={{ background: 'rgba(186,117,23,0.2)', color: '#BA7517', padding: '2px 8px', borderRadius: 99, fontSize: 11 }}>— Skipped</span>}
+                      {!q.isSkipped && q.isCorrect && <span style={{ background: 'rgba(29,158,117,0.2)', color: '#1D9E75', padding: '2px 8px', borderRadius: 99, fontSize: 11 }}>✓ Correct</span>}
+                      {!q.isSkipped && !q.isCorrect && <span style={{ background: 'rgba(226,75,74,0.2)', color: '#E24B4A', padding: '2px 8px', borderRadius: 99, fontSize: 11 }}>✗ Wrong</span>}
+                      {q.subject && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginLeft: 'auto' }}>{q.subject}{q.difficulty ? ' · ' + q.difficulty : ''}</span>}
                     </div>
-                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', marginBottom: 10 }}>{q.question || q.question_text || q.text}</div>
+                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', marginBottom: 10, whiteSpace: 'pre-wrap' }}>{q.question}</div>
+                    {q.code_snippet && (
+                      <pre style={{ background: 'rgba(0,0,0,0.4)', padding: 10, borderRadius: 6, fontSize: 12, color: 'rgba(255,255,255,0.8)', overflowX: 'auto', margin: '0 0 10px' }}>{q.code_snippet}</pre>
+                    )}
+                    {Array.isArray(q.options) && q.options.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+                        {q.options.map((opt, j) => {
+                          const isCorrectOpt = j === q.correctAnswerIndex;
+                          const isUserOpt = !q.isSkipped && j === q.userAnswerIndex;
+                          let bg = 'rgba(255,255,255,0.03)', border = 'rgba(255,255,255,0.08)', color = 'rgba(255,255,255,0.7)';
+                          if (isCorrectOpt) { bg = 'rgba(29,158,117,0.15)'; border = 'rgba(29,158,117,0.4)'; color = '#1D9E75'; }
+                          else if (isUserOpt && !isCorrectOpt) { bg = 'rgba(226,75,74,0.15)'; border = 'rgba(226,75,74,0.4)'; color = '#E24B4A'; }
+                          return (
+                            <div key={j} style={{ padding: '8px 12px', borderRadius: 6, background: bg, border: '1px solid ' + border, color, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontFamily: 'monospace', fontWeight: 600, opacity: 0.7 }}>{String.fromCharCode(65 + j)}.</span>
+                              <span style={{ flex: 1 }}>{opt}</span>
+                              {isUserOpt && <span style={{ fontSize: 11, opacity: 0.8 }}>Your answer</span>}
+                              {isCorrectOpt && <span style={{ fontSize: 11, opacity: 0.8 }}>Correct</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {q.isSkipped && (
+                      <div style={{ padding: '8px 12px', borderRadius: 6, background: 'rgba(186,117,23,0.1)', border: '1px solid rgba(186,117,23,0.2)', fontSize: 12, color: '#BA7517' }}>
+                        Not answered. Correct answer: {q.correctAnswerLetter}{q.correctAnswerText ? ' — ' + q.correctAnswerText : ''}
+                      </div>
+                    )}
+                    {q.explanation && (
+                      <div style={{ marginTop: 8, padding: '8px 12px', borderRadius: 6, background: 'rgba(255,255,255,0.03)', fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>
+                        <strong style={{ color: 'rgba(255,255,255,0.7)' }}>Explanation: </strong>{q.explanation}
+                      </div>
+                    )}
                   </div>
-                ))}
+                );})}
               </div>
             )}
             </div>

@@ -16,8 +16,39 @@ const app = express();
 const PORT = parseInt(process.env.PORT) || 3000;
 
 // ── Input validation helpers ──────────────────────────────────────────────────
+// Backfill: recompute time_taken from start_time / end_time for every submitted session.
+// Historical rows had mixed units (some minutes, some seconds) and mixed timezone
+// formats — recomputing from the IST-local timestamp columns gives a single source of truth.
+try {
+  const rows = db.prepare(
+    "SELECT id, start_time, end_time, time_taken FROM test_sessions WHERE end_time IS NOT NULL AND start_time IS NOT NULL"
+  ).all();
+  const upd = db.prepare('UPDATE test_sessions SET time_taken = ? WHERE id = ?');
+  let fixed = 0;
+  for (const s of rows) {
+    const t = calcTimeDiff(s.start_time, s.end_time);
+    if (t > 0 && s.time_taken !== t) { upd.run(t, s.id); fixed++; }
+  }
+  if (fixed > 0) console.log(`[time_taken backfill] recalculated ${fixed} sessions`);
+} catch (e) { console.error('[time_taken backfill]', e); }
+
+function formatTimeTaken(seconds) {
+  if (!seconds || isNaN(seconds)) return '-';
+  let s = Number(seconds);
+  if (s > 86400) s = Math.floor(s / 1000);
+  if (s <= 0 || s > 86400) return '-';
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = Math.floor(s % 60);
+  const pad = (n) => String(n).padStart(2, '0');
+  if (h > 0) return `${h}h ${pad(m)}m`;
+  if (m > 0) return `${m}m ${pad(sec)}s`;
+  return `${sec}s`;
+}
+
 function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  if (!email) return false;
+  return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(String(email).trim());
 }
 function sanitizeHtml(str) {
   if (typeof str !== 'string') return str;
@@ -43,6 +74,34 @@ function nowLocalIso() {
   const d = new Date();
   const pad = (n, w = 2) => String(n).padStart(w, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`;
+}
+// Public aliases with the canonical names used in the rest of the team's spec.
+const getLocalTime = nowLocalIso;
+const parseLocalTime = (s) => {
+  const ms = parseDbTime(s);
+  if (!ms) return null;
+  const d = new Date(ms);
+  return isNaN(d) ? null : d;
+};
+// Compute elapsed seconds between two stored local-ISO timestamps,
+// clamped to (0, 86400). Returns 0 on bad input.
+function calcTimeDiff(startStr, endStr) {
+  const a = parseDbTime(startStr);
+  const b = parseDbTime(endStr);
+  if (!a || !b || b <= a) return 0;
+  const t = Math.floor((b - a) / 1000);
+  return t > 0 && t < 86400 ? t : 0;
+}
+// Display helper — same output as formatToIST(): "DD/MM/YYYY, hh:mm AM/PM".
+function formatDisplay(str) {
+  if (!str) return '-';
+  const d = parseLocalTime(str);
+  if (!d) return '-';
+  const pad = (n) => String(n).padStart(2, '0');
+  let h = d.getHours();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}, ${pad(h)}:${pad(d.getMinutes())} ${ampm}`;
 }
 
 // Produce a human-readable message from a stored audit entry.
@@ -147,13 +206,32 @@ app.use(express.static(path.join(__dirname, '..', 'frontend', 'build')));
 // userId -> lastSeen (ms). Considered online if seen within ONLINE_WINDOW_MS.
 // ============================================================
 const onlineCandidates = new Map();
-const ONLINE_WINDOW_MS = 5 * 60 * 1000;
+const ONLINE_WINDOW_MS = 3 * 60 * 1000;
+const IDLE_WINDOW_MS = 10 * 60 * 1000;
 function markCandidateSeen(userId) {
   if (userId) onlineCandidates.set(userId, Date.now());
 }
 function isCandidateOnline(userId) {
   const last = onlineCandidates.get(userId);
   return !!(last && Date.now() - last < ONLINE_WINDOW_MS);
+}
+function getRelativeTime(timestamp) {
+  if (!timestamp) return 'Never';
+  const diff = Date.now() - timestamp;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return mins + ' minute' + (mins > 1 ? 's' : '') + ' ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + ' hour' + (hrs > 1 ? 's' : '') + ' ago';
+  const days = Math.floor(hrs / 24);
+  return days + ' day' + (days > 1 ? 's' : '') + ' ago';
+}
+function getOnlineStatusTier(lastSeen) {
+  if (!lastSeen) return 'offline';
+  const diff = Date.now() - lastSeen;
+  if (diff < ONLINE_WINDOW_MS) return 'online';
+  if (diff < IDLE_WINDOW_MS) return 'idle';
+  return 'offline';
 }
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/candidate/')) {
@@ -410,9 +488,10 @@ function buildOnlineStatusResponse() {
   for (const r of rows) {
     const last = onlineCandidates.get(r.id);
     out[r.id] = {
-      status: last && Date.now() - last < ONLINE_WINDOW_MS ? 'online' : 'offline',
+      status: getOnlineStatusTier(last),
       lastSeen: last ? formatToIST(new Date(last).toISOString()) : null,
       lastSeenMs: last || null,
+      lastSeenRelative: getRelativeTime(last),
     };
   }
   return out;
@@ -425,7 +504,7 @@ app.get('/api/admin/candidates/online-status', authMiddleware, requireRole('admi
 });
 app.get('/api/candidate/ping', authMiddleware, requireRole('candidate'), (req, res) => {
   markCandidateSeen(req.user.id);
-  res.json({ status: 'ok' });
+  res.json({ status: 'ok', timestamp: Date.now() });
 });
 
 // --- Candidate management (super admin) ---
@@ -455,11 +534,20 @@ app.get('/api/super/candidates', authMiddleware, requireRole('super_admin'), (re
 app.post('/api/super/candidates', authMiddleware, requireRole('super_admin'), (req, res) => {
   try {
     const { name, email, password, batch_id } = req.body;
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: 'Name, email and password required' });
+    if (!name || !String(name).trim()) {
+      return res.status(400).json({ error: 'NAME_REQUIRED', message: 'Candidate name is required' });
+    }
+    if (!email || !String(email).trim()) {
+      return res.status(400).json({ error: 'EMAIL_REQUIRED', message: 'Email address is required' });
+    }
+    if (!password || String(password).length < 6) {
+      return res.status(400).json({ error: 'PASSWORD_REQUIRED', message: 'Password must be at least 6 characters' });
+    }
+    if (!batch_id) {
+      return res.status(400).json({ error: 'BATCH_REQUIRED', message: 'Batch code is required to create a candidate' });
     }
     if (!isValidEmail(email)) {
-      return res.status(400).json({ error: 'Invalid email format' });
+      return res.status(400).json({ error: 'INVALID_EMAIL', message: 'Invalid email format' });
     }
     const safeName = sanitizeHtml(name.trim());
 
@@ -492,12 +580,9 @@ app.post('/api/super/candidates', authMiddleware, requireRole('super_admin'), (r
       });
     }
 
-    let resolvedBatchId = null, resolvedBatchCode = null;
-    if (batch_id) {
-      const b = db.prepare('SELECT id, code FROM batches WHERE id = ?').get(batch_id);
-      if (!b) return res.status(400).json({ error: 'Batch not found' });
-      resolvedBatchId = b.id; resolvedBatchCode = b.code;
-    }
+    const b = db.prepare('SELECT id, code, name FROM batches WHERE id = ?').get(batch_id);
+    if (!b) return res.status(400).json({ error: 'BATCH_NOT_FOUND', message: 'Selected batch does not exist' });
+    const resolvedBatchId = b.id, resolvedBatchCode = b.code;
 
     const id = uuidv4();
     const hashed = hashPassword(password);
@@ -513,7 +598,7 @@ app.post('/api/super/candidates', authMiddleware, requireRole('super_admin'), (r
       details: `Created candidate account for ${safeName} (${email}) in batch ${resolvedBatchCode || 'none'}`
     });
 
-    res.status(201).json({ id, name: safeName, email, role: 'candidate', batch_id: resolvedBatchId });
+    res.status(201).json({ id, name: safeName, email, role: 'candidate', batch_id: resolvedBatchId, batchCode: resolvedBatchCode });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -703,18 +788,31 @@ function buildCandidatePerformance(candidateId) {
   }));
 
   return {
-    candidate: {
-      id: candidate.id,
-      name: candidate.name,
-      email: candidate.email,
-      createdAt: candidate.created_at,
-      createdBy: candidate.created_by_name || candidate.created_by || null,
-      status: candidate.is_active ? 'Active' : 'Inactive',
-    },
+    candidate: (() => {
+      const lastSeen = onlineCandidates.get(candidate.id);
+      return {
+        id: candidate.id,
+        name: candidate.name,
+        email: candidate.email,
+        createdAt: candidate.created_at,
+        createdBy: candidate.created_by_name || candidate.created_by || null,
+        accountStatus: candidate.is_active ? 'Active' : 'Inactive',
+        status: getOnlineStatusTier(lastSeen),
+        lastSeen: lastSeen ? formatToIST(new Date(lastSeen).toISOString()) : null,
+        lastSeenRelative: getRelativeTime(lastSeen),
+      };
+    })(),
     stats: {
       totalAssigned,
       totalAttempted: attempted.length,
       totalCompleted: completed.length,
+      available: (() => {
+        const nowIso = new Date().toISOString();
+        return permissions.filter(p => p.status === 'granted'
+          && (p.attempt_count == null || p.attempt_count === 0)
+          && (!p.t_available_until || p.t_available_until > nowIso)).length;
+      })(),
+      inProgress: sessions.filter(s => s.status === 'in_progress' || (s.start_time && !s.end_time)).length,
       totalPassed: passedSessions.length,
       totalFailed: failedCount,
       averageScore: Number(avg.toFixed(2)),
@@ -1193,8 +1291,13 @@ app.post('/api/super/design-test', authMiddleware, requireRole('super_admin'), (
     const codingCount = parseInt(codingProblemCount) || 0;
     const mcqCount = parseInt(totalQuestions) || 0;
 
-    if (!name) return res.status(400).json({ error: 'Test name is required' });
-    if (mcqCount === 0 && codingCount === 0) return res.status(400).json({ error: 'Must include MCQ questions or coding problems (or both)' });
+    if (!name || !String(name).trim()) return res.status(400).json({ error: 'NAME_REQUIRED', message: 'Test name is required' });
+    if (!durationMinutes || Number(durationMinutes) <= 0) return res.status(400).json({ error: 'DURATION_REQUIRED', message: 'Duration is required' });
+    if (Number(durationMinutes) > 480) return res.status(400).json({ error: 'INVALID_DURATION', message: 'Duration cannot exceed 480 minutes' });
+    if (passingPercentage == null || passingPercentage === '' || Number(passingPercentage) < 1 || Number(passingPercentage) > 100) {
+      return res.status(400).json({ error: 'INVALID_PERCENTAGE', message: 'Passing percentage must be between 1 and 100' });
+    }
+    if (mcqCount === 0 && codingCount === 0) return res.status(400).json({ error: 'NO_QUESTIONS', message: 'Must include MCQ questions or coding problems (or both)' });
 
     if (mcqCount > 0) {
       if (!subjects || !subjects.length) return res.status(400).json({ error: 'Select at least one subject for MCQ questions' });
@@ -1246,8 +1349,13 @@ app.post('/api/admin/design-test', authMiddleware, requireRole('admin'), (req, r
     const codingCount = parseInt(codingProblemCount) || 0;
     const mcqCount = parseInt(totalQuestions) || 0;
 
-    if (!name) return res.status(400).json({ error: 'Test name is required' });
-    if (mcqCount === 0 && codingCount === 0) return res.status(400).json({ error: 'Must include MCQ questions or coding problems (or both)' });
+    if (!name || !String(name).trim()) return res.status(400).json({ error: 'NAME_REQUIRED', message: 'Test name is required' });
+    if (!durationMinutes || Number(durationMinutes) <= 0) return res.status(400).json({ error: 'DURATION_REQUIRED', message: 'Duration is required' });
+    if (Number(durationMinutes) > 480) return res.status(400).json({ error: 'INVALID_DURATION', message: 'Duration cannot exceed 480 minutes' });
+    if (passingPercentage == null || passingPercentage === '' || Number(passingPercentage) < 1 || Number(passingPercentage) > 100) {
+      return res.status(400).json({ error: 'INVALID_PERCENTAGE', message: 'Passing percentage must be between 1 and 100' });
+    }
+    if (mcqCount === 0 && codingCount === 0) return res.status(400).json({ error: 'NO_QUESTIONS', message: 'Must include MCQ questions or coding problems (or both)' });
 
     if (mcqCount > 0) {
       if (!subjects || !subjects.length) return res.status(400).json({ error: 'Select at least one subject for MCQ questions' });
@@ -1504,6 +1612,72 @@ app.get('/api/super/results/question-analytics', authMiddleware, requireRole('su
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
+function enrichSessionDetail(session) {
+  let questions = [];
+  let answers = {};
+  try { questions = session.questions_json ? JSON.parse(session.questions_json) : []; } catch (e) { questions = []; }
+  try { answers = session.answers_json ? JSON.parse(session.answers_json) : {}; } catch (e) { answers = {}; }
+  let result = null;
+  try { result = session.result_json ? JSON.parse(session.result_json) : null; } catch (e) { result = null; }
+
+  const enriched = (Array.isArray(questions) ? questions : []).map((q, idx) => {
+    const qid = q && q.id != null ? q.id : null;
+    let userAnswerRaw;
+    if (qid != null && Object.prototype.hasOwnProperty.call(answers, qid)) userAnswerRaw = answers[qid];
+    else if (qid != null && Object.prototype.hasOwnProperty.call(answers, String(qid))) userAnswerRaw = answers[String(qid)];
+    else if (Object.prototype.hasOwnProperty.call(answers, idx)) userAnswerRaw = answers[idx];
+    else if (Object.prototype.hasOwnProperty.call(answers, String(idx))) userAnswerRaw = answers[String(idx)];
+    else userAnswerRaw = undefined;
+
+    const isSkipped = userAnswerRaw === undefined || userAnswerRaw === null || userAnswerRaw === '';
+    const correctIdx = (q && typeof q.answer === 'number') ? q.answer : (q && q.answer != null ? parseInt(q.answer, 10) : null);
+    const options = Array.isArray(q?.options) ? q.options : [];
+    const userIdx = isSkipped ? null : (typeof userAnswerRaw === 'number' ? userAnswerRaw : parseInt(userAnswerRaw, 10));
+    const isCorrect = !isSkipped && correctIdx != null && userIdx === correctIdx;
+
+    return {
+      displayId: q?.displayId || idx + 1,
+      id: qid,
+      subject: q?.subject,
+      topic: q?.topic,
+      difficulty: q?.difficulty,
+      type: q?.type || 'mcq',
+      question: q?.question || q?.question_text || q?.text || '',
+      code_snippet: q?.code_snippet || '',
+      options,
+      correctAnswerIndex: correctIdx,
+      correctAnswerText: correctIdx != null && options[correctIdx] != null ? options[correctIdx] : null,
+      correctAnswerLetter: correctIdx != null ? String.fromCharCode(65 + correctIdx) : null,
+      userAnswerIndex: userIdx != null && !isNaN(userIdx) ? userIdx : null,
+      userAnswerText: !isSkipped && userIdx != null && !isNaN(userIdx) && options[userIdx] != null ? options[userIdx] : null,
+      userAnswerLetter: !isSkipped && userIdx != null && !isNaN(userIdx) ? String.fromCharCode(65 + userIdx) : null,
+      isCorrect,
+      isSkipped,
+      explanation: q?.explanation || '',
+    };
+  });
+
+  const correctCount = enriched.filter(q => q.isCorrect).length;
+  const skippedCount = enriched.filter(q => q.isSkipped).length;
+  const wrongCount = enriched.length - correctCount - skippedCount;
+
+  const out = { ...session, questions: enriched, answers, result,
+    timeTakenSeconds: session.time_taken || 0,
+    timeTakenFormatted: formatTimeTaken(session.time_taken),
+    summary: {
+      mcqCorrect: correctCount,
+      mcqWrong: wrongCount,
+      mcqSkipped: skippedCount,
+      mcqTotal: enriched.length,
+      mcqPercentage: enriched.length > 0 ? Math.round((correctCount / enriched.length) * 100) : 0,
+    },
+  };
+  delete out.questions_json;
+  delete out.answers_json;
+  delete out.result_json;
+  return out;
+}
+
 app.get('/api/super/results/:sessionId', authMiddleware, requireRole('super_admin'), (req, res) => {
   try {
     const session = db.prepare(`
@@ -1513,18 +1687,8 @@ app.get('/api/super/results/:sessionId', authMiddleware, requireRole('super_admi
       JOIN tests t ON ts.test_id = t.id
       WHERE ts.id = ?
     `).get(req.params.sessionId);
-
     if (!session) return res.status(404).json({ error: 'Session not found' });
-
-    if (session.questions_json) session.questions = JSON.parse(session.questions_json);
-    if (session.answers_json) session.answers = JSON.parse(session.answers_json);
-    if (session.result_json) session.result = JSON.parse(session.result_json);
-
-    delete session.questions_json;
-    delete session.answers_json;
-    delete session.result_json;
-
-    res.json(session);
+    res.json(enrichSessionDetail(session));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -1559,11 +1723,20 @@ app.get('/api/admin/candidates', authMiddleware, requireRole('admin'), (req, res
 app.post('/api/admin/candidates', authMiddleware, requireRole('admin'), (req, res) => {
   try {
     const { name, email, password, batch_id } = req.body;
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: 'Name, email and password required' });
+    if (!name || !String(name).trim()) {
+      return res.status(400).json({ error: 'NAME_REQUIRED', message: 'Candidate name is required' });
+    }
+    if (!email || !String(email).trim()) {
+      return res.status(400).json({ error: 'EMAIL_REQUIRED', message: 'Email address is required' });
+    }
+    if (!password || String(password).length < 6) {
+      return res.status(400).json({ error: 'PASSWORD_REQUIRED', message: 'Password must be at least 6 characters' });
+    }
+    if (!batch_id) {
+      return res.status(400).json({ error: 'BATCH_REQUIRED', message: 'Batch code is required to create a candidate' });
     }
     if (!isValidEmail(email)) {
-      return res.status(400).json({ error: 'Invalid email format' });
+      return res.status(400).json({ error: 'INVALID_EMAIL', message: 'Invalid email format' });
     }
     const safeName = sanitizeHtml(name.trim());
 
@@ -1596,12 +1769,9 @@ app.post('/api/admin/candidates', authMiddleware, requireRole('admin'), (req, re
       });
     }
 
-    let resolvedBatchId = null, resolvedBatchCode = null;
-    if (batch_id) {
-      const b = db.prepare('SELECT id, code FROM batches WHERE id = ?').get(batch_id);
-      if (!b) return res.status(400).json({ error: 'Batch not found' });
-      resolvedBatchId = b.id; resolvedBatchCode = b.code;
-    }
+    const b = db.prepare('SELECT id, code, name FROM batches WHERE id = ?').get(batch_id);
+    if (!b) return res.status(400).json({ error: 'BATCH_NOT_FOUND', message: 'Selected batch does not exist' });
+    const resolvedBatchId = b.id, resolvedBatchCode = b.code;
 
     const id = uuidv4();
     const hashed = hashPassword(password);
@@ -1617,7 +1787,7 @@ app.post('/api/admin/candidates', authMiddleware, requireRole('admin'), (req, re
       details: `Created candidate account for ${safeName} (${email}) in batch ${resolvedBatchCode || 'none'}`
     });
 
-    res.status(201).json({ id, name: safeName, email, role: 'candidate', batch_id: resolvedBatchId });
+    res.status(201).json({ id, name: safeName, email, role: 'candidate', batch_id: resolvedBatchId, batchCode: resolvedBatchCode });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -1920,18 +2090,8 @@ app.get('/api/admin/results/:sessionId', authMiddleware, requireRole('admin'), (
       JOIN tests t ON ts.test_id = t.id
       WHERE ts.id = ? AND u.created_by = ?
     `).get(req.params.sessionId, req.user.id);
-
     if (!session) return res.status(404).json({ error: 'Session not found' });
-
-    if (session.questions_json) session.questions = JSON.parse(session.questions_json);
-    if (session.answers_json) session.answers = JSON.parse(session.answers_json);
-    if (session.result_json) session.result = JSON.parse(session.result_json);
-
-    delete session.questions_json;
-    delete session.answers_json;
-    delete session.result_json;
-
-    res.json(session);
+    res.json(enrichSessionDetail(session));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -3003,10 +3163,8 @@ app.post('/api/candidate/tests/:testId/session/:sessionId/submit', authMiddlewar
     const testType = test?.test_type || 'mcq';
     const passingPct = test ? test.passing_percentage : 60;
 
-    // Time taken
-    const startTimeMs = parseDbTime(session.start_time);
-    const endTime = new Date();
-    const timeTaken = Math.floor((endTime - startTimeMs) / 1000);
+    // Time taken — clamped via calcTimeDiff (0..86400 seconds)
+    const timeTaken = calcTimeDiff(session.start_time, getLocalTime());
 
     let score, total, percentage, passed, grade, resultJson;
 
@@ -3119,7 +3277,7 @@ app.post('/api/candidate/tests/:testId/session/:sessionId/submit', authMiddlewar
       const test = db.prepare('SELECT * FROM tests WHERE id = ?').get(testId);
       const passingPct = test?.passing_percentage || 60;
       const passed = percentage >= passingPct;
-      const timeTaken = session.start_time ? Math.floor((Date.now() - parseDbTime(session.start_time)) / 60000) : 0;
+      const timeTaken = calcTimeDiff(session.start_time, getLocalTime());
 
       // Merge submitted answers with session answers before saving
       const hybridMergedAnswers = { ...sessionAnswers };
@@ -3324,15 +3482,29 @@ app.get('/api/candidate/tests/:testId/sessions/:sessionId/review', authMiddlewar
     const score = session.score ?? review.filter(q => q.isCorrect).length;
     const total = session.total_questions ?? review.length;
     const percentage = session.percentage ?? (total > 0 ? Math.round((score / total) * 100) : 0);
+    const testRow = db.prepare('SELECT name FROM tests WHERE id = ?').get(testId);
+    const correctCount = review.filter(q => q.isCorrect).length;
+    const skippedCount = review.filter(q => q.userAnswer == null).length;
+    const answeredCount = review.length - skippedCount;
+    const wrongCount = answeredCount - correctCount;
 
     res.json({
       testType: 'mcq',
+      testName: testRow?.name || '',
       review,
       score,
       total,
       percentage,
       passed: session.passed === 1,
-      grade: percentage >= 90 ? 'A' : percentage >= 75 ? 'B' : percentage >= 60 ? 'C' : 'F'
+      grade: percentage >= 90 ? 'A' : percentage >= 75 ? 'B' : percentage >= 60 ? 'C' : 'F',
+      summary: {
+        totalQuestions: review.length,
+        answered: answeredCount,
+        skipped: skippedCount,
+        correct: correctCount,
+        wrong: wrongCount,
+        percentage,
+      },
     });
   } catch (err) {
     console.error(err);
@@ -4107,7 +4279,7 @@ function enrichLeaderboardRow(r) {
     percentage: r.percentage,
     grade: r.grade,
     passed: r.passed,
-    time_taken_seconds: r.time_taken ? r.time_taken * 60 : 0,
+    time_taken_seconds: r.time_taken || 0,
     time_taken: r.time_taken,
     completed_at: r.completed_at,
     submitted_at: r.completed_at,
@@ -4207,39 +4379,65 @@ try {
 // TEST EDIT ENDPOINTS
 // ============================================================
 
-app.put('/api/super/design-test/:testId', authMiddleware, requireRole('super_admin'), (req, res) => {
+function updateDesignTestHandler(req, res, role) {
   try {
-    const { name, description, durationMinutes, passingPercentage } = req.body;
-    if (!name) return res.status(400).json({ error: 'Test name is required' });
-    const test = db.prepare('SELECT * FROM tests WHERE id = ?').get(req.params.testId);
+    const { name, description, durationMinutes, passingPercentage,
+      subjectsJson, subjects, difficultyJson, difficultyDistribution,
+      typeQuotasJson, typeQuotas, codingProblemCount } = req.body || {};
+    if (!name || !String(name).trim()) return res.status(400).json({ error: 'NAME_REQUIRED', message: 'Test name is required' });
+    if (durationMinutes != null && (Number(durationMinutes) <= 0 || Number(durationMinutes) > 480)) {
+      return res.status(400).json({ error: 'INVALID_DURATION', message: 'Duration must be between 1 and 480 minutes' });
+    }
+    if (passingPercentage != null && (Number(passingPercentage) < 1 || Number(passingPercentage) > 100)) {
+      return res.status(400).json({ error: 'INVALID_PERCENTAGE', message: 'Passing percentage must be between 1 and 100' });
+    }
+    const scopeCheck = role === 'admin' ? ' AND created_by = ?' : '';
+    const params = role === 'admin' ? [req.params.testId, req.user.id] : [req.params.testId];
+    const test = db.prepare('SELECT * FROM tests WHERE id = ?' + scopeCheck).get(...params);
     if (!test) return res.status(404).json({ error: 'Test not found' });
-    db.prepare(`
-      UPDATE tests SET name = ?, description = ?, duration_minutes = ?, passing_percentage = ?
-      WHERE id = ?
-    `).run(name, description || test.description, durationMinutes || test.duration_minutes,
-           passingPercentage || test.passing_percentage, req.params.testId);
-    logAudit(db, { actorId: req.user.id, actorRole: 'super_admin', action: 'edit_test',
-      targetType: 'test', targetId: req.params.testId, details: { name, durationMinutes, passingPercentage } });
-    res.json(db.prepare('SELECT * FROM tests WHERE id = ?').get(req.params.testId));
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
-});
 
-app.put('/api/admin/design-test/:testId', authMiddleware, requireRole('admin'), (req, res) => {
-  try {
-    const { name, description, durationMinutes, passingPercentage } = req.body;
-    if (!name) return res.status(400).json({ error: 'Test name is required' });
-    const test = db.prepare('SELECT * FROM tests WHERE id = ? AND created_by = ?').get(req.params.testId, req.user.id);
-    if (!test) return res.status(404).json({ error: 'Test not found or not yours' });
+    const sJson = subjectsJson != null ? subjectsJson : (Array.isArray(subjects) ? JSON.stringify(subjects) : test.subjects_json);
+    const dJson = difficultyJson != null ? difficultyJson : (difficultyDistribution ? JSON.stringify(difficultyDistribution) : test.difficulty_json);
+    const tJson = typeQuotasJson != null ? typeQuotasJson : (typeQuotas ? JSON.stringify(typeQuotas) : test.type_quotas_json);
+    const codingCount = codingProblemCount != null ? Number(codingProblemCount) : test.coding_problem_count;
+
     db.prepare(`
-      UPDATE tests SET name = ?, description = ?, duration_minutes = ?, passing_percentage = ?
+      UPDATE tests SET name = ?, description = ?, duration_minutes = ?, passing_percentage = ?,
+        subjects_json = ?, difficulty_json = ?, type_quotas_json = ?, coding_problem_count = ?
       WHERE id = ?
-    `).run(name, description || test.description, durationMinutes || test.duration_minutes,
-           passingPercentage || test.passing_percentage, req.params.testId);
-    logAudit(db, { actorId: req.user.id, actorRole: 'admin', action: 'edit_test',
+    `).run(
+      String(name).trim(),
+      description != null ? description : test.description,
+      durationMinutes != null ? Number(durationMinutes) : test.duration_minutes,
+      passingPercentage != null ? Number(passingPercentage) : test.passing_percentage,
+      sJson, dJson, tJson, codingCount,
+      req.params.testId
+    );
+    logAudit(db, { actorId: req.user.id, actorRole: role, action: 'edit_test',
       targetType: 'test', targetId: req.params.testId, details: { name, durationMinutes, passingPercentage } });
     res.json(db.prepare('SELECT * FROM tests WHERE id = ?').get(req.params.testId));
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
-});
+}
+app.put('/api/super/design-test/:testId', authMiddleware, requireRole('super_admin'), (req, res) => updateDesignTestHandler(req, res, 'super_admin'));
+app.put('/api/admin/design-test/:testId', authMiddleware, requireRole('admin'), (req, res) => updateDesignTestHandler(req, res, 'admin'));
+
+function toggleTestStatusHandler(req, res, role) {
+  try {
+    const scopeCheck = role === 'admin' ? ' AND created_by = ?' : '';
+    const params = role === 'admin' ? [req.params.testId, req.user.id] : [req.params.testId];
+    const test = db.prepare('SELECT id, name, is_active FROM tests WHERE id = ?' + scopeCheck).get(...params);
+    if (!test) return res.status(404).json({ error: 'Test not found' });
+    const newStatus = test.is_active ? 0 : 1;
+    db.prepare('UPDATE tests SET is_active = ? WHERE id = ?').run(newStatus, req.params.testId);
+    logAudit(db, {
+      actorId: req.user.id, actorRole: role, action: newStatus ? 'activate_test' : 'deactivate_test',
+      targetType: 'test', targetId: req.params.testId, details: { name: test.name }
+    });
+    res.json({ success: true, is_active: newStatus, message: newStatus ? 'Test activated' : 'Test deactivated' });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+}
+app.put('/api/super/design-test/:testId/toggle-status', authMiddleware, requireRole('super_admin'), (req, res) => toggleTestStatusHandler(req, res, 'super_admin'));
+app.put('/api/admin/design-test/:testId/toggle-status', authMiddleware, requireRole('admin'), (req, res) => toggleTestStatusHandler(req, res, 'admin'));
 
 // ============================================================
 // PASSWORD RESET BY ADMIN
@@ -5227,9 +5425,16 @@ function computeSessionStats(sessionId) {
 function serializeSession(row) {
   const stats = computeSessionStats(row.id);
   const now = Date.now();
+  const from = parseDbTime(row.date_from);
   const to = parseDbTime(row.date_to);
   let derivedStatus = row.status;
-  if (row.status === 'active' && to && now > to) derivedStatus = 'expired';
+  if (row.status !== 'completed' && row.status !== 'cancelled') {
+    if (from && now < from) derivedStatus = 'upcoming';
+    else if (to && now > to) {
+      derivedStatus = 'completed';
+      try { db.prepare("UPDATE sessions SET status = 'completed' WHERE id = ?").run(row.id); } catch (e) {}
+    } else derivedStatus = 'active';
+  }
   return {
     id: row.id,
     sessionCode: row.session_code,
@@ -5253,6 +5458,14 @@ function serializeSession(row) {
 }
 
 function listSessionsFor(scope, adminId) {
+  try {
+    db.prepare(`
+      UPDATE test_sessions
+      SET session_id = (SELECT tp.session_id FROM test_permissions tp WHERE tp.id = test_sessions.permission_id)
+      WHERE session_id IS NULL
+        AND permission_id IN (SELECT id FROM test_permissions WHERE session_id IS NOT NULL)
+    `).run();
+  } catch (e) { /* ignore */ }
   const where = scope === 'admin' ? 'WHERE b.created_by = ?' : '';
   const params = scope === 'admin' ? [adminId] : [];
   const rows = db.prepare(`
@@ -5363,7 +5576,7 @@ function deleteSessionHandler(req, res, role) {
     `).get(req.params.id);
     if (!s) return res.status(404).json({ error: 'Session not found' });
     if (role === 'admin' && s.batch_created_by !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
-    if (s.status !== 'active') return res.status(400).json({ error: 'Only active sessions can be deleted' });
+    if (s.status === 'completed' || s.status === 'cancelled') return res.status(400).json({ error: 'Completed sessions cannot be deleted' });
     const usedCount = db.prepare('SELECT COUNT(*) as c FROM test_sessions WHERE session_id = ?').get(req.params.id).c;
     if (usedCount > 0) return res.status(400).json({ error: 'Cannot delete: candidates have already attempted tests in this session' });
     db.prepare('DELETE FROM test_permissions WHERE session_id = ?').run(req.params.id);

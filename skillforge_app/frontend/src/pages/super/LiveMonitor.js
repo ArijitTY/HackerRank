@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../../api';
 import { formatTime } from '../../utils/dateUtils';
+import OnlineStatusBadge from '../../components/OnlineStatusBadge';
 
 const formatTimeTaken = (seconds) => {
   if (!seconds || seconds <= 0) return '0s';
@@ -17,16 +18,6 @@ const violationBadge = (n) => ({
   background: n > 0 ? '#FCEBEB' : '#EAF3DE',
   color: n > 0 ? '#A32D2D' : '#3B6D11',
   padding: '2px 10px', borderRadius: 99, fontSize: 12, fontWeight: 500,
-});
-const statusBadge = (status) => ({
-  background: status === 'idle' ? '#FDF3D5' : '#EAF3DE',
-  color: status === 'idle' ? '#85620B' : '#3B6D11',
-  padding: '2px 10px', borderRadius: 99, fontSize: 12, fontWeight: 500,
-  display: 'inline-flex', alignItems: 'center', gap: 6,
-});
-const statusDot = (status) => ({
-  width: 6, height: 6, borderRadius: '50%',
-  background: status === 'idle' ? '#f59e0b' : '#10b981',
 });
 
 const TD = { padding: '14px 16px', verticalAlign: 'middle', borderBottom: '0.5px solid rgba(255,255,255,0.06)', whiteSpace: 'nowrap' };
@@ -140,7 +131,7 @@ export default function LiveMonitor() {
                       </td>
                       <td style={{ ...TD, textAlign: 'center' }}><span style={violationBadge(s.violations)}>{s.violations}</span></td>
                       <td style={{ ...TD, textAlign: 'center' }}>
-                        <span style={statusBadge(s.status)}><span style={statusDot(s.status)} />{s.status === 'idle' ? 'Idle' : 'Active'}</span>
+                        <OnlineStatusBadge status={s.status === 'idle' ? 'idle' : 'in_test'} lastSeenRelative={s.lastActivity} size="md" />
                       </td>
                       <td style={{ ...TD, fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>{s.lastActivity || '—'}</td>
                     </tr>

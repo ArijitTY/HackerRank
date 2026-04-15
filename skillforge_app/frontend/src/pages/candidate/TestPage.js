@@ -184,6 +184,13 @@ export default function TestPage({ user }) {
   const violationsRef = useRef(0);
 
   useEffect(() => {
+    const ping = () => api.get('/candidate/ping').catch(() => {});
+    ping();
+    const pingId = setInterval(ping, 90 * 1000);
+    return () => clearInterval(pingId);
+  }, []);
+
+  useEffect(() => {
     // If we already have hybrid data from navigation state, skip API call
     if (navState.sessionId && navState.testType === 'hybrid') {
       setTestType('hybrid');

@@ -72,7 +72,7 @@ export default function CandidateDashboard({ user }) {
   useEffect(() => {
     const ping = () => api.get('/candidate/ping').catch(() => {});
     ping();
-    const id = setInterval(ping, 2 * 60 * 1000);
+    const id = setInterval(ping, 90 * 1000);
     return () => clearInterval(id);
   }, []);
 
