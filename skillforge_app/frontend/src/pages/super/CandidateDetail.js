@@ -79,7 +79,7 @@ export default function CandidateDetail() {
           </div>
           <div>
             <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.05em', marginBottom: 4 }}>Created</div>
-            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)' }}>{candidate.created_at ? formatISTDate() : '-'}</div>
+            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)' }}>{candidate.created_at ? formatISTDate(candidate.created_at) : '-'}</div>
           </div>
           <div>
             <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.05em', marginBottom: 4 }}>Tests Assigned</div>
@@ -132,7 +132,7 @@ export default function CandidateDetail() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 13 }}>
                         <span style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>#{si + 1}</span>
                         <span style={{ fontWeight: 500, color: s.score != null && s.score >= 60 ? '#10b981' : '#ef4444', fontFamily: 'monospace' }}>{s.score != null ? `${s.score}%` : '-'}</span>
-                        <span style={{ color: 'rgba(255,255,255,0.4)' }}>{s.completed_at ? formatIST() : s.status}</span>
+                        <span style={{ color: 'rgba(255,255,255,0.4)' }}>{s.completed_at ? formatIST(s.completed_at) : s.status}</span>
                       </div>
                     </td>
                   </tr>

@@ -98,7 +98,7 @@ export default function CandidateProfilePage({ user }) {
             </div>
             <div style={S.statRow}>
               <span style={S.statLabel}>Member Since</span>
-              <span style={S.statVal}>{profile?.created_at ? formatISTDate() : '—'}</span>
+              <span style={S.statVal}>{profile?.created_at ? formatISTDate(profile.created_at) : '—'}</span>
             </div>
           </div>
         </div>

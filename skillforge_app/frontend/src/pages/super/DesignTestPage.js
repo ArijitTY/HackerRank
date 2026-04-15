@@ -107,20 +107,23 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
 
   // Redistribute remaining 100% proportionally among unlocked, non-changed sliders
   const redistributeSliders = (form, changedKey, newVal, keys, lockedKeys) => {
-    const clamped = Math.max(0, Math.min(100, newVal));
     // Keys that are locked (but not the one being changed)
     const lockedOthers = keys.filter(k => k !== changedKey && lockedKeys.has(k));
     // Keys free to redistribute into
     const freeKeys = keys.filter(k => k !== changedKey && !lockedKeys.has(k));
 
     const lockedSum = lockedOthers.reduce((s, k) => s + (form[k] || 0), 0);
-    const remaining = Math.max(0, 100 - clamped - lockedSum);
-    const newValues = { [changedKey]: clamped };
 
     if (freeKeys.length === 0) {
-      // Nothing to redistribute into — just apply the change as-is
-      return newValues;
+      // All other sliders are locked — clamp this slider so total stays ≤ 100
+      const otherSum = keys.filter(k => k !== changedKey).reduce((s, k) => s + (form[k] || 0), 0);
+      const clamped = Math.max(0, Math.min(100 - otherSum, Math.max(0, Math.min(100, newVal))));
+      return { [changedKey]: clamped };
     }
+
+    const clamped = Math.max(0, Math.min(100, newVal));
+    const remaining = Math.max(0, 100 - clamped - lockedSum);
+    const newValues = { [changedKey]: clamped };
 
     const freeSum = freeKeys.reduce((s, k) => s + (form[k] || 0), 0);
 
@@ -212,12 +215,14 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
         subjects: form.subjects,
         totalQuestions: totalQ,
         difficultyDistribution: { Easy: form.easy, Medium: form.medium, Hard: form.hard },
-        typeQuotas: {
-          mcq: Math.round((form.mcq / 100) * totalQ),
-          output: Math.round((form.output / 100) * totalQ),
-          scenario: Math.round((form.scenario / 100) * totalQ),
-          code_completion: Math.round((form.code_completion / 100) * totalQ)
-        },
+        // Use last-item-absorbs-remainder so total always equals totalQ exactly
+        typeQuotas: (() => {
+          const mcqQ  = Math.round((form.mcq      / 100) * totalQ);
+          const outQ  = Math.round((form.output   / 100) * totalQ);
+          const sceQ  = Math.round((form.scenario / 100) * totalQ);
+          const ccQ   = Math.max(0, totalQ - mcqQ - outQ - sceQ); // absorb rounding
+          return { mcq: mcqQ, output: outQ, scenario: sceQ, code_completion: ccQ };
+        })(),
         durationMinutes: Number(form.durationMinutes) || 60,
         passingPercentage: Number(form.passingPercentage) || 60,
         codingProblemCount: Number(form.codingProblemCount) || 0,
@@ -243,22 +248,44 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
     }
   };
 
+  // Convert question counts back to percentages, ensuring they always sum to exactly 100.
+  const quotaToPct = (typeQ, totalQ) => {
+    if (!totalQ) return { mcq: 50, output: 25, scenario: 15, code_completion: 10 };
+    const rawMcq   = Math.round((Number(typeQ.mcq   || 0) / totalQ) * 100);
+    const rawOut   = Math.round((Number(typeQ.output || 0) / totalQ) * 100);
+    const rawSce   = Math.round((Number(typeQ.scenario || 0) / totalQ) * 100);
+    // Last one absorbs rounding drift so the total is guaranteed 100
+    const rawCC    = 100 - rawMcq - rawOut - rawSce;
+    return {
+      mcq:             Math.max(0, rawMcq),
+      output:          Math.max(0, rawOut),
+      scenario:        Math.max(0, rawSce),
+      code_completion: Math.max(0, rawCC),
+    };
+  };
+
   const openEdit = (t) => {
     const subjectsArr = t.subjects_json ? JSON.parse(t.subjects_json) : [];
     const diff = t.difficulty_json ? JSON.parse(t.difficulty_json) : { Easy: 30, Medium: 50, Hard: 20 };
     const typeQ = t.type_quotas_json ? JSON.parse(t.type_quotas_json) : {};
     const totalQ = t.total_questions || 0;
-    const pct = (n) => totalQ ? Math.round((Number(n || 0) / totalQ) * 100) : 0;
+    const typePct = quotaToPct(typeQ, totalQ);
+
+    // Similarly ensure difficulty sums to 100
+    const rawEasy   = diff.Easy   ?? 30;
+    const rawMedium = diff.Medium ?? 50;
+    const rawHard   = 100 - rawEasy - rawMedium; // absorb any drift
+
     setForm({
       name: t.name ?? '',
       description: t.description ?? '',
       subjects: subjectsArr,
       totalQuestions: totalQ,
-      easy: diff.Easy ?? 30, medium: diff.Medium ?? 50, hard: diff.Hard ?? 20,
-      mcq: pct(typeQ.mcq) || 50,
-      output: pct(typeQ.output) || 25,
-      scenario: pct(typeQ.scenario) || 15,
-      code_completion: pct(typeQ.code_completion) || 10,
+      easy: Math.max(0, rawEasy), medium: Math.max(0, rawMedium), hard: Math.max(0, rawHard),
+      mcq: typePct.mcq || 50,
+      output: typePct.output || 25,
+      scenario: typePct.scenario || 15,
+      code_completion: typePct.code_completion || 10,
       durationMinutes: t.duration_minutes ?? 60,
       passingPercentage: t.passing_percentage ?? 60,
       codingProblemCount: t.coding_problem_count ?? 0,

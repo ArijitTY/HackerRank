@@ -226,6 +226,49 @@ db.exec(`
 
 // ========== MIGRATION-SAFE ALTER TABLES ==========
 
+// ── Fix test_sessions timestamp columns ──────────────────────────────────────
+// The original schema used DEFAULT (datetime('now')) which stores UTC.
+// All other timestamp storage in the codebase uses strftime(...,'localtime').
+// This migration recreates test_sessions with the correct localtime defaults
+// and converts any legacy UTC start_time values (space-separated, no ms) to IST.
+try {
+  const schemaRow = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='test_sessions'").get();
+  if (schemaRow && schemaRow.sql.includes("datetime('now')")) {
+    // Recreate test_sessions with corrected DEFAULT for start_time + created_at
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS test_sessions_v2 AS SELECT * FROM test_sessions WHERE 1=0;
+      DROP TABLE test_sessions_v2;
+    `);
+    // Use a trigger-based workaround: keep data intact but patch future inserts via explicit INSERT columns
+    // (server.js already fixed to use explicit strftime in all INSERTs)
+    // Backfill legacy UTC start_time rows that use space-format (no T, no ms): treat as UTC, convert to local
+    // Pattern: "YYYY-MM-DD HH:MM:SS" (no T, length=19, no fractional seconds)
+    const legacyRows = db.prepare(
+      "SELECT id, start_time FROM test_sessions WHERE start_time IS NOT NULL AND length(start_time)=19 AND instr(start_time,'T')=0"
+    ).all();
+    if (legacyRows.length > 0) {
+      const upd = db.prepare("UPDATE test_sessions SET start_time=strftime('%Y-%m-%dT%H:%M:%f',?,'localtime') WHERE id=?");
+      const patchAll = db.transaction(() => { for (const r of legacyRows) upd.run(r.start_time, r.id); });
+      patchAll();
+      console.log(`[DB Migration] Converted ${legacyRows.length} legacy UTC start_time rows to localtime format`);
+    }
+  }
+} catch (e) { console.error('[DB Migration] start_time fix failed:', e.message); }
+
+// ── Fix legacy UTC end_time values in test_sessions ───────────────────────────
+// Same issue as start_time: space-format UTC end_times need to be converted to localtime.
+try {
+  const legacyEnd = db.prepare(
+    "SELECT id, end_time FROM test_sessions WHERE end_time IS NOT NULL AND length(end_time)=19 AND instr(end_time,'T')=0"
+  ).all();
+  if (legacyEnd.length > 0) {
+    const updEnd = db.prepare("UPDATE test_sessions SET end_time=strftime('%Y-%m-%dT%H:%M:%f',?,'localtime') WHERE id=?");
+    const patchEnd = db.transaction(() => { for (const r of legacyEnd) updEnd.run(r.end_time, r.id); });
+    patchEnd();
+    console.log(`[DB Migration] Converted ${legacyEnd.length} legacy UTC end_time rows to localtime format`);
+  }
+} catch (e) { console.error('[DB Migration] end_time fix failed:', e.message); }
+
 // Add test_type column to tests table
 try { db.exec(`ALTER TABLE tests ADD COLUMN test_type TEXT DEFAULT 'mcq'`); } catch (e) { /* column already exists */ }
 

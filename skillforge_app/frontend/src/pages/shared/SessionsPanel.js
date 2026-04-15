@@ -46,6 +46,7 @@ export default function SessionsPanel({ apiPrefix = '/super', resultsPath = '/su
   const [showCreate, setShowCreate] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [confirm, setConfirm] = useState(null); // { type, item, onConfirm }
+  const [showCompleted, setShowCompleted] = useState(false);
   const navigate = useNavigate();
 
   // create form
@@ -149,7 +150,20 @@ export default function SessionsPanel({ apiPrefix = '/super', resultsPath = '/su
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'rgba(255,255,255,0.9)' }}>Drive Sessions</h2>
           <p style={{ margin: '4px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Schedule assessment drives for a batch and track results</p>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          {sessions.some(s => s.status === 'completed' || s.status === 'expired' || s.status === 'cancelled') && (
+            <button
+              onClick={() => setShowCompleted(v => !v)}
+              style={{
+                padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                border: showCompleted ? '1px solid rgba(139,92,246,0.5)' : '1px solid rgba(255,255,255,0.12)',
+                background: showCompleted ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.04)',
+                color: showCompleted ? '#a78bfa' : 'rgba(255,255,255,0.5)',
+              }}
+            >
+              {showCompleted ? '🙈 Hide Completed' : '👁 Show Completed'}
+            </button>
+          )}
           <button className="btn btn-sm btn-outline" onClick={load} title="Refresh sessions">↻ Refresh</button>
           <button className="btn btn-primary" onClick={() => setShowCreate(true)} style={{ background: PURPLE }}>
             + Create Session
@@ -178,10 +192,15 @@ export default function SessionsPanel({ apiPrefix = '/super', resultsPath = '/su
             </thead>
             <tbody>
               {loading && <tr><td colSpan="12" style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.4)' }}>Loading sessions...</td></tr>}
-              {!loading && sessions.length === 0 && (
-                <tr><td colSpan="12" style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.4)' }}>No sessions yet. Click "Create Session" to schedule your first drive.</td></tr>
+              {!loading && sessions.filter(s => showCompleted || (s.status !== 'completed' && s.status !== 'expired' && s.status !== 'cancelled')).length === 0 && (
+                <tr><td colSpan="12" style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.4)' }}>
+                  {sessions.length === 0 ? 'No sessions yet. Click "Create Session" to schedule your first drive.'
+                    : 'No active sessions. Click "Show Completed" to view past sessions.'}
+                </td></tr>
               )}
-              {!loading && [...sessions].sort((a, b) => {
+              {!loading && [...sessions]
+              .filter(s => showCompleted || (s.status !== 'completed' && s.status !== 'expired' && s.status !== 'cancelled'))
+              .sort((a, b) => {
                 const rank = (st) => st === 'active' ? 0 : st === 'upcoming' ? 1 : 2;
                 return rank(a.status) - rank(b.status);
               }).map((s) => {

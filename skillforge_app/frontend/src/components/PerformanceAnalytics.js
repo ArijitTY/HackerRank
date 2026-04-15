@@ -202,7 +202,7 @@ export default function PerformanceAnalytics() {
               <div style={{ fontSize: 32, flexShrink: 0 }}>{s.passed ? '\u2705' : '\u274C'}</div>
               <div style={{ flex: 1, minWidth: 160 }}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: 'white', marginBottom: 3 }}>{s.testName}</div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{s.submittedAt ? formatIST() : 'N/A'}</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{s.submittedAt ? formatIST(s.submittedAt) : 'N/A'}</div>
               </div>
               <div style={{ textAlign: 'center', minWidth: 80 }}>
                 <div style={{ fontSize: 26, fontWeight: 900, fontFamily: "'JetBrains Mono',monospace", color: s.passed ? '#34d399' : '#f87171' }}>{s.percentage}%</div>

@@ -141,8 +141,8 @@ export default function AdminsPage() {
                     </div>
                   </div>
                 </td>
-                <td>{a.created_at ? formatISTDate() : '-'}</td>
-                <td>{a.last_login ? formatIST() : 'Never'}</td>
+                <td>{a.created_at ? formatISTDate(a.created_at) : '-'}</td>
+                <td>{a.last_login ? formatIST(a.last_login) : 'Never'}</td>
                 <td>
                   <span className={`badge ${a.status === 'active' ? 'badge-active' : 'badge-revoked'}`}>
                     {a.status || 'active'}

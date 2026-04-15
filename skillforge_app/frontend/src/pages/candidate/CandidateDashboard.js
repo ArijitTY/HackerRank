@@ -172,7 +172,7 @@ export default function CandidateDashboard({ user }) {
             const bestPct = best ? Math.round(best.percentage||0) : t.bestScore;
             const pass = t.passPercentage || 60;
             const assigner = t.grantedBy || t.assigned_by_name || 'Admin';
-            const date = (t.grantedAt||t.assigned_at) ? formatISTDate() : '';
+            const date = (t.grantedAt||t.assigned_at) ? formatISTDate(t.grantedAt||t.assigned_at) : '';
             const isLoading = actionLoading === tid;
             const submittedCount = (t.sessions||[]).filter(s=>s.status==='submitted').length;
             const maxAttempts = t.maxAttempts || t.max_attempts;
@@ -296,7 +296,7 @@ export default function CandidateDashboard({ user }) {
               const bestPct = best ? Math.round(best.percentage||0) : t.bestScore;
               const pass = t.passPercentage || 60;
               const assigner = t.grantedBy || t.assigned_by_name || 'Admin';
-              const date = (t.grantedAt||t.assigned_at) ? formatISTDate() : '';
+              const date = (t.grantedAt||t.assigned_at) ? formatISTDate(t.grantedAt||t.assigned_at) : '';
               const isLoading = actionLoading === tid;
               const submittedCount = (t.sessions||[]).filter(s=>s.status==='submitted').length;
               const maxAttempts = t.maxAttempts || t.max_attempts;

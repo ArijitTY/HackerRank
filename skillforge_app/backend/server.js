@@ -2290,6 +2290,8 @@ app.get('/api/candidate/dashboard', authMiddleware, requireRole('candidate'), (r
       WHERE u.id = ?
     `).get(candidateId);
 
+    // Use one permission per test_id: prefer granted > completed > analysis_only > revoked/expired.
+    // Within the same priority, take the most recently granted one.
     const permissions = db.prepare(`
       SELECT tp.*, t.name as test_name, t.description as test_description,
              t.duration_minutes, t.passing_percentage, t.total_questions,
@@ -2300,6 +2302,19 @@ app.get('/api/candidate/dashboard', authMiddleware, requireRole('candidate'), (r
       LEFT JOIN users u ON tp.granted_by = u.id
       WHERE tp.candidate_id = ?
         AND COALESCE(t.test_type, 'mcq') != 'interview'
+        AND tp.id = (
+          SELECT tp2.id FROM test_permissions tp2
+          WHERE tp2.candidate_id = tp.candidate_id AND tp2.test_id = tp.test_id
+          ORDER BY
+            CASE tp2.status
+              WHEN 'granted'       THEN 0
+              WHEN 'completed'     THEN 1
+              WHEN 'analysis_only' THEN 2
+              ELSE                      3
+            END,
+            tp2.granted_at DESC
+          LIMIT 1
+        )
       ORDER BY tp.granted_at DESC
     `).all(candidateId);
 
@@ -2553,9 +2568,9 @@ app.post('/api/candidate/tests/:testId/start', authMiddleware, requireRole('cand
 
       const sessionId = uuidv4();
       db.prepare(`
-        INSERT INTO test_sessions (id, candidate_id, test_id, permission_id, status, duration_minutes,
+        INSERT INTO test_sessions (id, candidate_id, test_id, permission_id, status, start_time, duration_minutes,
           total_questions, code_map_json, coding_results_json, best_scores_json)
-        VALUES (?, ?, ?, ?, 'in_progress', ?, ?, '{}', '{}', '{}')
+        VALUES (?, ?, ?, ?, 'in_progress', strftime('%Y-%m-%dT%H:%M:%f','now','localtime'), ?, ?, '{}', '{}', '{}')
       `).run(sessionId, candidateId, testId, permission.id, permission.duration_minutes, allProblems.length);
 
       logAudit(db, {
@@ -2641,9 +2656,9 @@ app.post('/api/candidate/tests/:testId/start', authMiddleware, requireRole('cand
       const safeMcqQuestions = mcqResult ? (mcqResult.safeQuestions || []) : [];
 
       db.prepare(`
-        INSERT INTO test_sessions (id, candidate_id, test_id, permission_id, status, duration_minutes,
+        INSERT INTO test_sessions (id, candidate_id, test_id, permission_id, status, start_time, duration_minutes,
           questions_json, answers_json, total_questions, code_map_json, coding_results_json, best_scores_json, hybrid_problem_ids_json)
-        VALUES (?, ?, ?, ?, 'in_progress', ?, ?, '{}', ?, '{}', '{}', '{}', ?)
+        VALUES (?, ?, ?, ?, 'in_progress', strftime('%Y-%m-%dT%H:%M:%f','now','localtime'), ?, ?, '{}', ?, '{}', '{}', '{}', ?)
       `).run(sessionId, candidateId, testId, permission.id, permission.duration_minutes,
         JSON.stringify(mcqQuestions), mcqQuestions.length, JSON.stringify(selectedProblemIds));
 
@@ -2706,8 +2721,8 @@ app.post('/api/candidate/tests/:testId/start', authMiddleware, requireRole('cand
     if (!result) {
       // Java/Selenium rounds - create session without questions
       db.prepare(`
-        INSERT INTO test_sessions (id, candidate_id, test_id, permission_id, status, duration_minutes, answers_json)
-        VALUES (?, ?, ?, ?, 'in_progress', ?, '{}')
+        INSERT INTO test_sessions (id, candidate_id, test_id, permission_id, status, start_time, duration_minutes, answers_json)
+        VALUES (?, ?, ?, ?, 'in_progress', strftime('%Y-%m-%dT%H:%M:%f','now','localtime'), ?, '{}')
       `).run(sessionId, candidateId, testId, permission.id, permission.duration_minutes);
 
       return res.json({
@@ -2721,8 +2736,8 @@ app.post('/api/candidate/tests/:testId/start', authMiddleware, requireRole('cand
     }
 
     db.prepare(`
-      INSERT INTO test_sessions (id, candidate_id, test_id, permission_id, status, duration_minutes, questions_json, answers_json, total_questions)
-      VALUES (?, ?, ?, ?, 'in_progress', ?, ?, '{}', ?)
+      INSERT INTO test_sessions (id, candidate_id, test_id, permission_id, status, start_time, duration_minutes, questions_json, answers_json, total_questions)
+      VALUES (?, ?, ?, ?, 'in_progress', strftime('%Y-%m-%dT%H:%M:%f','now','localtime'), ?, ?, '{}', ?)
     `).run(
       sessionId, candidateId, testId, permission.id,
       permission.duration_minutes,
@@ -2772,6 +2787,11 @@ app.get('/api/candidate/tests/:testId/active-session', authMiddleware, requireRo
 
     if (remainingMs <= 0) {
       // Auto-submit timed out session
+      // Calculate actual elapsed seconds (capped at test duration)
+      const autoTimeTaken = Math.min(
+        calcTimeDiff(session.start_time, nowLocalIso()),
+        (test?.duration_minutes || 90) * 60
+      ) || (test?.duration_minutes || 90) * 60;
       if (testType === 'coding') {
         const bestScores = JSON.parse(session.best_scores_json || '{}');
         const allProblems = db.prepare('SELECT * FROM coding_problems WHERE test_id = ?').all(testId);
@@ -2780,7 +2800,7 @@ app.get('/api/candidate/tests/:testId/active-session', authMiddleware, requireRo
         const pct = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
         db.prepare(`UPDATE test_sessions SET status='timed_out', end_time=strftime('%Y-%m-%dT%H:%M:%f','now','localtime'),
           score=?, total_questions=?, percentage=?, passed=?, time_taken=? WHERE id=?`)
-          .run(earnedPoints, allProblems.length, pct, pct >= 60 ? 1 : 0, test?.duration_minutes || 90, session.id);
+          .run(earnedPoints, allProblems.length, pct, pct >= 60 ? 1 : 0, autoTimeTaken, session.id);
       } else {
         const questions = JSON.parse(session.questions_json || '[]');
         const answers = JSON.parse(session.answers_json || '{}');
@@ -2793,7 +2813,7 @@ app.get('/api/candidate/tests/:testId/active-session', authMiddleware, requireRo
         const pct = total > 0 ? Math.round((score / total) * 100) : 0;
         db.prepare(`UPDATE test_sessions SET status='timed_out', end_time=strftime('%Y-%m-%dT%H:%M:%f','now','localtime'),
           score=?, total_questions=?, percentage=?, passed=?, time_taken=? WHERE id=?`)
-          .run(score, total, pct, pct >= 60 ? 1 : 0, test?.duration_minutes || 90, session.id);
+          .run(score, total, pct, pct >= 60 ? 1 : 0, autoTimeTaken, session.id);
       }
       db.prepare('UPDATE test_permissions SET attempt_count=attempt_count+1 WHERE candidate_id=? AND test_id=?')
         .run(candidateId, testId);

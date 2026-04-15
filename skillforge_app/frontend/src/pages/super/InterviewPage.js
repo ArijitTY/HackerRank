@@ -532,7 +532,7 @@ function ReviewModal({ sessionId, onClose, onApproved }) {
           <div>
             <h2 style={{ color: 'white', margin: '0 0 4px', fontSize: 18 }}>📋 {session.test_name}</h2>
             <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>
-              {session.candidate_name} ({session.candidate_email}) &nbsp;·&nbsp; {formatISTDate()}
+              {session.candidate_name} ({session.candidate_email}) &nbsp;·&nbsp; {formatISTDate(session.created_at)}
             </div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 24, cursor: 'pointer' }}>×</button>
@@ -753,7 +753,7 @@ export default function InterviewPage() {
                   <span style={S.badge('#3b82f6')}>{t.session_count} Sessions</span>
                 </div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', marginBottom: 14 }}>
-                  Created {formatISTDate()}
+                  Created {formatISTDate(t.created_at)}
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={() => openEdit(t)} style={S.btn('rgba(255,255,255,0.05)', 'rgba(255,255,255,0.6)')}>✏️ Edit</button>
@@ -789,7 +789,7 @@ export default function InterviewPage() {
                   <span style={S.badge('#3b82f6')}>{t.totalAttempts || 0} Sessions</span>
                 </div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', marginBottom: 14 }}>
-                  Created {t.created_at ? formatISTDate() : '—'}
+                  Created {t.created_at ? formatISTDate(t.created_at) : '—'}
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={() => setEditPrep(t)} style={S.btn('rgba(255,255,255,0.05)', 'rgba(255,255,255,0.6)')}>✏️ Edit</button>
@@ -838,7 +838,7 @@ export default function InterviewPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>{s.candidate_name}</div>
                     <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>{s.candidate_email} &nbsp;·&nbsp; {s.test_name}</div>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', marginTop: 2 }}>{formatISTDate()}</div>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', marginTop: 2 }}>{formatISTDate(s.created_at)}</div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     {s.status !== 'in_progress' && <div style={{ fontSize: 15, fontWeight: 700, color: pct >= 60 ? '#10b981' : '#f59e0b', fontFamily: 'monospace', marginBottom: 2 }}>{earned}/{max} pts</div>}
