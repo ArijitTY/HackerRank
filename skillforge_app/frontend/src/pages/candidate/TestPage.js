@@ -794,8 +794,8 @@ export default function TestPage({ user }) {
                     <p style={{ fontSize: 16, lineHeight: 1.6, marginBottom: 24 }}>{q.question}</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                       {q.options.map((opt, oi) => (
-                        <button key={oi} onClick={() => handleAnswer(q.id, oi)} style={{ padding: '14px 20px', textAlign: 'left', borderRadius: 10, border: `2px solid ${selectedOpt === oi ? '#7c3aed' : 'rgba(255,255,255,0.1)'}`, background: selectedOpt === oi ? 'rgba(124,58,237,0.15)' : 'rgba(255,255,255,0.03)', color: 'white', cursor: 'pointer', fontSize: 14, transition: 'all 0.15s' }}>
-                          <span style={{ fontWeight: 600, marginRight: 10, color: 'rgba(255,255,255,0.4)' }}>{String.fromCharCode(65 + oi)}.</span>{opt}
+                        <button key={oi} onClick={() => handleAnswer(q.id, oi)} style={{ padding: '14px 20px', textAlign: 'left', borderRadius: 10, border: `2px solid ${selectedOpt === oi ? '#7c3aed' : 'rgba(255,255,255,0.1)'}`, background: selectedOpt === oi ? 'rgba(124,58,237,0.15)' : 'rgba(255,255,255,0.03)', color: 'white', cursor: 'pointer', fontSize: 14, transition: 'all 0.15s', display: 'flex', alignItems: 'flex-start', gap: 10, whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.55 }}>
+                          <span style={{ fontWeight: 600, flexShrink: 0, color: 'rgba(255,255,255,0.4)' }}>{String.fromCharCode(65 + oi)}.</span><span style={{ flex: 1 }}>{opt}</span>
                         </button>
                       ))}
                     </div>
@@ -1185,24 +1185,25 @@ export default function TestPage({ user }) {
                 const isSelected = answers[q.id] === oi;
                 return (
                   <button key={oi} onClick={() => handleAnswer(q.id, oi)} style={{
-                    display: 'flex', alignItems: 'center', gap: 14,
+                    display: 'flex', alignItems: 'flex-start', gap: 14,
                     background: isSelected ? 'rgba(124,58,237,0.12)' : 'rgba(255,255,255,0.03)',
                     border: isSelected ? '1px solid #7c3aed' : '1px solid rgba(255,255,255,0.08)',
                     boxShadow: isSelected ? '0 0 0 1px rgba(124,58,237,0.3)' : 'none',
                     borderRadius: 10, padding: '14px 18px', cursor: 'pointer',
                     textAlign: 'left', transition: 'all 0.18s', color: 'white',
-                    fontFamily: 'inherit', fontSize: 14, width: '100%'
+                    fontFamily: 'inherit', fontSize: 14, width: '100%',
+                    whiteSpace: 'normal', wordBreak: 'break-word'
                   }}>
                     <span style={{
-                      width: 32, height: 32, borderRadius: 8,
+                      width: 32, height: 32, borderRadius: 8, marginTop: 1,
                       background: isSelected ? '#7c3aed' : 'rgba(255,255,255,0.06)',
                       color: isSelected ? 'white' : 'rgba(255,255,255,0.5)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: 13, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace",
                       flexShrink: 0, transition: 'all 0.18s'
                     }}>{['A','B','C','D'][oi]}</span>
-                    <span style={{ flex: 1, lineHeight: 1.5 }}>{opt}</span>
-                    {isSelected && <span style={{ color: '#7c3aed', fontSize: 16, fontWeight: 700, flexShrink: 0 }}>✓</span>}
+                    <span style={{ flex: 1, lineHeight: 1.55 }}>{opt}</span>
+                    {isSelected && <span style={{ color: '#7c3aed', fontSize: 16, fontWeight: 700, flexShrink: 0, marginTop: 2 }}>✓</span>}
                   </button>
                 );
               })}

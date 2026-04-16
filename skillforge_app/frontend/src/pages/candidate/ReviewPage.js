@@ -125,7 +125,8 @@ export default function ReviewPage() {
           <h1 style={{ color: '#fff', fontSize: 18, fontWeight: 500, margin: 0 }}>Test Review — {data.testName || 'Assessment'}</h1>
           <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, margin: '2px 0 0' }}>
             Attempt {data.attemptNumber || 1} of {data.maxAttempts || 1}
-            {data.submittedAt ? ' · Submitted ' + formatDateTime(data.submittedAt) : ''}
+            {data.startedAt ? ' · Started: ' + formatDateTime(data.startedAt) : ''}
+            {data.submittedAt ? ' · Ended: ' + formatDateTime(data.submittedAt) : ''}
           </p>
         </div>
         <button onClick={() => navigate('/candidate')} style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: 13 }}>
@@ -134,7 +135,7 @@ export default function ReviewPage() {
       </div>
 
       {/* SCORE SUMMARY */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, padding: '1.25rem 2rem', borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr) repeat(2, 1fr)', gap: 12, padding: '1.25rem 2rem', borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}>
         <StatCard label="Score" value={`${data.score ?? '-'} / ${data.total ?? '-'}`} />
         <StatCard label="Percentage" value={`${pct}%`} color={passed ? '#34d399' : '#f87171'} />
         <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '14px 18px' }}>
@@ -145,13 +146,31 @@ export default function ReviewPage() {
           <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>Result</div>
           <div style={{ fontSize: 15, fontWeight: 700, color: passed ? '#34d399' : '#f87171' }}>{passed ? 'PASS' : 'FAIL'}</div>
         </div>
-        <StatCard label="Time Taken" value={formatTimeTaken(data.timeTaken)} />
-        <StatCard
-          label="Violations"
-          value={data.violationCount || 0}
-          color={(data.violationCount || 0) > 0 ? '#E24B4A' : 'rgba(255,255,255,0.9)'}
-        />
+        {/* Start / End time cards spanning the last 2 columns */}
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '14px 18px', gridColumn: 'span 2' }}>
+          <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>Time Window</div>
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 2 }}>Started</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)', fontFamily: 'monospace' }}>{data.startedAt ? formatDateTime(data.startedAt) : '—'}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 2 }}>Submitted</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)', fontFamily: 'monospace' }}>{data.submittedAt ? formatDateTime(data.submittedAt) : '—'}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 2 }}>Duration</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)', fontFamily: 'monospace' }}>{formatTimeTaken(data.timeTaken)}</div>
+            </div>
+          </div>
+        </div>
       </div>
+      {/* Violations row */}
+      {(data.violationCount || 0) > 0 && (
+        <div style={{ padding: '8px 2rem', background: 'rgba(226,75,74,0.08)', borderBottom: '1px solid rgba(226,75,74,0.2)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 13, color: '#E24B4A', fontWeight: 600 }}>⚠ {data.violationCount} tab-switch violation{data.violationCount > 1 ? 's' : ''} recorded during this attempt.</span>
+        </div>
+      )}
 
       {/* MCQ PERFORMANCE BAR */}
       {summary.mcqTotal > 0 && (
