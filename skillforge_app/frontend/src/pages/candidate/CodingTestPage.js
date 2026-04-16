@@ -177,7 +177,7 @@ export default function CodingTestPage({ user, testId, sessionId, problems, tota
   const [currentProblem, setCurrentProblem] = useState(0);
   const [codeMap, setCodeMap] = useState(() => {
     const m = {};
-    problems.forEach(p => {
+    (problems || []).forEach(p => {
       m[p.id] = resumeData?.codeMap?.[p.id] ?? (p.starterCode || '');
     });
     return m;
@@ -214,12 +214,6 @@ export default function CodingTestPage({ user, testId, sessionId, problems, tota
   const [timeLeft, setTimeLeft] = useState(calcTimeLeft);
   const [fsWarning, setFsWarning] = useState(false);
   const fsActiveRef = useRef(false);
-
-  const problem = problems[currentProblem];
-  const code = codeMap[problem.id] || '';
-  const isPython = problem.evaluationType === 'python' || problem.section === 'Python Coding';
-  const isSql = problem.evaluationType === 'sql' || problem.section === 'SQL';
-  const lang = isPython ? 'python' : isSql ? 'sql' : 'java';
 
   const doFinish = useCallback(async () => {
     if (submitted.current) return;
@@ -301,6 +295,33 @@ export default function CodingTestPage({ user, testId, sessionId, problems, tota
       document.removeEventListener('MSFullscreenChange', onFsChange);
     };
   }, [result]); // eslint-disable-line
+
+  // Guard against empty or null problems — must be AFTER all hooks (Rules of Hooks)
+  if (!problems || problems.length === 0) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#030712', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+        <div style={{ maxWidth: 480, width: '100%', textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: '#f8fafc', marginBottom: 12 }}>No Problems Available</h2>
+          <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6, marginBottom: 24 }}>
+            This coding test doesn't have any problems attached yet. Please contact your administrator.
+          </p>
+          <button
+            onClick={() => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); navigate('/candidate'); }}
+            style={{ padding: '12px 32px', background: '#7c3aed', border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const problem = problems[currentProblem] || problems[0];
+  const code = codeMap[problem.id] || '';
+  const isPython = problem.evaluationType === 'python' || problem.section === 'Python Coding';
+  const isSql = problem.evaluationType === 'sql' || problem.section === 'SQL';
+  const lang = isPython ? 'python' : isSql ? 'sql' : 'java';
 
   const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
   const timePercent = timeLeft / durationSeconds;

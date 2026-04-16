@@ -2744,7 +2744,24 @@ app.post('/api/candidate/tests/:testId/start', authMiddleware, requireRole('cand
       `).get(candidateId, testId);
 
       // Load problems (safe = no solution/hidden data)
-      const allProblems = db.prepare('SELECT * FROM coding_problems WHERE test_id = ?').all(testId);
+      // Fall back to all python problems if none are linked to this test specifically
+      let rawProblems = db.prepare('SELECT * FROM coding_problems WHERE test_id = ?').all(testId);
+      if (rawProblems.length === 0) {
+        // Coding test created via design-test: problems may not be stored with this test_id.
+        // Use the test's coding_problem_count to pick a seeded-random subset of all python problems.
+        const testRecord2 = db.prepare('SELECT coding_problem_count FROM tests WHERE id = ?').get(testId);
+        const wantCount = testRecord2?.coding_problem_count || 1;
+        const allPython = db.prepare("SELECT * FROM coding_problems WHERE evaluation_type = 'python' OR section LIKE '%Python%' ORDER BY id").all();
+        if (allPython.length > 0) {
+          const shuffled = seededShuffle(allPython.map(p => p.id), hashCode(candidateId + testId + '_coding'));
+          const picked = shuffled.slice(0, wantCount);
+          rawProblems = picked.map(id => allPython.find(p => p.id === id)).filter(Boolean);
+        }
+      }
+      if (rawProblems.length === 0) {
+        return res.status(400).json({ error: 'No coding problems are available for this test yet. Please contact your administrator.' });
+      }
+      const allProblems = rawProblems;
       const safeProblems = allProblems.map(p => ({
         id: p.id, section: p.section, title: p.title, difficulty: p.difficulty,
         points: p.points, timeLimit: p.time_limit, description: p.description,
@@ -3027,7 +3044,18 @@ app.get('/api/candidate/tests/:testId/active-session', authMiddleware, requireRo
 
     // Coding test active session
     if (testType === 'coding') {
-      const allProblems = db.prepare('SELECT * FROM coding_problems WHERE test_id = ?').all(testId);
+      let rawActiveProblems = db.prepare('SELECT * FROM coding_problems WHERE test_id = ?').all(testId);
+      if (rawActiveProblems.length === 0) {
+        const testRecord3 = db.prepare('SELECT coding_problem_count FROM tests WHERE id = ?').get(testId);
+        const wantCount2 = testRecord3?.coding_problem_count || 1;
+        const allPython2 = db.prepare("SELECT * FROM coding_problems WHERE evaluation_type = 'python' OR section LIKE '%Python%' ORDER BY id").all();
+        if (allPython2.length > 0) {
+          const shuffled2 = seededShuffle(allPython2.map(p => p.id), hashCode(candidateId + testId + '_coding'));
+          const picked2 = shuffled2.slice(0, wantCount2);
+          rawActiveProblems = picked2.map(id => allPython2.find(p => p.id === id)).filter(Boolean);
+        }
+      }
+      const allProblems = rawActiveProblems;
       const safeProblems = allProblems.map(p => ({
         id: p.id, section: p.section, title: p.title, difficulty: p.difficulty,
         points: p.points, timeLimit: p.time_limit, description: p.description,
@@ -3044,10 +3072,12 @@ app.get('/api/candidate/tests/:testId/active-session', authMiddleware, requireRo
 
       return res.json({
         hasActiveSession: true, testType: 'coding', sessionId: session.id,
-        problems: safeProblems, totalPoints, sections,
+        problems: safeProblems.length > 0 ? safeProblems : null,
+        totalPoints, sections,
         startTime: session.start_time, durationMinutes: test?.duration_minutes || 90,
         testName: test?.name || '', remainingSeconds: Math.floor(remainingMs / 1000),
-        codeMap, codingResults, bestScores
+        codeMap, codingResults, bestScores,
+        hasActiveSession: safeProblems.length > 0
       });
     }
 
