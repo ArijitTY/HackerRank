@@ -235,7 +235,7 @@ export default function ResultsView({ apiPrefix = '/super' }) {
   };
 
   const exportRows = (rows) => {
-    const header = ['Rank', 'Candidate Name', 'Email', 'Test Name', 'Score', 'Total Questions', 'Percentage (%)', 'Grade', 'Result', 'Time Taken', 'Submitted At'];
+    const header = ['Rank', 'Candidate Name', 'Email', 'Test Name', 'Score', 'Total Questions', 'Percentage (%)', 'Grade', 'Result', 'Time Taken', 'Started At', 'Submitted At'];
     const lines = rows.map((r) => [
       r._rank ?? '',
       r.candidate_name || r.name || '',
@@ -247,6 +247,7 @@ export default function ResultsView({ apiPrefix = '/super' }) {
       r.grade || computeGrade(Number(r.percentage) || 0),
       r.passed ? 'Pass' : 'Fail',
       formatTimeTaken(computeTimeSeconds(r)),
+      formatDateTime(r.start_time || r.started_at),
       formatDateTime(r.end_time || r.submitted_at || r.completed_at),
     ].map(csvEscape).join(','));
     const csv = [header.join(','), ...lines].join('\n');
@@ -396,7 +397,8 @@ export default function ResultsView({ apiPrefix = '/super' }) {
                 <th>GRADE</th>
                 <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('result')}>RESULT{sortInd('result')}</th>
                 <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('time')}>TIME TAKEN{sortInd('time')}</th>
-                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('date')}>DATE{sortInd('date')}</th>
+                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('date')}>STARTED AT{sortInd('date')}</th>
+                <th>SUBMITTED AT</th>
                 <th>ACTIONS</th>
               </tr>
             </thead>
@@ -453,6 +455,7 @@ export default function ResultsView({ apiPrefix = '/super' }) {
                       )}
                     </td>
                     <td style={{ ...TD, fontFamily: 'monospace', fontSize: 13 }}>{formatTimeTaken(computeTimeSeconds(r))}</td>
+                    <td style={{ ...TD, fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{formatDateTime(r.start_time || r.started_at)}</td>
                     <td style={{ ...TD, fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{formatDateTime(r.submitted_at || r.end_time || r.completed_at)}</td>
                     <td style={TD}>
                       <button className="btn btn-sm btn-outline" onClick={() => viewDetail(r)}>View Details</button>
@@ -461,7 +464,7 @@ export default function ResultsView({ apiPrefix = '/super' }) {
                 );
               })}
               {sorted.length === 0 && (
-                <tr><td colSpan="14" className="table-empty" style={{ textAlign: 'center', padding: '40px 0', color: 'rgba(255,255,255,0.4)' }}>No results found</td></tr>
+                <tr><td colSpan="15" className="table-empty" style={{ textAlign: 'center', padding: '40px 0', color: 'rgba(255,255,255,0.4)' }}>No results found</td></tr>
               )}
             </tbody>
           </table>
