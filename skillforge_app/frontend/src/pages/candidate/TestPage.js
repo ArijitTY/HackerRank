@@ -185,6 +185,10 @@ export default function TestPage({ user }) {
   const [violationMsg, setViolationMsg] = useState('');
   const violationsRef = useRef(0);
 
+  // ===== FULLSCREEN STATE =====
+  const [fsWarning, setFsWarning] = useState(false);   // show "please re-enter fullscreen" banner
+  const fsActiveRef = useRef(false);                    // are we currently in fullscreen?
+
   useEffect(() => {
     const ping = () => api.get('/candidate/ping').catch(() => {});
     ping();
@@ -339,6 +343,60 @@ export default function TestPage({ user }) {
       window.removeEventListener('blur', handleBlur);
     };
   }, [sessionId, testId, result]); // eslint-disable-line
+
+  // ===== FULLSCREEN MANAGEMENT =====
+  // Enter fullscreen once the session is live
+  useEffect(() => {
+    if (!sessionId || result) return;
+    const enterFs = () => {
+      const el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+      else if (el.msRequestFullscreen) el.msRequestFullscreen();
+      fsActiveRef.current = true;
+    };
+    enterFs();
+    return () => {
+      // Exit fullscreen on unmount (navigation away)
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    };
+  }, [sessionId]); // eslint-disable-line
+
+  // Exit fullscreen when result is ready (submitted / timed-out)
+  useEffect(() => {
+    if (result && document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+      fsActiveRef.current = false;
+    }
+  }, [result]);
+
+  // Detect if candidate manually exits fullscreen during the test → warn + count violation
+  useEffect(() => {
+    if (!sessionId || result) return;
+    const onFsChange = () => {
+      const inFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+      if (!inFs && fsActiveRef.current && !submittedRef.current && timerReady.current) {
+        // Candidate exited fullscreen manually
+        fsActiveRef.current = false;
+        setFsWarning(true);
+      }
+      if (inFs) {
+        fsActiveRef.current = true;
+        setFsWarning(false);
+      }
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    document.addEventListener('webkitfullscreenchange', onFsChange);
+    document.addEventListener('mozfullscreenchange', onFsChange);
+    document.addEventListener('MSFullscreenChange', onFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFsChange);
+      document.removeEventListener('webkitfullscreenchange', onFsChange);
+      document.removeEventListener('mozfullscreenchange', onFsChange);
+      document.removeEventListener('MSFullscreenChange', onFsChange);
+    };
+  }, [sessionId, result]); // eslint-disable-line
 
   useEffect(() => {
     if (!startTime || !duration) return;
@@ -533,6 +591,45 @@ export default function TestPage({ user }) {
     </div>
   ) : null;
 
+  // Fullscreen exit warning banner
+  const FsWarning = fsWarning ? (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+      zIndex: 99999,
+      background: 'rgba(0,0,0,0.92)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center'
+    }}>
+      <div style={{
+        maxWidth: 460, width: '90%', background: 'linear-gradient(135deg,#1e1b4b,#312e81)',
+        border: '2px solid #7c3aed', borderRadius: 18, padding: '40px 32px', textAlign: 'center',
+        boxShadow: '0 0 80px rgba(124,58,237,0.5)'
+      }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🖥️</div>
+        <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 10, color: '#fff' }}>Fullscreen Required</h3>
+        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', marginBottom: 28, lineHeight: 1.6 }}>
+          You have exited fullscreen mode. This test must be taken in fullscreen. Please re-enter fullscreen to continue.
+        </p>
+        <button
+          onClick={() => {
+            const el = document.documentElement;
+            if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+            else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+            else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+            else if (el.msRequestFullscreen) el.msRequestFullscreen();
+            setFsWarning(false);
+          }}
+          style={{
+            padding: '13px 36px', background: 'linear-gradient(135deg,#7c3aed,#2563eb)',
+            border: 'none', borderRadius: 10, color: '#fff', fontSize: 15, fontWeight: 700,
+            cursor: 'pointer', boxShadow: '0 4px 24px rgba(124,58,237,0.5)'
+          }}
+        >
+          ⛶ Enter Fullscreen
+        </button>
+      </div>
+    </div>
+  ) : null;
+
   // ===== CODING TEST DISPATCH =====
   if (testType === 'coding' && codingData) {
     return (
@@ -597,6 +694,7 @@ export default function TestPage({ user }) {
 
     return (
       <div style={{ minHeight: '100vh', background: '#030712', color: 'white', display: 'flex', flexDirection: 'column' }}>
+        {FsWarning}
         {ViolationWarning}
         {TimerWarning}
         {hybridToast && (
@@ -929,6 +1027,7 @@ export default function TestPage({ user }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#030712', overflow: 'hidden' }}>
+      {FsWarning}
       {ViolationWarning}
       {TimerWarning}
       {/* Resume Banner */}

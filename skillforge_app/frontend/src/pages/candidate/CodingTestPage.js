@@ -212,6 +212,8 @@ export default function CodingTestPage({ user, testId, sessionId, problems, tota
   }, [startTime, durationSeconds]);
 
   const [timeLeft, setTimeLeft] = useState(calcTimeLeft);
+  const [fsWarning, setFsWarning] = useState(false);
+  const fsActiveRef = useRef(false);
 
   const problem = problems[currentProblem];
   const code = codeMap[problem.id] || '';
@@ -256,6 +258,49 @@ export default function CodingTestPage({ user, testId, sessionId, problems, tota
       return () => clearTimeout(t);
     }
   }, [showResumeBanner]);
+
+  // ===== FULLSCREEN MANAGEMENT =====
+  useEffect(() => {
+    if (result) return;
+    const el = document.documentElement;
+    if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+    else if (el.msRequestFullscreen) el.msRequestFullscreen();
+    fsActiveRef.current = true;
+    return () => {
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    };
+  }, []); // eslint-disable-line
+
+  useEffect(() => {
+    if (result && document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+      fsActiveRef.current = false;
+    }
+  }, [result]);
+
+  useEffect(() => {
+    if (result) return;
+    const onFsChange = () => {
+      const inFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+      if (!inFs && fsActiveRef.current && !submitted.current) {
+        fsActiveRef.current = false;
+        setFsWarning(true);
+      }
+      if (inFs) { fsActiveRef.current = true; setFsWarning(false); }
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    document.addEventListener('webkitfullscreenchange', onFsChange);
+    document.addEventListener('mozfullscreenchange', onFsChange);
+    document.addEventListener('MSFullscreenChange', onFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFsChange);
+      document.removeEventListener('webkitfullscreenchange', onFsChange);
+      document.removeEventListener('mozfullscreenchange', onFsChange);
+      document.removeEventListener('MSFullscreenChange', onFsChange);
+    };
+  }, [result]); // eslint-disable-line
 
   const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
   const timePercent = timeLeft / durationSeconds;
@@ -400,8 +445,47 @@ export default function CodingTestPage({ user, testId, sessionId, problems, tota
 
   const timeLimitSec = problem.timeLimit ? (problem.timeLimit / 1000) : 10;
 
+  // Fullscreen warning overlay
+  const FsWarning = fsWarning ? (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999,
+      background: 'rgba(0,0,0,0.92)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center'
+    }}>
+      <div style={{
+        maxWidth: 460, width: '90%', background: 'linear-gradient(135deg,#1e1b4b,#312e81)',
+        border: '2px solid #7c3aed', borderRadius: 18, padding: '40px 32px', textAlign: 'center',
+        boxShadow: '0 0 80px rgba(124,58,237,0.5)'
+      }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🖥️</div>
+        <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 10, color: '#fff' }}>Fullscreen Required</h3>
+        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', marginBottom: 28, lineHeight: 1.6 }}>
+          You have exited fullscreen mode. This test must be taken in fullscreen. Please re-enter fullscreen to continue.
+        </p>
+        <button
+          onClick={() => {
+            const el = document.documentElement;
+            if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+            else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+            else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+            else if (el.msRequestFullscreen) el.msRequestFullscreen();
+            setFsWarning(false);
+          }}
+          style={{
+            padding: '13px 36px', background: 'linear-gradient(135deg,#7c3aed,#2563eb)',
+            border: 'none', borderRadius: 10, color: '#fff', fontSize: 15, fontWeight: 700,
+            cursor: 'pointer', boxShadow: '0 4px 24px rgba(124,58,237,0.5)'
+          }}
+        >
+          ⛶ Enter Fullscreen
+        </button>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div className="coding-screen">
+      {FsWarning}
       {showResumeBanner && (
         <div className="resume-banner">
           <span>🔄 Session Restored — Welcome back! Your code and progress have been recovered.</span>
