@@ -394,12 +394,35 @@ export default function CodingTestPage({ user, testId, sessionId, problems, tota
 
   // ──────────────────── RESULT SCREEN ────────────────────
   if (result) {
-    const pct = result.percentage || 0;
     const earnedPts = result.earnedPoints || 0;
     const totalPts = result.totalPoints || totalPoints;
-    const grade = result.grade || 'F';
-    const sectionScores = result.sectionScores || {};
-    const problemSummary = result.problemSummary || [];
+    // Recalculate percentage client-side if backend sent 0 but we have totalPoints
+    const pct = (result.percentage && result.percentage > 0)
+      ? result.percentage
+      : (totalPts > 0 ? Math.round((earnedPts / totalPts) * 100 * 100) / 100 : 0);
+    // Recalculate grade from pct if backend grade is stale
+    const grade = pct >= 90 ? 'A+' : pct >= 80 ? 'A' : pct >= 70 ? 'B' : pct >= 60 ? 'C' : pct >= 50 ? 'D' : 'F';
+    // Build section scores and problem summary from frontend state if backend didn't compute them
+    let sectionScores = result.sectionScores || {};
+    let problemSummary = result.problemSummary || [];
+    if (problemSummary.length === 0 && problems && problems.length > 0) {
+      // Rebuild from local submitResults state
+      const localSectionScores = {};
+      problemSummary = problems.map(p => {
+        const sr = submitResults[p.id] || {};
+        const best = sr.score || 0;
+        if (!localSectionScores[p.section]) localSectionScores[p.section] = { total: 0, earned: 0 };
+        localSectionScores[p.section].total += (p.points || 0);
+        localSectionScores[p.section].earned += best;
+        return {
+          id: p.id, title: p.title, section: p.section, difficulty: p.difficulty,
+          maxPoints: p.points || 0, earned: best,
+          status: sr.status || 'not_attempted',
+          passedCases: sr.passedCases || 0, totalCases: sr.totalCases || 0
+        };
+      });
+      if (Object.keys(sectionScores).length === 0) sectionScores = localSectionScores;
+    }
     const timeTakenMin = Math.floor((result.timeTaken || 0) / 60);
     const timeTakenSec = (result.timeTaken || 0) % 60;
     const circumference = 2 * Math.PI * 54;
@@ -422,6 +445,7 @@ export default function CodingTestPage({ user, testId, sessionId, problems, tota
 
           <div style={{ background: '#111827', borderRadius: 12, padding: 20, marginBottom: 20 }}>
             <h3 style={{ color: 'white', marginBottom: 16, fontSize: 16 }}>Section Breakdown</h3>
+            {Object.entries(sectionScores).length === 0 && <p style={{ color: '#475569', fontSize: 13 }}>No section data available.</p>}
             {Object.entries(sectionScores).map(([sec, s]) => {
               const secPct = s.total > 0 ? Math.round((s.earned / s.total) * 100) : 0;
               return (
@@ -440,6 +464,7 @@ export default function CodingTestPage({ user, testId, sessionId, problems, tota
 
           <div style={{ background: '#111827', borderRadius: 12, padding: 20, marginBottom: 20 }}>
             <h3 style={{ color: 'white', marginBottom: 16, fontSize: 16 }}>Problem Results</h3>
+            {problemSummary.length === 0 && <p style={{ color: '#475569', fontSize: 13 }}>No problem results recorded.</p>}
             {problemSummary.map(p => (
               <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid #1e293b' }}>
                 <span style={{ fontSize: 16 }}>{STATUS_ICONS[p.status] || '⬜'}</span>

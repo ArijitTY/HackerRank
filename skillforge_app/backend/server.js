@@ -3025,9 +3025,23 @@ app.get('/api/candidate/tests/:testId/active-session', authMiddleware, requireRo
       ) || (test?.duration_minutes || 90) * 60;
       if (testType === 'coding') {
         const bestScores = JSON.parse(session.best_scores_json || '{}');
-        const allProblems = db.prepare('SELECT * FROM coding_problems WHERE test_id = ?').all(testId);
-        const totalPoints = allProblems.reduce((s, p) => s + p.points, 0);
-        const earnedPoints = Object.values(bestScores).reduce((a, b) => a + b, 0);
+        const codingResultsTO = JSON.parse(session.coding_results_json || '{}');
+        let allProblems = db.prepare('SELECT * FROM coding_problems WHERE test_id = ?').all(testId);
+        if (allProblems.length === 0) {
+          const codeMapTO = JSON.parse(session.code_map_json || '{}');
+          const problemIds = [...new Set([
+            ...Object.keys(bestScores).map(Number),
+            ...Object.keys(codingResultsTO).map(Number),
+            ...Object.keys(codeMapTO).map(Number)
+          ])].filter(id => id > 0);
+          if (problemIds.length > 0) {
+            allProblems = db.prepare(
+              `SELECT * FROM coding_problems WHERE id IN (${problemIds.map(() => '?').join(',')})`
+            ).all(...problemIds);
+          }
+        }
+        const totalPoints = allProblems.reduce((s, p) => s + (p.points || 0), 0);
+        const earnedPoints = Object.values(bestScores).reduce((a, b) => a + (b || 0), 0);
         const pct = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
         db.prepare(`UPDATE test_sessions SET status='timed_out', end_time=strftime('%Y-%m-%dT%H:%M:%f','now','localtime'),
           score=?, total_questions=?, percentage=?, passed=?, time_taken=? WHERE id=?`)
@@ -3447,9 +3461,23 @@ app.post('/api/candidate/tests/:testId/session/:sessionId/submit', authMiddlewar
       // ===== CODING TEST SUBMIT =====
       const bestScores = JSON.parse(session.best_scores_json || '{}');
       const codingResults = JSON.parse(session.coding_results_json || '{}');
-      const allProblems = db.prepare('SELECT * FROM coding_problems WHERE test_id = ?').all(testId);
-      const totalPoints = allProblems.reduce((s, p) => s + p.points, 0);
-      const earnedPoints = Object.values(bestScores).reduce((a, b) => a + b, 0);
+      let allProblems = db.prepare('SELECT * FROM coding_problems WHERE test_id = ?').all(testId);
+      // Fallback for design-test-created tests: look up by the actual problem IDs the candidate attempted
+      if (allProblems.length === 0) {
+        const codeMap = JSON.parse(session.code_map_json || '{}');
+        const problemIds = [...new Set([
+          ...Object.keys(bestScores).map(Number),
+          ...Object.keys(codingResults).map(Number),
+          ...Object.keys(codeMap).map(Number)
+        ])].filter(id => id > 0);
+        if (problemIds.length > 0) {
+          allProblems = db.prepare(
+            `SELECT * FROM coding_problems WHERE id IN (${problemIds.map(() => '?').join(',')})`
+          ).all(...problemIds);
+        }
+      }
+      const totalPoints = allProblems.reduce((s, p) => s + (p.points || 0), 0);
+      const earnedPoints = Object.values(bestScores).reduce((a, b) => a + (b || 0), 0);
 
       // Section scores
       const sectionScores = {};
