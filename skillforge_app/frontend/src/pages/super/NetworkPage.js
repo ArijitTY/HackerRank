@@ -120,9 +120,9 @@ export default function NetworkPage({ apiPrefix = '/super', resultsPath = '/supe
                 </div>
                 <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>LAN Access</h3>
               </div>
-              {activeSession && (
+              {activeSessions.length > 0 && (
                 <span style={{ padding: '3px 10px', borderRadius: 6, background: 'rgba(124,58,237,0.15)', color: '#a78bfa', fontFamily: 'monospace', fontSize: 11, fontWeight: 700 }}>
-                  Active Session: {activeSession.code}
+                  Active Session: {activeSessions[0].sessionCode}
                 </span>
               )}
             </div>
