@@ -701,7 +701,7 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
                   {t.is_active
                     ? <span style={{ padding: '2px 10px', borderRadius: 99, fontSize: 11, fontWeight: 500, background: 'rgba(29,158,117,0.15)', color: '#1D9E75', border: '1px solid rgba(29,158,117,0.3)' }}>Active</span>
                     : <span style={{ padding: '2px 10px', borderRadius: 99, fontSize: 11, fontWeight: 500, background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.45)', border: '1px solid rgba(255,255,255,0.1)' }}>Inactive</span>}
-                  <button onClick={() => openEdit(t)} style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', color: '#8B5CF6', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 500 }} title="Edit test">✏ Edit</button>
+                  <button onClick={() => openEdit(t)} disabled={!t.is_active} style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', color: t.is_active ? '#8B5CF6' : 'rgba(255,255,255,0.25)', padding: '5px 12px', borderRadius: 6, cursor: t.is_active ? 'pointer' : 'not-allowed', fontSize: 12, fontWeight: 500, opacity: t.is_active ? 1 : 0.5 }} title={t.is_active ? 'Edit test' : 'Cannot edit inactive test'}>✏ Edit</button>
                   {t.is_active ? (
                     <button onClick={() => handleToggleStatus(t)} style={{ background: 'transparent', border: '1px solid rgba(186,117,23,0.4)', color: '#BA7517', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>Deactivate</button>
                   ) : (

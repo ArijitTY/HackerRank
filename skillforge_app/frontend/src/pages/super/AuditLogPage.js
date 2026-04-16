@@ -121,7 +121,7 @@ export default function AuditLogPage({ apiPrefix = '/super' }) {
       <div className="table-container">
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '2fr 1.2fr 1.2fr 1fr 1fr',
+          gridTemplateColumns: '2fr 1.5fr 1.5fr 1fr 1fr',
           gap: 16, padding: '1.25rem', borderRadius: 12,
           background: 'rgba(255,255,255,0.03)',
           border: '1px solid rgba(255,255,255,0.06)',
@@ -129,7 +129,7 @@ export default function AuditLogPage({ apiPrefix = '/super' }) {
         }}>
           <div style={fieldCol}>
             <label style={labelStyle}>Search</label>
-            <input style={inputStyle} placeholder="Search by actor name, email or details..." value={search}
+            <input style={inputStyle} placeholder="Search by admin name, email or details..." value={search}
               onChange={e => { setSearch(e.target.value); setPage(1); }} />
           </div>
           <div style={fieldCol}>

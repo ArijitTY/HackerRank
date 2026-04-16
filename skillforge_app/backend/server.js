@@ -769,6 +769,31 @@ function buildCandidatePerformance(candidateId) {
       const b = new Date(s.end_time).getTime();
       if (!isNaN(a) && !isNaN(b) && b > a) timeTaken = Math.floor((b - a) / 1000);
     }
+
+    // Compute correctCount, wrongCount, skippedCount from questions/answers
+    let correctCount = null, wrongCount = null, skippedCount = null;
+    try {
+      const questions = s.questions_json ? JSON.parse(s.questions_json) : [];
+      const answers = s.answers_json ? JSON.parse(s.answers_json) : {};
+      if (questions.length > 0) {
+        correctCount = 0; wrongCount = 0; skippedCount = 0;
+        for (const q of questions) {
+          const qKey = String(q.id);
+          const userAnswer = answers[qKey] !== undefined ? answers[qKey]
+            : answers[q.id] !== undefined ? answers[q.id] : undefined;
+          const correctAnswer = q.answer_index !== undefined ? parseInt(q.answer_index, 10)
+            : q.answer !== undefined ? parseInt(q.answer, 10) : -1;
+          if (userAnswer === undefined || userAnswer === null) {
+            skippedCount++;
+          } else if (parseInt(userAnswer, 10) === correctAnswer) {
+            correctCount++;
+          } else {
+            wrongCount++;
+          }
+        }
+      }
+    } catch (e) { /* ignore parse errors */ }
+
     return {
       testId: s.test_id,
       testName: s.test_name,
@@ -783,6 +808,9 @@ function buildCandidatePerformance(candidateId) {
       submittedAt: s.end_time,
       attemptNumber: s._attemptNumber,
       violations: Number(s.tab_violations) || 0,
+      correctCount,
+      wrongCount,
+      skippedCount,
     };
   });
 
@@ -2548,11 +2576,21 @@ app.get('/api/candidate/analytics', authMiddleware, requireRole('candidate'), (r
         wrongCount = Math.max(0, questions.length - correctCount - skippedCount);
       } catch(e) {}
 
+      // Compute timeTaken with fallback to start/end time diff
+      let timeTaken = 0;
+      if (s.time_taken != null && s.time_taken > 0) {
+        timeTaken = Number(s.time_taken);
+      } else if (s.start_time && s.end_time) {
+        const a = new Date(s.start_time).getTime();
+        const b = new Date(s.end_time).getTime();
+        if (!isNaN(a) && !isNaN(b) && b > a) timeTaken = Math.floor((b - a) / 1000);
+      }
+
       return {
         sessionId: s.id, testId: s.test_id, testName: s.test_name, attemptNumber: idx + 1,
         submittedAt: s.end_time || s.submitted_at, score: s.score || 0,
         total: s.total_questions || 100, percentage: Math.round(s.percentage || 0),
-        passed: s.passed === 1, timeTaken: s.time_taken || 0, subjectScores,
+        passed: s.passed === 1, timeTaken, subjectScores,
         correctCount, wrongCount, skippedCount,
       };
     });
@@ -2635,10 +2673,18 @@ function getCandidateAnalytics(candidateId) {
       questions.forEach(q => { const ans = answers[String(q.id)]; if (ans == null || ans === '' || ans === -1) skippedCount++; });
       wrongCount = Math.max(0, questions.length - correctCount - skippedCount);
     } catch(e) {}
+    let timeTaken = 0;
+    if (s.time_taken != null && s.time_taken > 0) {
+      timeTaken = Number(s.time_taken);
+    } else if (s.start_time && s.end_time) {
+      const a = new Date(s.start_time).getTime();
+      const b = new Date(s.end_time).getTime();
+      if (!isNaN(a) && !isNaN(b) && b > a) timeTaken = Math.floor((b - a) / 1000);
+    }
     return {
       sessionId: s.id, testId: s.test_id, testName: s.test_name, submittedAt: s.end_time || s.submitted_at,
       score: s.score || 0, total: s.total_questions || 100, percentage: Math.round(s.percentage || 0),
-      passed: s.passed === 1, timeTaken: s.time_taken || 0, subjectScores, correctCount, wrongCount, skippedCount,
+      passed: s.passed === 1, timeTaken, subjectScores, correctCount, wrongCount, skippedCount,
     };
   });
 
@@ -3760,6 +3806,12 @@ app.get('/api/candidate/tests/:testId/sessions/:sessionId/review', authMiddlewar
       'SELECT max_attempts FROM test_permissions WHERE id = ? OR (candidate_id = ? AND test_id = ?) LIMIT 1'
     ).get(session.permission_id, candidateId, testId);
 
+    // Compute attempt number dynamically: count sessions for this test that started before this one
+    const allSessions = db.prepare(
+      `SELECT id, start_time FROM test_sessions WHERE candidate_id = ? AND test_id = ? AND status IN ('submitted','timed_out') ORDER BY start_time ASC`
+    ).all(candidateId, testId);
+    const dynamicAttemptNumber = allSessions.findIndex(s => s.id === sessionId) + 1 || session.attempt_number || 1;
+
     const testType = session.test_type || 'mcq';
 
     if (testType === 'coding') {
@@ -3768,7 +3820,7 @@ app.get('/api/candidate/tests/:testId/sessions/:sessionId/review', authMiddlewar
       return res.json({
         testType: 'coding',
         testName: session.test_name,
-        attemptNumber: session.attempt_number || 1,
+        attemptNumber: dynamicAttemptNumber,
         maxAttempts: permission?.max_attempts || 1,
         submittedAt: session.end_time,
         startedAt: session.start_time,
@@ -3791,7 +3843,7 @@ app.get('/api/candidate/tests/:testId/sessions/:sessionId/review', authMiddlewar
     res.json({
       testType,
       testName: session.test_name,
-      attemptNumber: session.attempt_number || 1,
+      attemptNumber: dynamicAttemptNumber,
       maxAttempts: permission?.max_attempts || 1,
       submittedAt: session.end_time,
       startedAt: session.start_time,

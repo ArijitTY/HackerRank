@@ -235,7 +235,7 @@ export default function ResultsView({ apiPrefix = '/super' }) {
   };
 
   const exportRows = (rows) => {
-    const header = ['Rank', 'Candidate Name', 'Email', 'Test Name', 'Score', 'Total Questions', 'Percentage (%)', 'Grade', 'Result', 'Time Taken', 'Started At', 'Submitted At'];
+    const header = ['Rank', 'Candidate Name', 'Email', 'Test Name', 'Score', 'Total Questions', 'Percentage (%)', 'Grade', 'Result', 'Time Taken', 'Submitted At'];
     const lines = rows.map((r) => [
       r._rank ?? '',
       r.candidate_name || r.name || '',
@@ -247,7 +247,6 @@ export default function ResultsView({ apiPrefix = '/super' }) {
       r.grade || computeGrade(Number(r.percentage) || 0),
       r.passed ? 'Pass' : 'Fail',
       formatTimeTaken(computeTimeSeconds(r)),
-      formatDateTime(r.start_time || r.started_at),
       formatDateTime(r.end_time || r.submitted_at || r.completed_at),
     ].map(csvEscape).join(','));
     const csv = [header.join(','), ...lines].join('\n');
