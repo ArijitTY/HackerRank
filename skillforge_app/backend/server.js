@@ -538,7 +538,16 @@ app.get('/api/admin/candidates/online-status', authMiddleware, requireRole('admi
 });
 app.get('/api/candidate/ping', authMiddleware, requireRole('candidate'), (req, res) => {
   markCandidateSeen(req.user.id);
-  res.json({ status: 'ok', timestamp: Date.now() });
+  // Optional: if ?tsid=<testSessionId> is provided, return whether that session is still active
+  let testSessionStatus = null;
+  if (req.query.tsid) {
+    try {
+      const ts = db.prepare('SELECT status FROM test_sessions WHERE id = ? AND candidate_id = ?')
+        .get(req.query.tsid, req.user.id);
+      testSessionStatus = ts ? ts.status : 'not_found';
+    } catch (e) { /* ignore */ }
+  }
+  res.json({ status: 'ok', timestamp: Date.now(), testSessionStatus });
 });
 
 // --- Candidate management (super admin) ---
@@ -5866,9 +5875,36 @@ function updateSessionHandler(req, res, role) {
       .run(newName, newFrom, newTo, newNotes, newStatus, req.params.id);
 
     let actionText = `Updated session ${s.session_code}`;
-    if (newStatus === 'completed' && s.status !== 'completed') {
-      db.prepare("UPDATE test_permissions SET status = 'completed' WHERE session_id = ?").run(req.params.id);
-      actionText = `Completed session ${s.session_code}`;
+    const isClosing = (newStatus === 'completed' || newStatus === 'cancelled') &&
+                      (s.status !== 'completed' && s.status !== 'cancelled');
+    if (isClosing) {
+      // Mark all test_permissions as completed/revoked so tests no longer show as available
+      const permStatus = newStatus === 'cancelled' ? 'revoked' : 'completed';
+      db.prepare(`UPDATE test_permissions SET status = ? WHERE session_id = ?`).run(permStatus, req.params.id);
+
+      // Force-end any in-progress test_sessions belonging to this drive session
+      const nowMs = Date.now();
+      const inProgressTests = db.prepare(`
+        SELECT ts.id, ts.start_time, ts.permission_id, ts.duration_minutes
+        FROM test_sessions ts
+        JOIN test_permissions tp ON tp.id = ts.permission_id
+        WHERE tp.session_id = ? AND ts.status = 'in_progress'
+      `).all(req.params.id);
+
+      for (const ts of inProgressTests) {
+        try {
+          const startMs = ts.start_time ? new Date(ts.start_time).getTime() : nowMs;
+          const maxSec = (ts.duration_minutes || 90) * 60;
+          const elapsed = Math.min(Math.round((nowMs - startMs) / 1000), maxSec);
+          db.prepare(`UPDATE test_sessions SET status='timed_out', end_time=strftime('%Y-%m-%dT%H:%M:%f','now','localtime'), time_taken=? WHERE id=?`)
+            .run(elapsed, ts.id);
+          // Increment attempt count on permission
+          if (ts.permission_id) {
+            db.prepare('UPDATE test_permissions SET attempt_count = attempt_count + 1 WHERE id = ?').run(ts.permission_id);
+          }
+        } catch (e) { console.error('force-end test_session error:', e); }
+      }
+      actionText = `${newStatus === 'cancelled' ? 'Cancelled' : 'Completed'} session ${s.session_code} (force-ended ${inProgressTests.length} active test(s))`;
     }
     logAudit(db, { actorId: req.user.id, actorRole: role, action: actionText, targetType: 'session', targetId: req.params.id, details: { code: s.session_code, status: newStatus } });
     res.json({ success: true });

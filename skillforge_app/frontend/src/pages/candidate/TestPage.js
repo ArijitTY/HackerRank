@@ -189,12 +189,25 @@ export default function TestPage({ user }) {
   const [fsWarning, setFsWarning] = useState(false);   // show "please re-enter fullscreen" banner
   const fsActiveRef = useRef(false);                    // are we currently in fullscreen?
 
+  // ===== ADMIN-ENDED STATE =====
+  const [adminEnded, setAdminEnded] = useState(false);
+
   useEffect(() => {
-    const ping = () => api.get('/candidate/ping').catch(() => {});
+    const tsid = navState.sessionId;
+    const ping = async () => {
+      try {
+        const r = await api.get('/candidate/ping', { params: tsid ? { tsid } : {} });
+        // If admin force-ended the drive session, detect it here
+        if (tsid && r.data.testSessionStatus && r.data.testSessionStatus !== 'in_progress' && !submittedRef.current) {
+          setAdminEnded(true);
+          if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+        }
+      } catch (e) { /* ignore */ }
+    };
     ping();
-    const pingId = setInterval(ping, 90 * 1000);
+    const pingId = setInterval(ping, 30 * 1000);
     return () => clearInterval(pingId);
-  }, []);
+  }, []); // eslint-disable-line
 
   useEffect(() => {
     // If we already have hybrid data from navigation state, skip API call
@@ -630,6 +643,38 @@ export default function TestPage({ user }) {
     </div>
   ) : null;
 
+  // Admin-ended overlay (drive session completed/cancelled by admin while test was in progress)
+  const AdminEndedOverlay = adminEnded ? (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+      zIndex: 999999,
+      background: 'rgba(0,0,0,0.95)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center'
+    }}>
+      <div style={{
+        maxWidth: 480, width: '90%', background: 'linear-gradient(135deg,#1c1917,#292524)',
+        border: '2px solid #f59e0b', borderRadius: 18, padding: '40px 32px', textAlign: 'center',
+        boxShadow: '0 0 80px rgba(245,158,11,0.4)'
+      }}>
+        <div style={{ fontSize: 52, marginBottom: 16 }}>🔒</div>
+        <h3 style={{ fontSize: 22, fontWeight: 800, marginBottom: 10, color: '#fff' }}>Session Closed</h3>
+        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', marginBottom: 28, lineHeight: 1.6 }}>
+          The administrator has ended this test session. Your progress has been saved and the test has been submitted automatically.
+        </p>
+        <button
+          onClick={() => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); navigate('/candidate'); }}
+          style={{
+            padding: '13px 36px', background: 'linear-gradient(135deg,#d97706,#b45309)',
+            border: 'none', borderRadius: 10, color: '#fff', fontSize: 15, fontWeight: 700,
+            cursor: 'pointer', boxShadow: '0 4px 24px rgba(217,119,6,0.5)'
+          }}
+        >
+          Back to Dashboard
+        </button>
+      </div>
+    </div>
+  ) : null;
+
   // ===== CODING TEST DISPATCH =====
   if (testType === 'coding' && codingData) {
     return (
@@ -694,6 +739,7 @@ export default function TestPage({ user }) {
 
     return (
       <div style={{ minHeight: '100vh', background: '#030712', color: 'white', display: 'flex', flexDirection: 'column' }}>
+        {AdminEndedOverlay}
         {FsWarning}
         {ViolationWarning}
         {TimerWarning}
@@ -1027,6 +1073,7 @@ export default function TestPage({ user }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#030712', overflow: 'hidden' }}>
+      {AdminEndedOverlay}
       {FsWarning}
       {ViolationWarning}
       {TimerWarning}
