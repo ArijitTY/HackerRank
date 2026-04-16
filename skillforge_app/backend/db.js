@@ -388,7 +388,9 @@ if (testCount === 0) {
 // ========== LOAD QUESTIONS FROM CSV ==========
 
 const questionCount = db.prepare('SELECT COUNT(*) as c FROM questions').get().c;
-if (questionCount === 0) {
+// Re-import if question count is suspiciously low (< 500). INSERT OR IGNORE is
+// idempotent so existing records are safely skipped.
+if (questionCount < 500) {
   const csvFiles = [
     { file: 'python_questions.csv', subject: 'Python' },
     { file: 'python_selenium_questions.csv', subject: 'Python_Selenium' },
