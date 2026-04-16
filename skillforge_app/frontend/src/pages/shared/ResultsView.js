@@ -445,7 +445,14 @@ export default function ResultsView({ apiPrefix = '/super' }) {
                     <td style={{ ...TD, fontFamily: 'monospace', fontSize: 13 }}>{r.total_questions ?? r.total ?? '-'}</td>
                     <td style={{ ...TD, fontFamily: 'monospace', fontSize: 13 }}>{pct}%</td>
                     <td style={TD}><span style={gradeBadgeStyle(grade)}>{grade}</span></td>
-                    <td style={TD}><span style={passBadge(passed)}>{passed ? 'Pass' : 'Fail'}</span></td>
+                    <td style={TD}>
+                      <span style={passBadge(passed)}>{passed ? 'Pass' : 'Fail'}</span>
+                      {(r.auto_submitted === 1 || r.violation_blocked === 1 || (r.tab_violations || 0) >= 3) && (
+                        <span title="Auto-submitted due to tab switching violations" style={{ display: 'inline-block', fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(226,75,74,0.15)', color: '#E24B4A', marginLeft: 4, fontWeight: 600 }}>
+                          Auto-submitted ({r.tab_violations || 0} violation{(r.tab_violations || 0) === 1 ? '' : 's'})
+                        </span>
+                      )}
+                    </td>
                     <td style={{ ...TD, fontFamily: 'monospace', fontSize: 13 }}>{formatTimeTaken(computeTimeSeconds(r))}</td>
                     <td style={{ ...TD, fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{formatDateTime(r.submitted_at || r.end_time || r.completed_at)}</td>
                     <td style={TD}>
@@ -508,7 +515,12 @@ export default function ResultsView({ apiPrefix = '/super' }) {
         <div className="modal-overlay" onClick={() => setDetail(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 800, maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div className="modal-header" style={{ flexShrink: 0 }}>
-              <h3 className="modal-title">Session Detail</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <h3 className="modal-title">Session Detail</h3>
+                {detail.test_type === 'hybrid' && (
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: 'rgba(96,165,250,0.15)', color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Hybrid</span>
+                )}
+              </div>
               <button className="modal-close" onClick={() => setDetail(null)}>&times;</button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, padding: '16px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
@@ -537,11 +549,49 @@ export default function ResultsView({ apiPrefix = '/super' }) {
               </div>
             </div>
             {detail.summary && (
-              <div style={{ display: 'flex', gap: 16, marginBottom: 14, fontSize: 13 }}>
-                <span style={{ color: '#1D9E75' }}>✓ {detail.summary.mcqCorrect} Correct</span>
-                <span style={{ color: '#E24B4A' }}>✗ {detail.summary.mcqWrong} Wrong</span>
-                <span style={{ color: '#BA7517' }}>— {detail.summary.mcqSkipped} Skipped</span>
-                <span style={{ color: 'rgba(255,255,255,0.4)' }}>· {detail.summary.mcqTotal} Total</span>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', gap: 16, marginBottom: detail.test_type === 'hybrid' ? 10 : 0, fontSize: 13, flexWrap: 'wrap' }}>
+                  {detail.test_type === 'hybrid' && <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', alignSelf: 'center', marginRight: 4 }}>MCQ:</span>}
+                  <span style={{ color: '#1D9E75' }}>✓ {detail.summary.mcqCorrect} Correct</span>
+                  <span style={{ color: '#E24B4A' }}>✗ {detail.summary.mcqWrong} Wrong</span>
+                  <span style={{ color: '#BA7517' }}>— {detail.summary.mcqSkipped} Skipped</span>
+                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>· {detail.summary.mcqTotal} Total</span>
+                  {detail.test_type === 'hybrid' && <span style={{ color: 'rgba(255,255,255,0.55)', fontFamily: 'monospace' }}>{detail.summary.mcqPercentage}%</span>}
+                </div>
+                {detail.test_type === 'hybrid' && detail.summary.codingTotal > 0 && (
+                  <div style={{ display: 'flex', gap: 16, fontSize: 13, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginRight: 4 }}>Coding:</span>
+                    <span style={{ color: '#60a5fa' }}>⬡ {detail.summary.codingEarned}/{detail.summary.codingTotal} pts</span>
+                    <span style={{ color: 'rgba(255,255,255,0.55)', fontFamily: 'monospace' }}>{detail.summary.codingPercentage}%</span>
+                    <span style={{ color: 'rgba(255,255,255,0.4)' }}>· {detail.summary.codingProblems} problem{detail.summary.codingProblems !== 1 ? 's' : ''}</span>
+                  </div>
+                )}
+              </div>
+            )}
+            {detail.test_type === 'hybrid' && (detail.codingProblems || []).length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase' }}>Coding Problems</h4>
+                {(detail.codingProblems || []).map((cp, i) => {
+                  const accepted = cp.status === 'accepted' || cp.earned >= cp.maxPoints;
+                  const attempted = cp.status !== 'not_attempted';
+                  const cardBg = !attempted ? 'rgba(255,255,255,0.02)' : accepted ? 'rgba(29,158,117,0.07)' : 'rgba(226,75,74,0.07)';
+                  const cardBorder = !attempted ? 'rgba(255,255,255,0.08)' : accepted ? 'rgba(29,158,117,0.25)' : 'rgba(226,75,74,0.25)';
+                  const statusLabel = !attempted ? 'Not Attempted' : accepted ? 'Accepted' : 'Wrong Answer';
+                  const statusColor = !attempted ? 'rgba(255,255,255,0.35)' : accepted ? '#1D9E75' : '#E24B4A';
+                  const diffColor = cp.difficulty === 'hard' ? '#f87171' : cp.difficulty === 'medium' ? '#facc15' : '#34d399';
+                  return (
+                    <div key={cp.id || i} style={{ padding: '12px 14px', background: cardBg, border: '1px solid ' + cardBorder, borderRadius: 8, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: 12, color: 'rgba(255,255,255,0.4)', flexShrink: 0 }}>P{i + 1}</span>
+                      <span style={{ flex: 1, fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: 500 }}>{cp.title}</span>
+                      {cp.difficulty && <span style={{ fontSize: 11, color: diffColor, textTransform: 'capitalize', flexShrink: 0 }}>{cp.difficulty}</span>}
+                      <span style={{ fontSize: 12, color: statusColor, flexShrink: 0 }}>{statusLabel}</span>
+                      {attempted && cp.totalCases > 0 && (
+                        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', flexShrink: 0 }}>{cp.passedCases}/{cp.totalCases} cases</span>
+                      )}
+                      <span style={{ fontSize: 13, fontFamily: 'monospace', color: '#60a5fa', fontWeight: 700, flexShrink: 0 }}>{cp.earned}/{cp.maxPoints} pts</span>
+                    </div>
+                  );
+                })}
               </div>
             )}
             {(detail.questions || []).length > 0 && (

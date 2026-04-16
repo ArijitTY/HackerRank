@@ -291,6 +291,9 @@ try { db.exec(`ALTER TABLE test_sessions ADD COLUMN hybrid_problem_ids_json TEXT
 // Add anti-cheat violation tracking columns
 try { db.exec(`ALTER TABLE test_sessions ADD COLUMN tab_violations INTEGER DEFAULT 0`); } catch (e) {}
 try { db.exec(`ALTER TABLE test_sessions ADD COLUMN violation_log_json TEXT DEFAULT '[]'`); } catch (e) {}
+try { db.exec(`ALTER TABLE test_sessions ADD COLUMN violation_blocked INTEGER DEFAULT 0`); } catch (e) {}
+try { db.exec(`ALTER TABLE test_sessions ADD COLUMN auto_submitted INTEGER DEFAULT 0`); } catch (e) {}
+try { db.exec(`ALTER TABLE test_sessions ADD COLUMN attempt_number INTEGER DEFAULT 1`); } catch (e) {}
 
 // Add audit_log revert/restore columns
 try { db.exec(`ALTER TABLE audit_log ADD COLUMN deleted_data TEXT`); } catch (e) {}

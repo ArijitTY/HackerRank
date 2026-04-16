@@ -1,6 +1,21 @@
 import { useState, useEffect } from 'react';
 import { formatIST, formatISTDate, nowLocalIso } from '../utils/dateUtils';
 
+const formatTimeTaken = (secs) => {
+  if (secs == null || isNaN(secs)) return '-';
+  let s = Math.floor(Number(secs));
+  // Guard: if stored as milliseconds (> 86400s = 1 day), convert
+  if (s > 86400) s = Math.floor(s / 1000);
+  if (s <= 0 || s > 86400) return '-';
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const r = s % 60;
+  const pad = (x) => String(x).padStart(2, '0');
+  if (h > 0) return `${h}h ${pad(m)}m`;
+  if (m > 0) return `${m}m ${pad(r)}s`;
+  return `${r}s`;
+};
+
 const BarChart = ({ data, height = 180 }) => {
   if (!data?.length) return null;
   const max = Math.max(...data.map(d => d.value), 100);
@@ -29,7 +44,8 @@ const BarChart = ({ data, height = 180 }) => {
         <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
           {data.map((d, i) => (
             <div key={i} style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.label}</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>{d.label}</div>
+              {d.attemptNum != null && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 1 }}>#{d.attemptNum}</div>}
               {d.date && <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)', marginTop: 1 }}>{d.date}</div>}
             </div>
           ))}
@@ -82,18 +98,20 @@ const InsightCard = ({ icon, title, value, sub, color }) => (
   </div>
 );
 
-export default function PerformanceAnalytics() {
+export default function PerformanceAnalytics({ apiEndpoint }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('overview');
 
-  useEffect(() => { fetchData(); }, []);
+  const endpoint = apiEndpoint || '/candidate/analytics';
+
+  useEffect(() => { fetchData(); }, [endpoint]); // eslint-disable-line
 
   const fetchData = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('sf_token');
-      const res = await fetch('/api/candidate/analytics', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`/api${endpoint}`, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error('Failed');
       setData(await res.json());
     } catch (e) { setData({ hasData: false }); }
@@ -172,7 +190,7 @@ export default function PerformanceAnalytics() {
         <div style={{ background: '#0d1117', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 16, padding: 28, marginBottom: 20 }}>
           <h3 style={{ fontSize: 16, fontWeight: 700, color: 'white', margin: '0 0 4px' }}>Score Progression</h3>
           <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', marginBottom: 20 }}>Scores across all attempts</p>
-          <BarChart data={trend.map(t => ({ label: t.label, value: t.percentage, passed: t.passed, date: t.date }))} height={200} />
+          <BarChart data={trend.map(t => ({ label: t.testName || t.label, attemptNum: t.attemptNum, value: t.percentage, passed: t.passed, date: t.date }))} height={200} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
           {[{ v: overview.bestScore, l: 'Personal Best', c: '#f59e0b' }, { v: overview.avgScore, l: 'Average', c: '#7c3aed' }, { v: `${overview.improvement > 0 ? '+' : ''}${overview.improvement}`, l: overview.improvement > 0 ? 'Improving!' : overview.improvement < 0 ? 'Dropped' : 'Steady', c: impColor }].map((s, i) => (
@@ -209,7 +227,7 @@ export default function PerformanceAnalytics() {
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>{s.score}/{s.total}</div>
               </div>
               <div style={{ textAlign: 'center', minWidth: 70 }}>
-                <div style={{ fontSize: 16, fontWeight: 700, color: 'rgba(255,255,255,0.6)', fontFamily: "'JetBrains Mono',monospace" }}>{s.timeTaken}m</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: 'rgba(255,255,255,0.6)', fontFamily: "'JetBrains Mono',monospace" }}>{formatTimeTaken(s.timeTaken)}</div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>Time</div>
               </div>
               <div style={{ display: 'flex', gap: 10 }}>

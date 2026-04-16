@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import api from '../api';
 import { formatDate, formatDateTime } from '../utils/dateUtils';
 import OnlineStatusBadge from './OnlineStatusBadge';
+import PerformanceAnalytics from './PerformanceAnalytics';
 
 const CARD_BG = 'rgba(255,255,255,0.03)';
 const CARD_BORDER = '1px solid rgba(255,255,255,0.08)';
@@ -343,6 +344,11 @@ export default function CandidatePerformance({ candidateId, apiPrefix, onClose }
                   ))}
                 </div>
               )}
+            </div>
+            {/* Full Performance Analytics (same view as candidate sees) */}
+            <div style={{ padding: '0 1.5rem 1.5rem' }}>
+              <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', marginBottom: 20 }} />
+              <PerformanceAnalytics apiEndpoint={`${apiPrefix}/analytics/${candidateId}`} />
             </div>
             <div style={{ height: 40 }} />
           </>

@@ -56,6 +56,27 @@ function answerIndex(correctAnswer) {
   return map[letter] !== undefined ? map[letter] : 0;
 }
 
+// Shuffle the option list for a single question using a deterministic seed
+// so the same session gets the same option order on refresh, and scoring
+// lines up with whatever was shown to the candidate.
+// Returns { options: [...], answer: newIndex }.
+function shuffleOptions(options, correctIdx, seed) {
+  const n = options.length;
+  if (!Array.isArray(options) || n <= 1) {
+    return { options: options || [], answer: correctIdx || 0 };
+  }
+  // Track positions so we can follow the correct answer after swaps.
+  const indices = options.map((_, i) => i);
+  const rng = seededRng(seed);
+  for (let i = n - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+  const shuffled = indices.map(i => options[i]);
+  const newCorrect = indices.indexOf(correctIdx);
+  return { options: shuffled, answer: newCorrect >= 0 ? newCorrect : 0 };
+}
+
 function buildQuestionSet(db, testId, sessionId) {
   const seed = hashCode(sessionId);
   let allQuestions;
@@ -84,19 +105,24 @@ function buildQuestionSet(db, testId, sessionId) {
     const shuffled = seededShuffle(mcqPool, seed);
     const selected = shuffled.slice(0, Math.min(totalNeeded, shuffled.length));
 
-    const questions = selected.map((q, i) => ({
-      displayId: i + 1,
-      id: q.id,
-      subject: q.subject || company + ' Interview',
-      topic: q.topic || 'General',
-      difficulty: q.difficulty || 'Medium',
-      type: q.type || 'mcq',
-      question: q.question,
-      options: [q.option_a, q.option_b, q.option_c, q.option_d].filter(o => o && o.trim()),
-      answer: q.answer_index != null ? q.answer_index : answerIndex(q.correct_answer),
-      explanation: q.explanation || '',
-      code_snippet: q.code_snippet || ''
-    }));
+    const questions = selected.map((q, i) => {
+      const rawOpts = [q.option_a, q.option_b, q.option_c, q.option_d].filter(o => o && String(o).trim());
+      const rawAns = q.answer_index != null ? q.answer_index : answerIndex(q.correct_answer);
+      const { options, answer } = shuffleOptions(rawOpts, rawAns, seed + '_opt_' + q.id);
+      return {
+        displayId: i + 1,
+        id: q.id,
+        subject: q.subject || company + ' Interview',
+        topic: q.topic || 'General',
+        difficulty: q.difficulty || 'Medium',
+        type: q.type || 'mcq',
+        question: q.question,
+        options,
+        answer,
+        explanation: q.explanation || '',
+        code_snippet: q.code_snippet || ''
+      };
+    });
 
     const safeQuestions = questions.map(q => ({
       displayId: q.displayId, id: q.id, subject: q.subject, topic: q.topic,
@@ -181,13 +207,17 @@ function buildQuestionSet(db, testId, sessionId) {
       // Trim to exact total and shuffle
       selected = seededShuffle(selected.slice(0, totalQ), seed + '_final_custom');
 
-      const questions = selected.map((q, idx) => ({
-        displayId: idx + 1, id: q.id, subject: q.subject, topic: q.topic,
-        difficulty: q.difficulty, type: q.type, question: q.question,
-        options: [q.option_a, q.option_b, q.option_c, q.option_d],
-        answer: q.answer_index != null ? q.answer_index : answerIndex(q.correct_answer),
-        explanation: q.explanation || '', code_snippet: q.code_snippet || ''
-      }));
+      const questions = selected.map((q, idx) => {
+        const rawOpts = [q.option_a, q.option_b, q.option_c, q.option_d];
+        const rawAns = q.answer_index != null ? q.answer_index : answerIndex(q.correct_answer);
+        const { options, answer } = shuffleOptions(rawOpts, rawAns, seed + '_opt_' + q.id);
+        return {
+          displayId: idx + 1, id: q.id, subject: q.subject, topic: q.topic,
+          difficulty: q.difficulty, type: q.type, question: q.question,
+          options, answer,
+          explanation: q.explanation || '', code_snippet: q.code_snippet || ''
+        };
+      });
       const safeQuestions = questions.map(q => ({
         displayId: q.displayId, id: q.id, subject: q.subject, topic: q.topic,
         difficulty: q.difficulty, type: q.type, question: q.question,
@@ -228,19 +258,24 @@ function buildQuestionSet(db, testId, sessionId) {
 
   selected = seededShuffle(selected, seed + '_final');
 
-  const questions = selected.map((q, idx) => ({
-    displayId: idx + 1,
-    id: q.id,
-    subject: q.subject,
-    topic: q.topic,
-    difficulty: q.difficulty,
-    type: q.type,
-    question: q.question,
-    options: [q.option_a, q.option_b, q.option_c, q.option_d],
-    answer: q.answer_index != null ? q.answer_index : answerIndex(q.correct_answer),
-    explanation: q.explanation || '',
-    code_snippet: q.code_snippet || ''
-  }));
+  const questions = selected.map((q, idx) => {
+    const rawOpts = [q.option_a, q.option_b, q.option_c, q.option_d];
+    const rawAns = q.answer_index != null ? q.answer_index : answerIndex(q.correct_answer);
+    const { options, answer } = shuffleOptions(rawOpts, rawAns, seed + '_opt_' + q.id);
+    return {
+      displayId: idx + 1,
+      id: q.id,
+      subject: q.subject,
+      topic: q.topic,
+      difficulty: q.difficulty,
+      type: q.type,
+      question: q.question,
+      options,
+      answer,
+      explanation: q.explanation || '',
+      code_snippet: q.code_snippet || ''
+    };
+  });
 
   const safeQuestions = questions.map(q => ({
     displayId: q.displayId,

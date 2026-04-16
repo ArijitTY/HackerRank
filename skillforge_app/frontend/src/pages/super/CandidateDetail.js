@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { formatIST, formatISTDate, nowLocalIso } from '../../utils/dateUtils';
 import { useParams } from 'react-router-dom';
 import api from '../../api';
+import PerformanceAnalytics from '../../components/PerformanceAnalytics';
 
 export default function CandidateDetail() {
   const { id } = useParams();
@@ -88,7 +89,10 @@ export default function CandidateDetail() {
         </div>
       </div>
 
-      <div className="table-container">
+      {/* Performance Analytics */}
+      <PerformanceAnalytics apiEndpoint={`/super/analytics/${id}`} />
+
+      <div className="table-container" style={{ marginTop: 24 }}>
         <div className="table-toolbar">
           <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>Test Permissions</h3>
         </div>

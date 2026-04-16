@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import api from '../../api';
 import AdminDashboard from './AdminDashboard';
 import AdminCandidates from './AdminCandidates';
 import AdminResults from './AdminResults';
@@ -51,6 +53,19 @@ const navItems = [
 export default function AdminLayout({ user, onLogout }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [activeTestCount, setActiveTestCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchCount = () => {
+      api.get('/admin/monitor/active-count')
+        .then(r => { if (!cancelled) setActiveTestCount(r.data?.count || 0); })
+        .catch(() => {});
+    };
+    fetchCount();
+    const id = setInterval(fetchCount, 30000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
 
   const isActive = (path) => {
     if (path === '/admin') return location.pathname === '/admin';
@@ -62,7 +77,7 @@ export default function AdminLayout({ user, onLogout }) {
   return (
     <div style={{ display:'flex', height:'100vh', overflow:'hidden', position:'relative' }}>
       <nav className="sidebar" style={{ width:'260px', minWidth:'260px', height:'100vh', position:'fixed', left:0, top:0, overflowY:'auto', overflowX:'hidden', zIndex:100, display:'flex', flexDirection:'column' }}>
-        <div className="sidebar-brand">
+        <div className="sidebar-brand" onClick={() => navigate('/admin')} style={{ cursor: 'pointer' }}>
           <div className="sidebar-logo">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
@@ -94,7 +109,13 @@ export default function AdminLayout({ user, onLogout }) {
             >
               <span className="nav-icon">{item.icon}</span>
               {item.label}
-              {item.live && <span className="nav-live-dot"></span>}
+              {item.live && activeTestCount > 0 && (
+                <span className="nav-live-indicator">
+                  <span className="nav-live-dot-ring" />
+                  <span className="nav-live-dot-core" />
+                  <span className="nav-live-count">{activeTestCount}</span>
+                </span>
+              )}
             </button>
           ))}
         </div>

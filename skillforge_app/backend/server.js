@@ -32,6 +32,40 @@ try {
   if (fixed > 0) console.log(`[time_taken backfill] recalculated ${fixed} sessions`);
 } catch (e) { console.error('[time_taken backfill]', e); }
 
+// Startup: auto-timeout stale in_progress sessions that exceeded their duration.
+// These can accumulate when the server restarts mid-session or candidates abandon without submitting.
+try {
+  const staleRows = db.prepare(`
+    SELECT ts.id, ts.start_time, ts.candidate_id, ts.test_id, ts.permission_id,
+           COALESCE(ts.duration_minutes, t.duration_minutes, 90) as dur_min
+    FROM test_sessions ts
+    JOIN tests t ON t.id = ts.test_id
+    WHERE ts.status = 'in_progress'
+  `).all();
+  let timedOut = 0;
+  const nowMs = Date.now();
+  for (const s of staleRows) {
+    const startMs = parseDbTime(s.start_time);
+    const elapsedMin = (nowMs - startMs) / 60000;
+    if (elapsedMin > s.dur_min + 5) { // more than 5 minutes over time limit
+      const elapsedSec = Math.min(Math.round((nowMs - startMs) / 1000), s.dur_min * 60);
+      db.prepare(`UPDATE test_sessions SET status='timed_out', end_time=strftime('%Y-%m-%dT%H:%M:%f','now','localtime'), time_taken=? WHERE id=?`)
+        .run(elapsedSec, s.id);
+      // Update permission attempt count if applicable
+      if (s.permission_id) {
+        const perm = db.prepare('SELECT attempt_count, max_attempts FROM test_permissions WHERE id=?').get(s.permission_id);
+        if (perm) {
+          const newCount = perm.attempt_count + 1;
+          const newStatus = newCount >= perm.max_attempts ? 'completed' : 'granted';
+          db.prepare('UPDATE test_permissions SET attempt_count=?, status=? WHERE id=?').run(newCount, newStatus, s.permission_id);
+        }
+      }
+      timedOut++;
+    }
+  }
+  if (timedOut > 0) console.log(`[startup] Auto-timed-out ${timedOut} stale in_progress session(s)`);
+} catch (e) { console.error('[startup auto-timeout]', e); }
+
 function formatTimeTaken(seconds) {
   if (!seconds || isNaN(seconds)) return '-';
   let s = Number(seconds);
@@ -923,8 +957,8 @@ app.post('/api/super/permissions', authMiddleware, requireRole('super_admin'), (
 
     const id = uuidv4();
     db.prepare(`
-      INSERT INTO test_permissions (id, candidate_id, test_id, max_attempts, granted_by)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO test_permissions (id, candidate_id, test_id, max_attempts, granted_by, granted_at)
+      VALUES (?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%f','now','localtime'))
     `).run(id, candidateId, testId, maxAttempts || 1, req.user.id);
 
     const tN = db.prepare('SELECT name FROM tests WHERE id = ?').get(testId);
@@ -1502,6 +1536,9 @@ app.get('/api/super/results', authMiddleware, requireRole('super_admin'), (req, 
              ts.score, ts.total_questions, ts.percentage, ts.passed, ts.grade,
              ts.time_taken, ts.time_taken as time_taken_seconds,
              ts.session_id as drive_session_id, s.session_code, s.name AS session_name,
+             COALESCE(ts.tab_violations, 0) as tab_violations,
+             COALESCE(ts.violation_blocked, 0) as violation_blocked,
+             COALESCE(ts.auto_submitted, 0) as auto_submitted,
              u.name as candidate_name, u.email as candidate_email, u.batch_id,
              b.name as batch_name, b.code as batch_code,
              t.name as test_name, t.passing_percentage
@@ -1661,16 +1698,50 @@ function enrichSessionDetail(session) {
   const skippedCount = enriched.filter(q => q.isSkipped).length;
   const wrongCount = enriched.length - correctCount - skippedCount;
 
+  // For hybrid tests: enrich coding problems from result_json
+  let codingProblems = [];
+  let codingEarned = 0, codingTotal = 0;
+  const testType = session.test_type || 'mcq';
+  if (testType === 'hybrid') {
+    try {
+      const bestScores = session.best_scores_json ? JSON.parse(session.best_scores_json) : {};
+      const codingResults = session.coding_results_json ? JSON.parse(session.coding_results_json) : {};
+      const problemIds = session.hybrid_problem_ids_json ? JSON.parse(session.hybrid_problem_ids_json) : [];
+      problemIds.forEach(pid => {
+        const p = db.prepare('SELECT id, title, difficulty, points, section FROM coding_problems WHERE id = ?').get(pid);
+        if (!p) return;
+        const best = bestScores[pid] || 0;
+        const cr = codingResults[pid] || { status: 'not_attempted', passedCases: 0, totalCases: 0, score: 0 };
+        codingEarned += best;
+        codingTotal += p.points;
+        codingProblems.push({
+          id: p.id, title: p.title, difficulty: p.difficulty, section: p.section,
+          maxPoints: p.points, earned: best, status: cr.status || 'not_attempted',
+          passedCases: cr.passedCases || 0, totalCases: cr.totalCases || 0,
+        });
+      });
+    } catch (e) { /* ignore parse errors */ }
+  }
+
+  const summary = {
+    mcqCorrect: correctCount,
+    mcqWrong: wrongCount,
+    mcqSkipped: skippedCount,
+    mcqTotal: enriched.length,
+    mcqPercentage: enriched.length > 0 ? Math.round((correctCount / enriched.length) * 100) : 0,
+  };
+  if (testType === 'hybrid') {
+    summary.codingEarned = codingEarned;
+    summary.codingTotal = codingTotal;
+    summary.codingPercentage = codingTotal > 0 ? Math.round((codingEarned / codingTotal) * 100) : 0;
+    summary.codingProblems = codingProblems.length;
+  }
+
   const out = { ...session, questions: enriched, answers, result,
     timeTakenSeconds: session.time_taken || 0,
     timeTakenFormatted: formatTimeTaken(session.time_taken),
-    summary: {
-      mcqCorrect: correctCount,
-      mcqWrong: wrongCount,
-      mcqSkipped: skippedCount,
-      mcqTotal: enriched.length,
-      mcqPercentage: enriched.length > 0 ? Math.round((correctCount / enriched.length) * 100) : 0,
-    },
+    codingProblems,
+    summary,
   };
   delete out.questions_json;
   delete out.answers_json;
@@ -1681,7 +1752,7 @@ function enrichSessionDetail(session) {
 app.get('/api/super/results/:sessionId', authMiddleware, requireRole('super_admin'), (req, res) => {
   try {
     const session = db.prepare(`
-      SELECT ts.*, u.name as candidate_name, u.email as candidate_email, t.name as test_name
+      SELECT ts.*, u.name as candidate_name, u.email as candidate_email, t.name as test_name, t.test_type
       FROM test_sessions ts
       JOIN users u ON ts.candidate_id = u.id
       JOIN tests t ON ts.test_id = t.id
@@ -1892,8 +1963,8 @@ app.post('/api/admin/permissions', authMiddleware, requireRole('admin'), (req, r
 
     const id = uuidv4();
     db.prepare(`
-      INSERT INTO test_permissions (id, candidate_id, test_id, max_attempts, granted_by)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO test_permissions (id, candidate_id, test_id, max_attempts, granted_by, granted_at)
+      VALUES (?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%f','now','localtime'))
     `).run(id, candidateId, testId, maxAttempts || 1, req.user.id);
 
     const tN2 = db.prepare('SELECT name FROM tests WHERE id = ?').get(testId);
@@ -2084,7 +2155,7 @@ app.get('/api/admin/results/question-analytics', authMiddleware, requireRole('ad
 app.get('/api/admin/results/:sessionId', authMiddleware, requireRole('admin'), (req, res) => {
   try {
     const session = db.prepare(`
-      SELECT ts.*, u.name as candidate_name, u.email as candidate_email, t.name as test_name
+      SELECT ts.*, u.name as candidate_name, u.email as candidate_email, t.name as test_name, t.test_type
       FROM test_sessions ts
       JOIN users u ON ts.candidate_id = u.id
       JOIN tests t ON ts.test_id = t.id
@@ -2207,6 +2278,9 @@ app.get('/api/admin/results', authMiddleware, requireRole('admin'), (req, res) =
              ts.score, ts.total_questions, ts.percentage, ts.passed, ts.grade,
              ts.time_taken, ts.time_taken as time_taken_seconds,
              ts.session_id as drive_session_id, s.session_code, s.name AS session_name,
+             COALESCE(ts.tab_violations, 0) as tab_violations,
+             COALESCE(ts.violation_blocked, 0) as violation_blocked,
+             COALESCE(ts.auto_submitted, 0) as auto_submitted,
              u.name as candidate_name, u.email as candidate_email, u.batch_id,
              b.name as batch_name, b.code as batch_code,
              t.name as test_name, t.passing_percentage
@@ -2320,11 +2394,21 @@ app.get('/api/candidate/dashboard', authMiddleware, requireRole('candidate'), (r
 
     const tests = permissions.map(perm => {
       const sessions = db.prepare(`
-        SELECT id, status, start_time, end_time, score, total_questions, percentage, passed, grade, time_taken
+        SELECT id, status, start_time, end_time, score, total_questions, percentage, passed, grade, time_taken,
+               COALESCE(tab_violations, 0) as tab_violations,
+               COALESCE(violation_blocked, 0) as violation_blocked,
+               COALESCE(auto_submitted, 0) as auto_submitted,
+               COALESCE(attempt_number, 1) as attempt_number
         FROM test_sessions
         WHERE candidate_id = ? AND test_id = ?
         ORDER BY start_time DESC
-      `).all(candidateId, perm.test_id);
+      `).all(candidateId, perm.test_id).map(s => ({
+        ...s,
+        violationCount: s.tab_violations || 0,
+        violationBlocked: (s.violation_blocked === 1) || ((s.tab_violations || 0) >= 3),
+        autoSubmitted: s.auto_submitted === 1,
+        attemptNumber: s.attempt_number || 1,
+      }));
 
       let status = 'locked';
       const inProgress = sessions.find(s => s.status === 'in_progress');
@@ -2336,7 +2420,11 @@ app.get('/api/candidate/dashboard', authMiddleware, requireRole('candidate'), (r
       else if (parseInt(perm.attempt_count) >= parseInt(perm.max_attempts)) status = 'completed';
       else if (perm.status === 'granted') status = 'available';
 
-      const bestSession = sessions.filter(s => s.status === 'submitted').sort((a, b) => (b.percentage || 0) - (a.percentage || 0))[0];
+      const submittedSessions = sessions.filter(s => s.status === 'submitted');
+      const validSubmitted = submittedSessions.filter(s => !s.violationBlocked);
+      const bestSession = validSubmitted.sort((a, b) => (b.percentage || 0) - (a.percentage || 0))[0];
+      const latestSubmitted = submittedSessions[0] || null;
+      const allBlocked = submittedSessions.length > 0 && validSubmitted.length === 0;
 
       return {
         // camelCase for frontend
@@ -2359,6 +2447,8 @@ app.get('/api/candidate/dashboard', authMiddleware, requireRole('candidate'), (r
         bestScore: bestSession ? Math.round(bestSession.percentage) : null,
         lastSessionId: sessions[0]?.id || null,
         currentSessionId: inProgress?.id || null,
+        violationBlocked: allBlocked,
+        latestViolationCount: latestSubmitted?.violationCount || 0,
         sessions,
         // Also include snake_case for backward compat
         test_id: perm.test_id,
@@ -2431,16 +2521,30 @@ app.get('/api/candidate/analytics', authMiddleware, requireRole('candidate'), (r
     if (sessions.length === 0) return res.json({ hasData: false, sessions: [] });
 
     const sessionData = sessions.map((s, idx) => {
-      let subjectScores = {}, review = [];
-      try { const r = JSON.parse(s.result_json || '{}'); subjectScores = r.subjectScores || {}; review = r.review || []; } catch(e) {}
+      let subjectScores = {};
+      try { const r = JSON.parse(s.result_json || '{}'); subjectScores = r.subjectScores || {}; } catch(e) {}
+
+      // Compute correct/skipped/wrong from stored data
+      // s.score = number of correct MCQ answers (set at submission time)
+      let correctCount = s.score || 0;
+      let skippedCount = 0;
+      let wrongCount = 0;
+      try {
+        const questions = JSON.parse(s.questions_json || '[]');
+        const answers = JSON.parse(s.answers_json || '{}');
+        questions.forEach(q => {
+          const ans = answers[String(q.id)];
+          if (ans == null || ans === '' || ans === -1) skippedCount++;
+        });
+        wrongCount = Math.max(0, questions.length - correctCount - skippedCount);
+      } catch(e) {}
+
       return {
         sessionId: s.id, testId: s.test_id, testName: s.test_name, attemptNumber: idx + 1,
         submittedAt: s.end_time || s.submitted_at, score: s.score || 0,
         total: s.total_questions || 100, percentage: Math.round(s.percentage || 0),
         passed: s.passed === 1, timeTaken: s.time_taken || 0, subjectScores,
-        correctCount: review.filter(q => q.isCorrect).length,
-        wrongCount: review.filter(q => !q.isCorrect && q.userAnswer != null).length,
-        skippedCount: review.filter(q => q.userAnswer == null).length,
+        correctCount, wrongCount, skippedCount,
       };
     });
 
@@ -2480,10 +2584,17 @@ app.get('/api/candidate/analytics', authMiddleware, requireRole('candidate'), (r
         testNames: d.testNames,
       })).sort((a, b) => b.percentage - a.percentage);
 
-    const trend = sessionData.map((s, i) => ({
-      label: `Attempt ${i + 1}`, testName: s.testName, percentage: s.percentage, passed: s.passed,
-      date: s.submittedAt ? new Date(s.submittedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '',
-    }));
+    // Per-test attempt counter so multi-attempt tests show "t2 #1", "t2 #2" etc.
+    const testAttemptCounters = {};
+    const trend = sessionData.map((s) => {
+      testAttemptCounters[s.testId] = (testAttemptCounters[s.testId] || 0) + 1;
+      return {
+        label: s.testName,
+        attemptNum: testAttemptCounters[s.testId],
+        testName: s.testName, percentage: s.percentage, passed: s.passed,
+        date: s.submittedAt ? new Date(s.submittedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '',
+      };
+    });
 
     res.json({
       hasData: true,
@@ -2493,6 +2604,94 @@ app.get('/api/candidate/analytics', authMiddleware, requireRole('candidate'), (r
       weaknesses: subjectBreakdown.filter(s => s.percentage < 60 && s.total >= 3).sort((a,b) => a.percentage - b.percentage).slice(0, 3),
       sessions: sessionData,
     });
+  } catch (err) { console.error('Analytics error:', err); res.status(500).json({ error: err.message }); }
+});
+
+// Shared analytics logic for admin/super to view any candidate's analytics
+function getCandidateAnalytics(candidateId) {
+  const sessions = db.prepare(`
+    SELECT ts.*, t.name as test_name, t.total_questions, t.passing_percentage, t.duration_minutes
+    FROM test_sessions ts JOIN tests t ON ts.test_id = t.id
+    WHERE ts.candidate_id = ? AND ts.status = 'submitted' ORDER BY ts.end_time ASC
+  `).all(candidateId);
+  if (sessions.length === 0) return { hasData: false, sessions: [] };
+
+  const sessionData = sessions.map((s) => {
+    let subjectScores = {};
+    try { const r = JSON.parse(s.result_json || '{}'); subjectScores = r.subjectScores || {}; } catch(e) {}
+    let correctCount = s.score || 0, skippedCount = 0, wrongCount = 0;
+    try {
+      const questions = JSON.parse(s.questions_json || '[]');
+      const answers = JSON.parse(s.answers_json || '{}');
+      questions.forEach(q => { const ans = answers[String(q.id)]; if (ans == null || ans === '' || ans === -1) skippedCount++; });
+      wrongCount = Math.max(0, questions.length - correctCount - skippedCount);
+    } catch(e) {}
+    return {
+      sessionId: s.id, testId: s.test_id, testName: s.test_name, submittedAt: s.end_time || s.submitted_at,
+      score: s.score || 0, total: s.total_questions || 100, percentage: Math.round(s.percentage || 0),
+      passed: s.passed === 1, timeTaken: s.time_taken || 0, subjectScores, correctCount, wrongCount, skippedCount,
+    };
+  });
+
+  const totalAttempts = sessionData.length;
+  const totalPassed = sessionData.filter(s => s.passed).length;
+  const avgScore = Math.round(sessionData.reduce((a, s) => a + s.percentage, 0) / totalAttempts);
+  const bestScore = Math.max(...sessionData.map(s => s.percentage));
+  const latestScore = sessionData[sessionData.length - 1].percentage;
+  const improvement = sessionData.length > 1 ? latestScore - sessionData[0].percentage : 0;
+
+  const subjectAgg = {};
+  sessionData.forEach(s => {
+    const sess = db.prepare('SELECT questions_json FROM test_sessions WHERE id=?').get(s.sessionId);
+    const validSubjects = new Set();
+    try { JSON.parse(sess?.questions_json || '[]').forEach(q => { if (q.subject) validSubjects.add(q.subject); }); } catch(e) {}
+    Object.entries(s.subjectScores || {}).forEach(([subj, data]) => {
+      if (validSubjects.size > 0 && !validSubjects.has(subj)) return;
+      if (!data.total || data.total === 0) return;
+      if (!subjectAgg[subj]) subjectAgg[subj] = { correct: 0, total: 0, testNames: [] };
+      subjectAgg[subj].correct += data.correct || 0;
+      subjectAgg[subj].total += data.total || 0;
+      if (!subjectAgg[subj].testNames.includes(s.testName)) subjectAgg[subj].testNames.push(s.testName);
+    });
+  });
+  const subjectBreakdown = Object.entries(subjectAgg)
+    .filter(([, d]) => d.total > 0)
+    .map(([name, d]) => ({ name, correct: d.correct, total: d.total, percentage: Math.round((d.correct / d.total) * 100), testNames: d.testNames }))
+    .sort((a, b) => b.percentage - a.percentage);
+
+  const testAttemptCounters = {};
+  const trend = sessionData.map(s => {
+    testAttemptCounters[s.testId] = (testAttemptCounters[s.testId] || 0) + 1;
+    return {
+      label: s.testName, attemptNum: testAttemptCounters[s.testId],
+      testName: s.testName, percentage: s.percentage, passed: s.passed,
+      date: s.submittedAt ? new Date(s.submittedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '',
+    };
+  });
+
+  return {
+    hasData: true,
+    overview: { totalAttempts, totalPassed, avgScore, bestScore, latestScore, improvement },
+    trend, subjectBreakdown,
+    strengths: subjectBreakdown.filter(s => s.percentage >= 70 && s.total >= 3).slice(0, 3),
+    weaknesses: subjectBreakdown.filter(s => s.percentage < 60 && s.total >= 3).sort((a,b) => a.percentage - b.percentage).slice(0, 3),
+    sessions: sessionData,
+  };
+}
+
+app.get('/api/super/analytics/:candidateId', authMiddleware, requireRole('super_admin'), (req, res) => {
+  try {
+    const candidate = db.prepare('SELECT id FROM users WHERE id = ? AND role = ?').get(req.params.candidateId, 'candidate');
+    if (!candidate) return res.status(404).json({ error: 'Candidate not found' });
+    res.json(getCandidateAnalytics(req.params.candidateId));
+  } catch (err) { console.error('Analytics error:', err); res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/admin/analytics/:candidateId', authMiddleware, requireRole('admin'), (req, res) => {
+  try {
+    const candidate = db.prepare('SELECT id FROM users WHERE id = ? AND role = ? AND created_by = ?').get(req.params.candidateId, 'candidate', req.user.id);
+    if (!candidate) return res.status(404).json({ error: 'Candidate not found' });
+    res.json(getCandidateAnalytics(req.params.candidateId));
   } catch (err) { console.error('Analytics error:', err); res.status(500).json({ error: err.message }); }
 });
 
@@ -2519,6 +2718,11 @@ app.post('/api/candidate/tests/:testId/start', authMiddleware, requireRole('cand
     if (permission.attempt_count >= permission.max_attempts) {
       return res.status(403).json({ error: 'Maximum attempts reached' });
     }
+
+    // Attempt number for this new session = completed attempts + 1.
+    // Resuming an existing in-progress session reuses its stored attempt_number,
+    // so we only consult this value for fresh inserts below.
+    const newAttemptNumber = (permission.attempt_count || 0) + 1;
 
     // Check scheduling window
     const now = new Date();
@@ -2569,9 +2773,9 @@ app.post('/api/candidate/tests/:testId/start', authMiddleware, requireRole('cand
       const sessionId = uuidv4();
       db.prepare(`
         INSERT INTO test_sessions (id, candidate_id, test_id, permission_id, status, start_time, duration_minutes,
-          total_questions, code_map_json, coding_results_json, best_scores_json)
-        VALUES (?, ?, ?, ?, 'in_progress', strftime('%Y-%m-%dT%H:%M:%f','now','localtime'), ?, ?, '{}', '{}', '{}')
-      `).run(sessionId, candidateId, testId, permission.id, permission.duration_minutes, allProblems.length);
+          total_questions, code_map_json, coding_results_json, best_scores_json, attempt_number)
+        VALUES (?, ?, ?, ?, 'in_progress', strftime('%Y-%m-%dT%H:%M:%f','now','localtime'), ?, ?, '{}', '{}', '{}', ?)
+      `).run(sessionId, candidateId, testId, permission.id, permission.duration_minutes, allProblems.length, newAttemptNumber);
 
       logAudit(db, {
         actorId: candidateId, actorRole: 'candidate',
@@ -2657,10 +2861,10 @@ app.post('/api/candidate/tests/:testId/start', authMiddleware, requireRole('cand
 
       db.prepare(`
         INSERT INTO test_sessions (id, candidate_id, test_id, permission_id, status, start_time, duration_minutes,
-          questions_json, answers_json, total_questions, code_map_json, coding_results_json, best_scores_json, hybrid_problem_ids_json)
-        VALUES (?, ?, ?, ?, 'in_progress', strftime('%Y-%m-%dT%H:%M:%f','now','localtime'), ?, ?, '{}', ?, '{}', '{}', '{}', ?)
+          questions_json, answers_json, total_questions, code_map_json, coding_results_json, best_scores_json, hybrid_problem_ids_json, attempt_number)
+        VALUES (?, ?, ?, ?, 'in_progress', strftime('%Y-%m-%dT%H:%M:%f','now','localtime'), ?, ?, '{}', ?, '{}', '{}', '{}', ?, ?)
       `).run(sessionId, candidateId, testId, permission.id, permission.duration_minutes,
-        JSON.stringify(mcqQuestions), mcqQuestions.length, JSON.stringify(selectedProblemIds));
+        JSON.stringify(mcqQuestions), mcqQuestions.length, JSON.stringify(selectedProblemIds), newAttemptNumber);
 
       logAudit(db, {
         actorId: candidateId, actorRole: 'candidate',
@@ -2721,9 +2925,9 @@ app.post('/api/candidate/tests/:testId/start', authMiddleware, requireRole('cand
     if (!result) {
       // Java/Selenium rounds - create session without questions
       db.prepare(`
-        INSERT INTO test_sessions (id, candidate_id, test_id, permission_id, status, start_time, duration_minutes, answers_json)
-        VALUES (?, ?, ?, ?, 'in_progress', strftime('%Y-%m-%dT%H:%M:%f','now','localtime'), ?, '{}')
-      `).run(sessionId, candidateId, testId, permission.id, permission.duration_minutes);
+        INSERT INTO test_sessions (id, candidate_id, test_id, permission_id, status, start_time, duration_minutes, answers_json, attempt_number)
+        VALUES (?, ?, ?, ?, 'in_progress', strftime('%Y-%m-%dT%H:%M:%f','now','localtime'), ?, '{}', ?)
+      `).run(sessionId, candidateId, testId, permission.id, permission.duration_minutes, newAttemptNumber);
 
       return res.json({
         testType: 'mcq',
@@ -2736,13 +2940,14 @@ app.post('/api/candidate/tests/:testId/start', authMiddleware, requireRole('cand
     }
 
     db.prepare(`
-      INSERT INTO test_sessions (id, candidate_id, test_id, permission_id, status, start_time, duration_minutes, questions_json, answers_json, total_questions)
-      VALUES (?, ?, ?, ?, 'in_progress', strftime('%Y-%m-%dT%H:%M:%f','now','localtime'), ?, ?, '{}', ?)
+      INSERT INTO test_sessions (id, candidate_id, test_id, permission_id, status, start_time, duration_minutes, questions_json, answers_json, total_questions, attempt_number)
+      VALUES (?, ?, ?, ?, 'in_progress', strftime('%Y-%m-%dT%H:%M:%f','now','localtime'), ?, ?, '{}', ?, ?)
     `).run(
       sessionId, candidateId, testId, permission.id,
       permission.duration_minutes,
       JSON.stringify(result.questions),
-      result.questions.length
+      result.questions.length,
+      newAttemptNumber
     );
 
     logAudit(db, {
@@ -3183,6 +3388,17 @@ app.post('/api/candidate/tests/:testId/session/:sessionId/submit', authMiddlewar
     const testType = test?.test_type || 'mcq';
     const passingPct = test ? test.passing_percentage : 60;
 
+    // Mark auto-submission triggered by violations
+    const isAutoSubmit = req.body.auto === true || req.body.auto === 1;
+    const violationCount = session.tab_violations || 0;
+    const isViolationBlocked = isAutoSubmit && violationCount >= 3 ? 1 : 0;
+    if (isAutoSubmit) {
+      db.prepare('UPDATE test_sessions SET auto_submitted = 1 WHERE id = ?').run(sessionId);
+    }
+    if (isViolationBlocked) {
+      db.prepare('UPDATE test_sessions SET violation_blocked = 1 WHERE id = ?').run(sessionId);
+    }
+
     // Time taken — clamped via calcTimeDiff (0..86400 seconds)
     const timeTaken = calcTimeDiff(session.start_time, getLocalTime());
 
@@ -3455,76 +3671,75 @@ app.get('/api/candidate/tests/:testId/sessions/:sessionId/review', authMiddlewar
     const candidateId = req.user.id;
 
     const session = db.prepare(`
-      SELECT ts.*
+      SELECT ts.*, u.name as candidate_name, u.email as candidate_email, t.name as test_name, t.test_type
       FROM test_sessions ts
+      JOIN users u ON u.id = ts.candidate_id
+      JOIN tests t ON t.id = ts.test_id
       WHERE ts.id = ? AND ts.candidate_id = ? AND ts.test_id = ? AND ts.status IN ('submitted','timed_out')
     `).get(sessionId, candidateId, testId);
 
     if (!session) return res.status(404).json({ error: 'Session not found or not yet submitted' });
 
-    // Determine test type
-    const test = db.prepare('SELECT test_type FROM tests WHERE id = ?').get(testId);
-    const testType = test?.test_type || 'mcq';
-
-    if (testType === 'coding') {
-      // Coding test review
-      const resultData = session.result_json ? JSON.parse(session.result_json) : {};
-      const codeMap = session.code_map_json ? JSON.parse(session.code_map_json) : {};
-      return res.json({ testType: 'coding', result: resultData, codeMap });
+    // Block review for sessions terminated by anti-cheat violations
+    if (session.violation_blocked || (session.tab_violations || 0) >= 3) {
+      return res.status(403).json({
+        error: 'VIOLATION_BLOCKED',
+        message: 'Your test was terminated due to tab switching violations. Results are not available.',
+        violationCount: session.tab_violations || 0,
+      });
     }
 
-    // MCQ review
-    const questions = session.questions_json ? JSON.parse(session.questions_json) : [];
-    const answers = session.answers_json ? JSON.parse(session.answers_json) : {};
+    const permission = db.prepare(
+      'SELECT max_attempts FROM test_permissions WHERE id = ? OR (candidate_id = ? AND test_id = ?) LIMIT 1'
+    ).get(session.permission_id, candidateId, testId);
 
-    const review = questions.map(q => {
-      const userAnswer = answers[String(q.id)];
-      const correctAnswer = q.answer_index !== undefined ? parseInt(q.answer_index, 10)
-        : q.answer !== undefined ? parseInt(q.answer, 10) : -1;
-      const isCorrect = userAnswer !== undefined && parseInt(userAnswer, 10) === correctAnswer;
-      return {
-        displayId: q.displayId,
-        id: q.id,
-        subject: q.subject,
-        topic: q.topic,
-        difficulty: q.difficulty,
-        type: q.type,
-        question: q.question,
-        options: q.options,
-        code_snippet: q.code_snippet,
-        userAnswer: userAnswer !== undefined ? userAnswer : null,
-        correctAnswer,
-        isCorrect,
-        explanation: q.explanation
-      };
-    });
+    const testType = session.test_type || 'mcq';
 
-    const score = session.score ?? review.filter(q => q.isCorrect).length;
-    const total = session.total_questions ?? review.length;
-    const percentage = session.percentage ?? (total > 0 ? Math.round((score / total) * 100) : 0);
-    const testRow = db.prepare('SELECT name FROM tests WHERE id = ?').get(testId);
-    const correctCount = review.filter(q => q.isCorrect).length;
-    const skippedCount = review.filter(q => q.userAnswer == null).length;
-    const answeredCount = review.length - skippedCount;
-    const wrongCount = answeredCount - correctCount;
+    if (testType === 'coding') {
+      const resultData = session.result_json ? JSON.parse(session.result_json) : {};
+      const codeMap = session.code_map_json ? JSON.parse(session.code_map_json) : {};
+      return res.json({
+        testType: 'coding',
+        testName: session.test_name,
+        attemptNumber: session.attempt_number || 1,
+        maxAttempts: permission?.max_attempts || 1,
+        submittedAt: session.end_time,
+        startedAt: session.start_time,
+        percentage: session.percentage,
+        passed: session.passed === 1,
+        grade: session.grade,
+        score: session.score,
+        total: session.total_questions,
+        timeTaken: session.time_taken,
+        violationCount: session.tab_violations || 0,
+        result: resultData,
+        codeMap,
+      });
+    }
+
+    // MCQ / hybrid review — reuse the admin-style enriched shape
+    const enriched = enrichSessionDetail(session);
+    const { questions, summary, codingProblems } = enriched;
 
     res.json({
-      testType: 'mcq',
-      testName: testRow?.name || '',
-      review,
-      score,
-      total,
-      percentage,
+      testType,
+      testName: session.test_name,
+      attemptNumber: session.attempt_number || 1,
+      maxAttempts: permission?.max_attempts || 1,
+      submittedAt: session.end_time,
+      startedAt: session.start_time,
+      score: session.score,
+      total: session.total_questions,
+      percentage: session.percentage,
       passed: session.passed === 1,
-      grade: percentage >= 90 ? 'A' : percentage >= 75 ? 'B' : percentage >= 60 ? 'C' : 'F',
-      summary: {
-        totalQuestions: review.length,
-        answered: answeredCount,
-        skipped: skippedCount,
-        correct: correctCount,
-        wrong: wrongCount,
-        percentage,
-      },
+      grade: session.grade,
+      timeTaken: session.time_taken,
+      violationCount: session.tab_violations || 0,
+      questions,
+      summary,
+      codingProblems: codingProblems || [],
+      // Legacy field kept for any older callers
+      review: questions,
     });
   } catch (err) {
     console.error(err);
@@ -3594,6 +3809,25 @@ app.get('/api/monitor/live', authMiddleware, requireRole('admin', 'super_admin')
     const scope = req.user.role === 'admin' ? req.user.id : null;
     res.json(buildLiveMonitorRows(scope));
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+function getActiveSessionCount(scopedAdminId) {
+  const sql = scopedAdminId
+    ? `SELECT COUNT(*) as c FROM test_sessions ts JOIN users u ON u.id = ts.candidate_id
+       WHERE ts.status = 'in_progress' AND u.created_by = ?`
+    : `SELECT COUNT(*) as c FROM test_sessions WHERE status = 'in_progress'`;
+  const row = scopedAdminId ? db.prepare(sql).get(scopedAdminId) : db.prepare(sql).get();
+  return row ? (row.c || 0) : 0;
+}
+
+app.get('/api/super/monitor/active-count', authMiddleware, requireRole('super_admin'), (req, res) => {
+  try { res.json({ count: getActiveSessionCount(null) }); }
+  catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+app.get('/api/admin/monitor/active-count', authMiddleware, requireRole('admin'), (req, res) => {
+  try { res.json({ count: getActiveSessionCount(req.user.id) }); }
+  catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ============================================================
@@ -3790,11 +4024,12 @@ app.post('/api/candidate/tests/:testId/session/:sessionId/violation', authMiddle
     const log = JSON.parse(session.violation_log_json || '[]');
     log.push({ type: type || 'tab_switch', timestamp: timestamp || nowLocalIso() });
 
-    db.prepare('UPDATE test_sessions SET tab_violations = ?, violation_log_json = ? WHERE id = ?')
-      .run(violations, JSON.stringify(log), sessionId);
+    const blocked = violations >= 3 ? 1 : 0;
+    db.prepare('UPDATE test_sessions SET tab_violations = ?, violation_log_json = ?, violation_blocked = ? WHERE id = ?')
+      .run(violations, JSON.stringify(log), blocked, sessionId);
 
     const warningLevel = violations >= 3 ? 'auto_submit' : violations >= 1 ? 'warning' : null;
-    res.json({ violations, warningLevel });
+    res.json({ violations, warningLevel, violationBlocked: !!blocked });
   } catch (err) {
     console.error('Violation tracking error:', err);
     res.status(500).json({ error: 'Server error' });
@@ -4403,7 +4638,7 @@ function updateDesignTestHandler(req, res, role) {
   try {
     const { name, description, durationMinutes, passingPercentage,
       subjectsJson, subjects, difficultyJson, difficultyDistribution,
-      typeQuotasJson, typeQuotas, codingProblemCount } = req.body || {};
+      typeQuotasJson, typeQuotas, codingProblemCount, totalQuestions } = req.body || {};
     if (!name || !String(name).trim()) return res.status(400).json({ error: 'NAME_REQUIRED', message: 'Test name is required' });
     if (durationMinutes != null && (Number(durationMinutes) <= 0 || Number(durationMinutes) > 480)) {
       return res.status(400).json({ error: 'INVALID_DURATION', message: 'Duration must be between 1 and 480 minutes' });
@@ -4419,22 +4654,48 @@ function updateDesignTestHandler(req, res, role) {
     const sJson = subjectsJson != null ? subjectsJson : (Array.isArray(subjects) ? JSON.stringify(subjects) : test.subjects_json);
     const dJson = difficultyJson != null ? difficultyJson : (difficultyDistribution ? JSON.stringify(difficultyDistribution) : test.difficulty_json);
     const tJson = typeQuotasJson != null ? typeQuotasJson : (typeQuotas ? JSON.stringify(typeQuotas) : test.type_quotas_json);
-    const codingCount = codingProblemCount != null ? Number(codingProblemCount) : test.coding_problem_count;
+    const codingCount = codingProblemCount != null ? Math.max(0, Number(codingProblemCount)) : (test.coding_problem_count || 0);
+    const mcqCount = totalQuestions != null ? Math.max(0, Number(totalQuestions)) : (test.total_questions || 0);
+
+    if (mcqCount === 0 && codingCount === 0) {
+      return res.status(400).json({ error: 'NO_QUESTIONS', message: 'Must include MCQ questions or coding problems (or both)' });
+    }
+
+    if (totalQuestions != null && mcqCount > 0) {
+      const subjectsArr = Array.isArray(subjects) ? subjects : (sJson ? JSON.parse(sJson) : []);
+      if (!subjectsArr.length) {
+        return res.status(400).json({ error: 'NO_SUBJECTS', message: 'Select at least one subject for MCQ questions' });
+      }
+      const placeholders = subjectsArr.map(() => '?').join(',');
+      const avail = db.prepare(`SELECT COUNT(*) as cnt FROM questions WHERE subject IN (${placeholders})`).get(...subjectsArr);
+      if (avail.cnt < mcqCount) {
+        return res.status(400).json({ error: 'POOL_TOO_SMALL', message: `Only ${avail.cnt} questions available for selected subjects. Requested ${mcqCount}.` });
+      }
+    }
+    if (codingProblemCount != null && codingCount > 0) {
+      const availCoding = db.prepare("SELECT COUNT(*) as cnt FROM coding_problems WHERE evaluation_type = 'python'").get();
+      if (availCoding.cnt < codingCount) {
+        return res.status(400).json({ error: 'CODING_POOL_TOO_SMALL', message: `Only ${availCoding.cnt} Python coding problems available. Requested ${codingCount}.` });
+      }
+    }
+
+    const newTestType = codingCount > 0 && mcqCount > 0 ? 'hybrid' : codingCount > 0 ? 'coding' : 'mcq';
 
     db.prepare(`
       UPDATE tests SET name = ?, description = ?, duration_minutes = ?, passing_percentage = ?,
-        subjects_json = ?, difficulty_json = ?, type_quotas_json = ?, coding_problem_count = ?
+        subjects_json = ?, difficulty_json = ?, type_quotas_json = ?, coding_problem_count = ?,
+        total_questions = ?, test_type = ?
       WHERE id = ?
     `).run(
       String(name).trim(),
       description != null ? description : test.description,
       durationMinutes != null ? Number(durationMinutes) : test.duration_minutes,
       passingPercentage != null ? Number(passingPercentage) : test.passing_percentage,
-      sJson, dJson, tJson, codingCount,
+      sJson, dJson, tJson, codingCount, mcqCount, newTestType,
       req.params.testId
     );
     logAudit(db, { actorId: req.user.id, actorRole: role, action: 'edit_test',
-      targetType: 'test', targetId: req.params.testId, details: { name, durationMinutes, passingPercentage } });
+      targetType: 'test', targetId: req.params.testId, details: { name, durationMinutes, passingPercentage, totalQuestions: mcqCount, codingProblemCount: codingCount, testType: newTestType } });
     res.json(db.prepare('SELECT * FROM tests WHERE id = ?').get(req.params.testId));
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 }
@@ -4551,7 +4812,7 @@ function assignInterviewPrep(req, res, role) {
         if (!c) continue;
         const existing = db.prepare('SELECT id FROM test_permissions WHERE candidate_id = ? AND test_id = ? AND status = ?').get(cid, testId, 'granted');
         if (existing) { results.skipped++; continue; }
-        db.prepare('INSERT INTO test_permissions (id, candidate_id, test_id, max_attempts, granted_by) VALUES (?, ?, ?, ?, ?)')
+        db.prepare("INSERT INTO test_permissions (id, candidate_id, test_id, max_attempts, granted_by, granted_at) VALUES (?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%f','now','localtime'))")
           .run(uuidv4(), cid, testId, maxAttempts || 1, req.user.id);
         results.assigned++;
       }
@@ -4613,7 +4874,7 @@ app.post('/api/super/permissions/bulk', authMiddleware, requireRole('super_admin
           const existing = db.prepare('SELECT id FROM test_permissions WHERE candidate_id = ? AND test_id = ? AND status = ?').get(candidateId, testId, 'granted');
           if (existing) { results.skipped.push({ candidateId, testId, reason: 'Already assigned' }); continue; }
           const id = uuidv4();
-          db.prepare('INSERT INTO test_permissions (id, candidate_id, test_id, max_attempts, granted_by) VALUES (?, ?, ?, ?, ?)')
+          db.prepare("INSERT INTO test_permissions (id, candidate_id, test_id, max_attempts, granted_by, granted_at) VALUES (?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%f','now','localtime'))")
             .run(id, candidateId, testId, maxAttempts || 1, req.user.id);
           results.granted.push({ id, candidateId, testId });
         }
@@ -4642,7 +4903,7 @@ app.post('/api/admin/permissions/bulk', authMiddleware, requireRole('admin'), (r
           const existing = db.prepare('SELECT id FROM test_permissions WHERE candidate_id = ? AND test_id = ? AND status = ?').get(candidateId, testId, 'granted');
           if (existing) { results.skipped.push({ candidateId, testId, reason: 'Already assigned' }); continue; }
           const id = uuidv4();
-          db.prepare('INSERT INTO test_permissions (id, candidate_id, test_id, max_attempts, granted_by) VALUES (?, ?, ?, ?, ?)')
+          db.prepare("INSERT INTO test_permissions (id, candidate_id, test_id, max_attempts, granted_by, granted_at) VALUES (?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%f','now','localtime'))")
             .run(id, candidateId, testId, maxAttempts || 1, req.user.id);
           results.granted.push({ id, candidateId, testId });
         }

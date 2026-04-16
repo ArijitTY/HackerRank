@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { formatIST, formatISTDate, nowLocalIso } from '../../utils/dateUtils';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api';
 import { useToast } from '../../context/ToastContext';
 
 export default function CandidateProfilePage({ user }) {
   const toast = useToast();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -65,9 +67,18 @@ export default function CandidateProfilePage({ user }) {
 
   return (
     <div style={S.page}>
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: '#f8fafc', margin: 0 }}>My Profile</h1>
-        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', margin: '4px 0 0' }}>Manage your account settings</p>
+      <div style={{ marginBottom: 28, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: '#f8fafc', margin: 0 }}>My Profile</h1>
+          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', margin: '4px 0 0' }}>Manage your account settings</p>
+        </div>
+        <button
+          onClick={() => navigate('/candidate')}
+          style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 18px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, color: 'rgba(255,255,255,0.75)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          Back to Dashboard
+        </button>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, maxWidth: 900 }}>

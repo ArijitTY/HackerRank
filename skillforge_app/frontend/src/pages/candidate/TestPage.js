@@ -149,6 +149,8 @@ export default function TestPage({ user }) {
   const [hybridBestScores, setHybridBestScores] = useState(navState.bestScores || {});
   const [hybridActiveProblem, setHybridActiveProblem] = useState(0);
   const [hybridRunning, setHybridRunning] = useState(false);
+  const [hybridSubmittingId, setHybridSubmittingId] = useState(null);
+  const [hybridToast, setHybridToast] = useState(null); // { msg, kind }
 
   const [sessionId, setSessionId] = useState(navState.sessionId || null);
   const [questions, setQuestions] = useState(navState.questions || []);
@@ -388,37 +390,74 @@ export default function TestPage({ user }) {
     }
   };
 
+  const showHybridToast = (msg, kind = 'info') => {
+    setHybridToast({ msg, kind });
+    setTimeout(() => setHybridToast(null), 4000);
+  };
+
   const hybridRunCode = async (problemId, code, input = '') => {
+    const problem = hybridProblems.find(p => p.id === problemId);
+    const effectiveCode = (code && code.trim()) ? code : (problem?.starterCode || '');
+    if (!effectiveCode.trim()) {
+      showHybridToast('Please write some code before running.', 'error');
+      return;
+    }
     setHybridRunning(true);
     try {
-      const { data } = await api.post(`/candidate/tests/${testId}/run`, { sessionId, problemId, code, input });
+      const { data } = await api.post(`/candidate/tests/${testId}/run`, { sessionId, problemId, code: effectiveCode, input });
       setHybridCodeRunResults(prev => ({ ...prev, [problemId]: data }));
-      if (data.passed !== undefined || (data.results && data.results.every(r => r.passed))) {
-        // Calculate points
-        const problem = hybridProblems.find(p => p.id === problemId);
-        if (problem && data.results) {
-          const passed = data.results.filter(r => r.passed).length;
-          const total = data.results.length;
-          const pts = total > 0 ? Math.round((passed / total) * problem.points) : 0;
-          setHybridBestScores(prev => ({ ...prev, [problemId]: Math.max(prev[problemId] || 0, pts) }));
+      if (data.results && problem) {
+        const passed = data.results.filter(r => r.passed).length;
+        const total = data.results.length;
+        if (total > 0 && passed === total) {
+          showHybridToast(`All ${total} sample test cases passed!`, 'success');
         }
       }
-    } catch (err) { console.error('Run error:', err); }
-    finally { setHybridRunning(false); }
+    } catch (err) {
+      console.error('Run error:', err);
+      const errMsg = err.response?.data?.error || err.message || 'Run failed';
+      setHybridCodeRunResults(prev => ({ ...prev, [problemId]: { error: errMsg, results: [] } }));
+      showHybridToast('Run failed: ' + errMsg, 'error');
+    } finally {
+      setHybridRunning(false);
+    }
   };
 
   const hybridSubmitCode = async (problemId) => {
-    const code = hybridCodeMap[problemId] || '';
-    if (!code.trim()) return;
-    setHybridRunning(true);
+    const problem = hybridProblems.find(p => p.id === problemId);
+    const code = (hybridCodeMap[problemId] && hybridCodeMap[problemId].trim())
+      ? hybridCodeMap[problemId]
+      : (problem?.starterCode || '');
+    if (!code.trim()) {
+      showHybridToast('Please write some code before submitting.', 'error');
+      return;
+    }
+    setHybridSubmittingId(problemId);
     try {
       const { data } = await api.post(`/candidate/tests/${testId}/submit-code`, { sessionId, problemId, code });
       if (data.score !== undefined) {
         setHybridBestScores(prev => ({ ...prev, [problemId]: Math.max(prev[problemId] || 0, data.score) }));
       }
-      setHybridCodeRunResults(prev => ({ ...prev, [`${problemId}_submitted`]: data }));
-    } catch (err) { console.error('Submit code error:', err); }
-    finally { setHybridRunning(false); }
+      setHybridCodeRunResults(prev => ({ ...prev, [problemId]: { ...data, _submitted: true } }));
+      const passedAll = data.totalCases > 0 && data.passedCases === data.totalCases;
+      showHybridToast(
+        passedAll
+          ? `Submitted! All ${data.totalCases} hidden cases passed — ${data.score}/${data.maxScore} pts`
+          : `Submitted: ${data.passedCases}/${data.totalCases} cases passed — ${data.score}/${data.maxScore} pts`,
+        passedAll ? 'success' : 'warn'
+      );
+      const problemIdx = hybridProblems.findIndex(p => p.id === problemId);
+      if (problemIdx !== -1 && problemIdx < hybridProblems.length - 1) {
+        setTimeout(() => {
+          setHybridActiveProblem(problemIdx + 1);
+        }, 1800);
+      }
+    } catch (err) {
+      console.error('Submit code error:', err);
+      showHybridToast('Submit failed: ' + (err.response?.data?.error || err.message || 'Server error'), 'error');
+    } finally {
+      setHybridSubmittingId(null);
+    }
   };
 
   const formatTime = (ms) => {
@@ -560,6 +599,24 @@ export default function TestPage({ user }) {
       <div style={{ minHeight: '100vh', background: '#030712', color: 'white', display: 'flex', flexDirection: 'column' }}>
         {ViolationWarning}
         {TimerWarning}
+        {hybridToast && (
+          <div style={{
+            position: 'fixed', bottom: 24, right: 24, zIndex: 9997,
+            background: hybridToast.kind === 'error' ? 'linear-gradient(135deg,#7f1d1d,#991b1b)'
+              : hybridToast.kind === 'success' ? 'linear-gradient(135deg,#065f46,#047857)'
+              : hybridToast.kind === 'warn' ? 'linear-gradient(135deg,#78350f,#92400e)'
+              : 'linear-gradient(135deg,#1e3a8a,#1e40af)',
+            border: `1px solid ${hybridToast.kind === 'error' ? '#ef4444' : hybridToast.kind === 'success' ? '#10b981' : hybridToast.kind === 'warn' ? '#f59e0b' : '#3b82f6'}`,
+            borderRadius: 10, padding: '12px 18px', color: 'white', fontSize: 13, fontWeight: 600,
+            boxShadow: '0 10px 30px rgba(0,0,0,0.4)', maxWidth: 420,
+            display: 'flex', gap: 10, alignItems: 'center'
+          }}>
+            <span style={{ fontSize: 18 }}>
+              {hybridToast.kind === 'error' ? '❌' : hybridToast.kind === 'success' ? '✅' : hybridToast.kind === 'warn' ? '⚠️' : 'ℹ️'}
+            </span>
+            <span>{hybridToast.msg}</span>
+          </div>
+        )}
         {/* Header */}
         <div style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -646,7 +703,23 @@ export default function TestPage({ user }) {
                     </div>
                     <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
                       <button onClick={() => setCurrentIdx(Math.max(0, currentIdx - 1))} disabled={currentIdx === 0} className="btn btn-outline">← Prev</button>
-                      <button onClick={() => setCurrentIdx(Math.min(questions.length - 1, currentIdx + 1))} disabled={currentIdx === questions.length - 1} className="btn btn-primary">Next →</button>
+                      {currentIdx < questions.length - 1 ? (
+                        <button onClick={() => setCurrentIdx(currentIdx + 1)} className="btn btn-primary">Next →</button>
+                      ) : hybridProblems.length > 0 ? (
+                        <button
+                          onClick={() => {
+                            setHybridSection('coding');
+                            setHybridActiveProblem(0);
+                            showHybridToast('MCQ section complete! Starting coding problems…', 'info');
+                          }}
+                          className="btn btn-primary"
+                          style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)', fontWeight: 700 }}
+                        >
+                          Start Coding Section →
+                        </button>
+                      ) : (
+                        <button onClick={() => setShowConfirm(true)} className="btn btn-primary">Submit ✓</button>
+                      )}
                     </div>
                   </div>
                 );
@@ -705,19 +778,67 @@ export default function TestPage({ user }) {
                     onChange={(val) => setHybridCodeMap(prev => ({ ...prev, [activeProblem.id]: val }))}
                     language="python"
                   />
-                  <div style={{ padding: '10px 16px', background: 'rgba(0,0,0,0.3)', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: 10 }}>
-                    <button onClick={() => hybridRunCode(activeProblem.id, hybridCodeMap[activeProblem.id] || activeProblem.starterCode || '', activeProblem.sampleTestCases?.[0]?.input || '')} disabled={hybridRunning} style={{ padding: '8px 16px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: 'white', cursor: 'pointer', fontSize: 13 }}>▶ Run</button>
-                    <button onClick={() => hybridSubmitCode(activeProblem.id)} disabled={hybridRunning} style={{ padding: '8px 16px', background: '#7c3aed', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Submit Code</button>
+                  <div style={{ padding: '10px 16px', background: 'rgba(0,0,0,0.3)', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <button
+                      onClick={() => hybridRunCode(activeProblem.id, hybridCodeMap[activeProblem.id] || activeProblem.starterCode || '', activeProblem.sampleTestCases?.[0]?.input || '')}
+                      disabled={hybridRunning || hybridSubmittingId === activeProblem.id}
+                      style={{
+                        padding: '8px 18px',
+                        background: hybridRunning ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.18)',
+                        border: '1px solid rgba(16,185,129,0.4)', borderRadius: 6,
+                        color: '#34d399', cursor: (hybridRunning || hybridSubmittingId === activeProblem.id) ? 'not-allowed' : 'pointer',
+                        fontSize: 13, fontWeight: 600, opacity: (hybridRunning || hybridSubmittingId === activeProblem.id) ? 0.6 : 1,
+                        display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit'
+                      }}>
+                      {hybridRunning ? (<><span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⟳</span>Running…</>) : '▶ Run'}
+                    </button>
+                    <button
+                      onClick={() => hybridSubmitCode(activeProblem.id)}
+                      disabled={hybridRunning || hybridSubmittingId === activeProblem.id}
+                      style={{
+                        padding: '8px 18px',
+                        background: hybridSubmittingId === activeProblem.id ? 'rgba(124,58,237,0.5)' : '#7c3aed',
+                        border: 'none', borderRadius: 6, color: 'white',
+                        cursor: (hybridRunning || hybridSubmittingId === activeProblem.id) ? 'not-allowed' : 'pointer',
+                        fontSize: 13, fontWeight: 600, opacity: hybridRunning ? 0.6 : 1,
+                        display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit'
+                      }}>
+                      {hybridSubmittingId === activeProblem.id ? (<><span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⟳</span>Submitting…</>) : '✓ Submit Code'}
+                    </button>
+                    {hybridBestScores[activeProblem.id] > 0 && (
+                      <span style={{ marginLeft: 'auto', fontSize: 12, color: '#22d3ee', fontFamily: 'monospace' }}>
+                        Best: {hybridBestScores[activeProblem.id]}/{activeProblem.points} pts
+                      </span>
+                    )}
                   </div>
                   {hybridCodeRunResults[activeProblem.id] && (() => {
                     const runRes = hybridCodeRunResults[activeProblem.id];
+                    const isSubmit = runRes._submitted;
+                    const cases = runRes.caseSummary || runRes.results || [];
                     return (
-                      <div style={{ padding: '12px 16px', background: 'rgba(0,0,0,0.4)', borderTop: '1px solid rgba(255,255,255,0.08)', maxHeight: 160, overflowY: 'auto', fontSize: 12, fontFamily: 'monospace' }}>
-                        {runRes.results ? runRes.results.map((r, i) => (
-                          <div key={i} style={{ padding: '4px 0', color: r.passed ? '#10b981' : '#f87171' }}>
-                            Case {i + 1}: {r.passed ? '✓ Passed' : '✗ Failed'}{r.output ? ` — ${r.output.slice(0, 60)}` : ''}
+                      <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.4)', maxHeight: 220, overflowY: 'auto' }}>
+                        <div style={{ padding: '8px 16px', background: isSubmit ? 'rgba(124,58,237,0.15)' : 'rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.08)', fontSize: 12, fontWeight: 700, color: isSubmit ? '#a78bfa' : 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: 0.5, display: 'flex', justifyContent: 'space-between' }}>
+                          <span>{isSubmit ? '🔒 Submission Result' : 'Sample Run'}</span>
+                          {runRes.passedCases !== undefined && (
+                            <span style={{ fontFamily: 'monospace', color: runRes.passedCases === runRes.totalCases ? '#34d399' : '#fbbf24' }}>
+                              {runRes.passedCases}/{runRes.totalCases} passed
+                              {isSubmit && runRes.score !== undefined && ` · ${runRes.score}/${runRes.maxScore} pts`}
+                            </span>
+                          )}
+                        </div>
+                        {runRes.error && !cases.length ? (
+                          <div style={{ padding: '10px 16px', color: '#f87171', fontSize: 12, fontFamily: 'monospace' }}>{runRes.error}</div>
+                        ) : (
+                          <div style={{ padding: '8px 16px', fontSize: 12, fontFamily: 'monospace' }}>
+                            {cases.map((r, i) => (
+                              <div key={i} style={{ padding: '4px 0', color: r.passed ? '#34d399' : '#f87171', display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <span>{r.passed ? '✓' : '✗'}</span>
+                                <span>{isSubmit ? `Hidden Case ${r.caseNum || i + 1}` : `Sample ${i + 1}`}: {r.passed ? 'Passed' : (r.status || 'Failed').replace(/_/g, ' ')}</span>
+                                {!r.passed && r.output && <span style={{ color: 'rgba(255,255,255,0.4)', marginLeft: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 260 }}>→ {String(r.output).slice(0, 80)}</span>}
+                              </div>
+                            ))}
                           </div>
-                        )) : <div style={{ color: '#f87171' }}>{runRes.error || 'Run failed'}</div>}
+                        )}
                       </div>
                     );
                   })()}

@@ -210,9 +210,23 @@ export default function CandidateDashboard({ user }) {
                     {remainingAttempts !== null && remainingAttempts > 0 && t.status !== 'completed' && (
                       <span style={{display:'inline-flex',alignItems:'center',gap:4,padding:'5px 11px',background:'rgba(139,92,246,0.08)',border:'1px solid rgba(139,92,246,0.25)',borderRadius:8,fontSize:12,color:'#a78bfa',fontWeight:600}}>🔁 {remainingAttempts} attempt{remainingAttempts!==1?'s':''} left</span>
                     )}
+                    {t.violationBlocked && (
+                      <span style={{display:'inline-flex',alignItems:'center',gap:4,padding:'3px 10px',borderRadius:99,background:'rgba(226,75,74,0.15)',border:'1px solid rgba(226,75,74,0.3)',color:'#E24B4A',fontSize:11,fontWeight:500}}>⚠ Violated</span>
+                    )}
                   </div>
 
                   {/* Score bar */}
+                  {t.status==='completed' && t.violationBlocked && bestPct==null && (
+                    <div style={{marginBottom:12,padding:'12px 16px',borderRadius:10,background:'rgba(226,75,74,0.1)',border:'1px solid rgba(226,75,74,0.25)',display:'flex',alignItems:'flex-start',gap:10}}>
+                      <div style={{width:32,height:32,borderRadius:'50%',background:'rgba(226,75,74,0.2)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:16}}>⚠</div>
+                      <div>
+                        <div style={{color:'#E24B4A',fontSize:13,fontWeight:600,marginBottom:4}}>Test Terminated — Violation Detected</div>
+                        <div style={{color:'rgba(255,255,255,0.5)',fontSize:12,lineHeight:1.5}}>
+                          Your test was auto-submitted due to {t.latestViolationCount || 3} tab switching violation{(t.latestViolationCount || 3) > 1 ? 's' : ''}. Results are not available. Please contact your administrator.
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {t.status==='completed' && bestPct!=null && (
                     <div style={{marginBottom:12,padding:'11px 14px',background:'rgba(255,255,255,0.025)',border:'1px solid rgba(255,255,255,0.06)',borderRadius:10}}>
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
@@ -220,17 +234,42 @@ export default function CandidateDashboard({ user }) {
                         <span style={{fontSize:16,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:bestPct>=pass?'#34d399':'#f87171'}}>{bestPct}% <span style={{fontSize:12}}>{bestPct>=pass?'✅':'❌'}</span></span>
                       </div>
                       <div style={{height:7,background:'rgba(255,255,255,0.07)',borderRadius:4,overflow:'hidden'}}><div style={{height:'100%',borderRadius:4,width:`${bestPct}%`,background:bestPct>=80?'linear-gradient(90deg,#10b981,#34d399)':bestPct>=pass?'linear-gradient(90deg,#3b82f6,#60a5fa)':'linear-gradient(90deg,#ef4444,#f87171)',transition:'width 1.2s cubic-bezier(0.4,0,0.2,1)'}}/></div>
-                      {/* Per-attempt review links */}
-                      {(t.sessions||[]).filter(s=>s.status==='submitted').length > 1 && (
-                        <div style={{marginTop:10,display:'flex',flexWrap:'wrap',gap:6}}>
-                          {(t.sessions||[]).filter(s=>s.status==='submitted').map((s,idx)=>(
-                            <button key={s.id} onClick={()=>navigate(`/candidate/review/${tid}/${s.id}`)}
-                              style={{fontSize:11,padding:'4px 10px',background:'rgba(99,102,241,0.1)',border:'1px solid rgba(99,102,241,0.25)',borderRadius:6,color:'#a78bfa',cursor:'pointer',fontFamily:'inherit',fontWeight:600}}>
-                              Attempt {idx+1} — {Math.round(s.percentage||0)}%
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                      {/* Per-attempt review links — sorted oldest→newest so Attempt 1 = first, latest = highest number */}
+                      {(() => {
+                        // Include submitted + timed_out so all attempts are counted
+                        const allAttempts = (t.sessions||[])
+                          .filter(s => s.status === 'submitted' || s.status === 'timed_out')
+                          .slice() // don't mutate original
+                          .sort((a,b) => new Date(a.start_time||0) - new Date(b.start_time||0));
+                        if (allAttempts.length <= 1) return null;
+                        return (
+                          <div style={{marginTop:10,display:'flex',flexWrap:'wrap',gap:6}}>
+                            {allAttempts.map((s,idx)=>{
+                              const attemptLabel = `Attempt ${idx+1}`;
+                              if (s.status === 'timed_out') {
+                                return (
+                                  <span key={s.id} style={{fontSize:11,padding:'4px 10px',background:'rgba(245,158,11,0.1)',border:'1px solid rgba(245,158,11,0.3)',borderRadius:6,color:'#f59e0b',fontFamily:'inherit',fontWeight:600,display:'inline-flex',alignItems:'center',gap:4}}>
+                                    ⏱ {attemptLabel} — Timed Out
+                                  </span>
+                                );
+                              }
+                              if (s.violationBlocked) {
+                                return (
+                                  <span key={s.id} title={`${s.violationCount} violations`} style={{fontSize:11,padding:'4px 10px',background:'rgba(226,75,74,0.1)',border:'1px solid rgba(226,75,74,0.3)',borderRadius:6,color:'#E24B4A',fontFamily:'inherit',fontWeight:600,display:'inline-flex',alignItems:'center',gap:4}}>
+                                    ⚠ {attemptLabel} — Blocked
+                                  </span>
+                                );
+                              }
+                              return (
+                                <button key={s.id} onClick={()=>navigate(`/candidate/review/${tid}/${s.id}`)}
+                                  style={{fontSize:11,padding:'4px 10px',background:'rgba(99,102,241,0.1)',border:'1px solid rgba(99,102,241,0.25)',borderRadius:6,color:'#a78bfa',cursor:'pointer',fontFamily:'inherit',fontWeight:600}}>
+                                  {attemptLabel} — {Math.round(s.percentage||0)}%
+                                </button>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
 
@@ -253,13 +292,17 @@ export default function CandidateDashboard({ user }) {
                   ) : t.status==='in_progress' ? (
                     <button onClick={()=>handleAction(t)} style={{...btnBase,background:'linear-gradient(135deg,#d97706,#b45309)',color:'white',boxShadow:'0 4px 16px rgba(217,119,6,0.35)'}}>▶ Resume Test</button>
                   ) : t.status==='completed' ? (
-                    <button
-                      onClick={() => {
-                        const sess = (t.sessions||[]).filter(s=>s.status==='submitted').sort((a,b)=>(b.percentage||0)-(a.percentage||0))[0];
-                        if (sess?.id) navigate(`/candidate/review/${tid}/${sess.id}`);
-                      }}
-                      style={{...btnBase,background:'linear-gradient(135deg,#1d4ed8,#2563eb)',color:'white',boxShadow:'0 4px 16px rgba(37,99,235,0.3)'}}
-                    >📝 Review Answers</button>
+                    t.violationBlocked ? (
+                      <div style={{...btnBase,background:'rgba(226,75,74,0.08)',border:'1px solid rgba(226,75,74,0.25)',color:'#E24B4A',cursor:'not-allowed'}}>⚠ Results Unavailable — Contact Administrator</div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          const sess = (t.sessions||[]).filter(s=>s.status==='submitted' && !s.violationBlocked).sort((a,b)=>(b.percentage||0)-(a.percentage||0))[0];
+                          if (sess?.id) navigate(`/candidate/review/${tid}/${sess.id}`);
+                        }}
+                        style={{...btnBase,background:'linear-gradient(135deg,#1d4ed8,#2563eb)',color:'white',boxShadow:'0 4px 16px rgba(37,99,235,0.3)'}}
+                      >📝 Review Answers</button>
+                    )
                   ) : t.status==='analysis_only' ? (
                     <button
                       onClick={() => {

@@ -15,6 +15,52 @@ const SUBJECT_LABELS = {
   Python_Requests: 'Python Requests', SQL: 'SQL'
 };
 
+function SliderField({ label, value, min, max, step = 1, accent = '#8B5CF6', onChange, fallback = 0, suffix = '', hint = null, hintColor = 'rgba(255,255,255,0.3)', disabled = false }) {
+  const v = value === '' || value == null ? fallback : Number(value);
+  const range = Math.max(1, max - min);
+  const pct = Math.max(0, Math.min(100, ((v - min) / range) * 100));
+  const labelStyle = { fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' };
+  const numInputStyle = { width: 72, padding: '6px 8px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: 'white', fontSize: 14, fontWeight: 600, fontFamily: 'monospace', textAlign: 'center', outline: 'none', boxSizing: 'border-box' };
+  return (
+    <div style={{ opacity: disabled ? 0.5 : 1 }}>
+      <div style={labelStyle}>
+        <span>{label}</span>
+        <span style={{ color: accent, fontWeight: 700, fontFamily: 'monospace', fontSize: 13 }}>{v}{suffix ? ' ' + suffix : ''}</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <input
+          type="range"
+          min={min} max={max} step={step}
+          value={v}
+          disabled={disabled}
+          onChange={e => onChange(Number(e.target.value))}
+          style={{
+            flex: 1, height: 6, borderRadius: 99, outline: 'none',
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            accentColor: accent,
+            background: `linear-gradient(to right, ${accent} ${pct}%, rgba(255,255,255,0.08) ${pct}%)`,
+            WebkitAppearance: 'none', appearance: 'none',
+          }}
+        />
+        <input
+          type="number" className="no-spin"
+          min={min} max={max} step={step}
+          value={value ?? ''}
+          disabled={disabled}
+          onFocus={e => e.target.select()}
+          onChange={e => { const s = e.target.value; onChange(s === '' ? '' : (parseInt(s, 10) || 0)); }}
+          onBlur={e => { if (e.target.value === '') onChange(fallback); }}
+          style={numInputStyle}
+        />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 4 }}>
+        <span>{min}{suffix ? ' ' + suffix : ''}</span>
+        {hint ? <span style={{ color: hintColor }}>{hint}</span> : <span>{max}{suffix ? ' ' + suffix : ''}</span>}
+      </div>
+    </div>
+  );
+}
+
 export default function DesignTestPage({ apiPrefix = '/super' }) {
   const toast = useToast();
   const [tests, setTests] = useState([]);
@@ -276,16 +322,22 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
     const rawMedium = diff.Medium ?? 50;
     const rawHard   = 100 - rawEasy - rawMedium; // absorb any drift
 
+    // Use ?? not || so a legitimate 0% is preserved (||-fallback bug caused
+    // totals to exceed 100 when a saved quota had zero-valued entries).
+    const tMcq = typePct.mcq ?? 50;
+    const tOut = typePct.output ?? 0;
+    const tSce = typePct.scenario ?? 0;
+    const tCC  = Math.max(0, 100 - tMcq - tOut - tSce); // last one absorbs drift
     setForm({
       name: t.name ?? '',
       description: t.description ?? '',
       subjects: subjectsArr,
       totalQuestions: totalQ,
       easy: Math.max(0, rawEasy), medium: Math.max(0, rawMedium), hard: Math.max(0, rawHard),
-      mcq: typePct.mcq || 50,
-      output: typePct.output || 25,
-      scenario: typePct.scenario || 15,
-      code_completion: typePct.code_completion || 10,
+      mcq: tMcq,
+      output: tOut,
+      scenario: tSce,
+      code_completion: tCC,
       durationMinutes: t.duration_minutes ?? 60,
       passingPercentage: t.passing_percentage ?? 60,
       codingProblemCount: t.coding_problem_count ?? 0,
@@ -413,23 +465,36 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
             </div>
 
             {/* Configuration Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, marginBottom: 24 }}>
-              <div>
-                <label style={S.label}>MCQ Questions</label>
-                <input type="number" className="no-spin" style={S.numInput} min={0} max={500} value={form.totalQuestions ?? ''} onFocus={e => e.target.select()} onChange={e => { const v = e.target.value; setForm(prev => ({ ...prev, totalQuestions: v === '' ? '' : (parseInt(v) || 0) })); }} onBlur={e => { if (e.target.value === '') setForm(prev => ({ ...prev, totalQuestions: 0 })); }} />
-                {form.totalQuestions > selectedQuestionPool && selectedQuestionPool > 0 && (
-                  <div style={{ fontSize: 11, color: '#f87171', marginTop: 4 }}>Max: {selectedQuestionPool}</div>
-                )}
-              </div>
-              <div>
-                <label style={S.label}>Duration (min)</label>
-                <input type="number" className="no-spin" style={S.numInput} min={1} max={480} value={form.durationMinutes ?? ''} onFocus={e => e.target.select()} onChange={e => { const v = e.target.value; setForm(prev => ({ ...prev, durationMinutes: v === '' ? '' : (parseInt(v) || 0) })); }} onBlur={e => { if (e.target.value === '') setForm(prev => ({ ...prev, durationMinutes: 60 })); }} />
-              </div>
-              <div>
-                <label style={S.label}>Passing %</label>
-                <input type="number" className="no-spin" style={S.numInput} min={1} max={100} value={form.passingPercentage ?? ''} onFocus={e => e.target.select()} onChange={e => { const v = e.target.value; setForm(prev => ({ ...prev, passingPercentage: v === '' ? '' : (parseInt(v) || 0) })); }} onBlur={e => { if (e.target.value === '') setForm(prev => ({ ...prev, passingPercentage: 60 })); }} />
-              </div>
-              <div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr) auto', gap: 20, marginBottom: 24, alignItems: 'start' }}>
+              <SliderField
+                label="MCQ Questions"
+                value={form.totalQuestions}
+                min={0} max={Math.max(200, selectedQuestionPool || 200)} step={5}
+                accent="#8B5CF6"
+                onChange={v => setForm(prev => ({ ...prev, totalQuestions: v }))}
+                hint={form.totalQuestions > selectedQuestionPool && selectedQuestionPool > 0 ? `Max: ${selectedQuestionPool}` : null}
+                hintColor="#f87171"
+                fallback={50}
+              />
+              <SliderField
+                label="Duration (min)"
+                value={form.durationMinutes}
+                min={10} max={180} step={5}
+                accent="#8B5CF6"
+                onChange={v => setForm(prev => ({ ...prev, durationMinutes: v }))}
+                fallback={60}
+                suffix="min"
+              />
+              <SliderField
+                label="Passing %"
+                value={form.passingPercentage}
+                min={1} max={100} step={1}
+                accent="#8B5CF6"
+                onChange={v => setForm(prev => ({ ...prev, passingPercentage: v }))}
+                fallback={60}
+                suffix="%"
+              />
+              <div style={{ alignSelf: 'start', minWidth: 90 }}>
                 <label style={S.label}>Pool Available</label>
                 <div style={{ fontSize: 20, fontWeight: 700, color: selectedQuestionPool >= form.totalQuestions ? '#10b981' : '#f87171', fontFamily: 'monospace', paddingTop: 6 }}>
                   {selectedQuestionPool}
@@ -550,16 +615,18 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
               <span style={{ float: 'right', fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>{pythonCodingAvailable} available</span>
             </label>
             <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)', borderRadius: 10, padding: 16, marginBottom: 24 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', flex: 1 }}>
-                  💻 Include Python coding problems with Monaco editor + automated test case evaluation (like Round 3). Candidates write real Python code.
-                </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <label style={{ ...S.label, margin: 0, fontSize: 12 }}>Count:</label>
-                  <input type="number" className="no-spin" style={S.numInput} min={0} max={Math.min(pythonCodingAvailable, 20)} value={form.codingProblemCount ?? ''} onFocus={e => e.target.select()} onChange={e => { const v = e.target.value; setForm(prev => ({ ...prev, codingProblemCount: v === '' ? '' : (parseInt(v) || 0) })); }} onBlur={e => { if (e.target.value === '') setForm(prev => ({ ...prev, codingProblemCount: 0 })); }} />
-                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>/ {pythonCodingAvailable}</span>
-                </div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 12 }}>
+                💻 Include Python coding problems with Monaco editor + automated test case evaluation (like Round 3). Candidates write real Python code.
               </div>
+              <SliderField
+                label={`Coding Problems  /  ${pythonCodingAvailable} available`}
+                value={form.codingProblemCount}
+                min={0} max={Math.max(0, Math.min(pythonCodingAvailable, 20))} step={1}
+                accent="#10b981"
+                onChange={v => setForm(prev => ({ ...prev, codingProblemCount: v }))}
+                fallback={0}
+                disabled={pythonCodingAvailable === 0}
+              />
               {form.codingProblemCount > 0 && (
                 <div style={{ marginTop: 10, fontSize: 12, color: '#34d399' }}>
                   ✓ {form.codingProblemCount} coding {form.codingProblemCount === 1 ? 'problem' : 'problems'} will be randomly selected from the Python coding bank
@@ -582,11 +649,30 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
             </div>
 
             {error && <div style={{ ...S.error, marginBottom: 12 }}>{error}</div>}
-            {!diffValid && <div style={{ ...S.error, marginBottom: 8 }}>⚠ Difficulty percentages must sum to 100 (currently {diffTotal}%)</div>}
-            {!typeValid && <div style={{ ...S.error, marginBottom: 8 }}>⚠ Question type percentages must sum to 100 (currently {typeTotal}%)</div>}
-            <button type="submit" disabled={creating} style={{ ...S.createBtn, opacity: creating ? 0.5 : 1, width: '100%', justifyContent: 'center', padding: '14px 24px', fontSize: 15 }}>
-              {creating ? (editingTest ? 'Saving...' : 'Creating...') : (editingTest ? 'Save Changes' : 'Create Test')}
-            </button>
+            {form.totalQuestions > 0 && !diffValid && <div style={{ ...S.error, marginBottom: 8 }}>⚠ Difficulty percentages must sum to 100 (currently {diffTotal}%)</div>}
+            {form.totalQuestions > 0 && !typeValid && <div style={{ ...S.error, marginBottom: 8 }}>⚠ Question type percentages must sum to 100 (currently {typeTotal}%)</div>}
+            {(() => {
+              const distributionValid = form.totalQuestions === 0 || (diffValid && typeValid);
+              const disabled = creating || !distributionValid;
+              return (
+                <button
+                  type="submit"
+                  disabled={disabled}
+                  title={!distributionValid ? 'Fix distribution — totals must equal 100%' : undefined}
+                  style={{
+                    ...S.createBtn,
+                    opacity: disabled ? 0.5 : 1,
+                    cursor: disabled ? 'not-allowed' : 'pointer',
+                    width: '100%', justifyContent: 'center', padding: '14px 24px', fontSize: 15,
+                  }}>
+                  {creating
+                    ? (editingTest ? 'Saving...' : 'Creating...')
+                    : !distributionValid
+                      ? 'Fix distribution — totals must equal 100%'
+                      : (editingTest ? 'Save Changes' : 'Create Test')}
+                </button>
+              );
+            })()}
           </div>
         </form>
       )}
