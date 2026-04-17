@@ -781,96 +781,129 @@ export default function TestPage({ user }) {
           </div>
         </div>
 
-        {/* MCQ Section */}
-        {hybridSection === 'mcq' && questions.length > 0 && (
-          <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-            {/* Question grid nav */}
-            <div style={{ width: 280, borderRight: '1px solid rgba(255,255,255,0.08)', padding: 16, overflowY: 'auto', background: 'rgba(0,0,0,0.2)' }}>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Questions ({answeredMcq}/{questions.length})</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4 }}>
-                {questions.map((q, i) => {
-                  const answered = answers[String(q.id)] !== undefined;
-                  const isCurrent = i === currentIdx;
-                  return (
-                    <button key={q.id} onClick={() => setCurrentIdx(i)} style={{ padding: '6px', fontSize: 11, fontWeight: 600, borderRadius: 4, border: 'none', cursor: 'pointer', background: isCurrent ? '#7c3aed' : answered ? '#10b981' : 'rgba(255,255,255,0.06)', color: 'white', fontFamily: 'monospace' }}>{i + 1}</button>
-                  );
-                })}
-              </div>
-              {/* Quick-access coding buttons at bottom of MCQ palette */}
-              {hybridProblems.length > 0 && (
-                <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(6,182,212,0.6)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8 }}>
-                    💻 Coding ({hybridProblems.length})
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    {hybridProblems.map((prob, idx) => {
-                      const score = hybridBestScores[prob.id] || 0;
+        {/* MCQ Section — same polished layout as pure MCQ test */}
+        {hybridSection === 'mcq' && questions.length > 0 && (() => {
+          const q = questions[currentIdx];
+          const selectedOpt = answers[String(q?.id)];
+          const totalQ = questions.length;
+          return (
+            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+              {/* Sidebar palette */}
+              <aside style={{ width: 260, background: '#0d1117', borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }}>
+                <div style={{ padding: '14px 14px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Questions</span>
+                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', fontFamily: "'JetBrains Mono',monospace" }}>{answeredMcq}/{totalQ}</span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '6px 14px 10px', fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: '#2563eb', display: 'inline-block' }} /> Current</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: '#7c3aed', display: 'inline-block' }} /> Answered</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: 'rgba(255,255,255,0.12)', display: 'inline-block' }} /> Pending</span>
+                </div>
+                <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px 10px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 5 }}>
+                    {questions.map((qq, i) => {
+                      const isCurrent = i === currentIdx;
+                      const isAnswered = answers[String(qq.id)] !== undefined;
+                      let bg = 'rgba(255,255,255,0.04)';
+                      let color = 'rgba(255,255,255,0.3)';
+                      let border = '1px solid rgba(255,255,255,0.06)';
+                      let shadow = 'none';
+                      if (isCurrent) { bg = '#2563eb'; color = 'white'; border = '1px solid #2563eb'; shadow = '0 0 10px rgba(37,99,235,0.4)'; }
+                      else if (isAnswered) { bg = 'rgba(124,58,237,0.25)'; color = '#a78bfa'; border = '1px solid rgba(124,58,237,0.4)'; }
                       return (
-                        <button key={prob.id}
-                          onClick={() => { setHybridSection('coding'); setHybridActiveProblem(idx); }}
-                          style={{
-                            padding: '7px 10px', borderRadius: 8, cursor: 'pointer',
-                            background: score > 0 ? 'rgba(6,182,212,0.15)' : 'rgba(6,182,212,0.06)',
-                            border: `1px solid ${score > 0 ? 'rgba(6,182,212,0.35)' : 'rgba(6,182,212,0.15)'}`,
-                            color: score > 0 ? '#22d3ee' : 'rgba(6,182,212,0.6)',
-                            fontSize: 11, fontWeight: 600, textAlign: 'left',
-                            fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6,
-                          }}>
-                          <span>💻</span>
-                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {prob.title}
-                          </span>
-                          {score > 0 && <span style={{ fontSize: 10, color: '#22d3ee' }}>{score}pts</span>}
-                        </button>
+                        <button key={i} onClick={() => setCurrentIdx(i)} style={{ aspectRatio: '1', borderRadius: 7, border, background: bg, color, boxShadow: shadow, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</button>
                       );
                     })}
                   </div>
-                </div>
-              )}
-            </div>
-            {/* Question display */}
-            <div style={{ flex: 1, padding: 32, overflowY: 'auto' }}>
-              {questions[currentIdx] && (() => {
-                const q = questions[currentIdx];
-                const selectedOpt = answers[String(q.id)];
-                return (
-                  <div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>Question {currentIdx + 1} of {questions.length}</div>
-                    {q.code_snippet && <pre style={{ background: 'rgba(255,255,255,0.04)', padding: 16, borderRadius: 8, fontSize: 13, fontFamily: 'monospace', overflowX: 'auto', marginBottom: 16, color: 'rgba(255,255,255,0.8)' }}>{q.code_snippet}</pre>}
-                    <p style={{ fontSize: 16, lineHeight: 1.6, marginBottom: 24 }}>{q.question}</p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      {q.options.map((opt, oi) => (
-                        <button key={oi} onClick={() => handleAnswer(q.id, oi)} style={{ padding: '14px 20px', textAlign: 'left', borderRadius: 10, border: `2px solid ${selectedOpt === oi ? '#7c3aed' : 'rgba(255,255,255,0.1)'}`, background: selectedOpt === oi ? 'rgba(124,58,237,0.15)' : 'rgba(255,255,255,0.03)', color: 'white', cursor: 'pointer', fontSize: 14, transition: 'all 0.15s', display: 'flex', alignItems: 'flex-start', gap: 10, whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.55 }}>
-                          <span style={{ fontWeight: 600, flexShrink: 0, color: 'rgba(255,255,255,0.4)' }}>{String.fromCharCode(65 + oi)}.</span><span style={{ flex: 1 }}>{opt}</span>
-                        </button>
-                      ))}
+                  {/* Quick-access coding buttons */}
+                  {hybridProblems.length > 0 && (
+                    <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(6,182,212,0.6)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8 }}>💻 Coding ({hybridProblems.length})</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {hybridProblems.map((prob, idx) => {
+                          const score = hybridBestScores[prob.id] || 0;
+                          return (
+                            <button key={prob.id} onClick={() => { setHybridSection('coding'); setHybridActiveProblem(idx); }}
+                              style={{ padding: '7px 10px', borderRadius: 8, cursor: 'pointer', background: score > 0 ? 'rgba(6,182,212,0.15)' : 'rgba(6,182,212,0.06)', border: `1px solid ${score > 0 ? 'rgba(6,182,212,0.35)' : 'rgba(6,182,212,0.15)'}`, color: score > 0 ? '#22d3ee' : 'rgba(6,182,212,0.6)', fontSize: 11, fontWeight: 600, textAlign: 'left', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span>💻</span>
+                              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prob.title}</span>
+                              {score > 0 && <span style={{ fontSize: 10, color: '#22d3ee' }}>{score}pts</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
-                      <button onClick={() => setCurrentIdx(Math.max(0, currentIdx - 1))} disabled={currentIdx === 0} className="btn btn-outline">← Prev</button>
-                      {currentIdx < questions.length - 1 ? (
-                        <button onClick={() => setCurrentIdx(currentIdx + 1)} className="btn btn-primary">Next →</button>
+                  )}
+                </div>
+                <button onClick={() => setShowConfirm(true)} style={{ margin: 10, padding: 12, background: 'linear-gradient(135deg,#7c3aed,#5b21b6)', border: 'none', borderRadius: 10, color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Submit Test ({answeredMcq}/{totalQ})
+                </button>
+              </aside>
+
+              {/* Question area */}
+              <main style={{ flex: 1, overflowY: 'auto', padding: '32px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
+                {q && (
+                  <div style={{ background: '#0d1117', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 16, padding: '32px 36px', maxWidth: 760, width: '100%' }}>
+                    {/* Meta row */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                      <span className={`badge diff-${(q.difficulty || 'medium').toLowerCase()}`} style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{q.difficulty || 'Medium'}</span>
+                      <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', fontFamily: "'JetBrains Mono',monospace" }}>
+                        Q{currentIdx + 1} <span style={{ color: 'rgba(255,255,255,0.2)' }}>/ {totalQ}</span>
+                      </span>
+                    </div>
+
+                    {/* Code snippet */}
+                    {q.code_snippet && q.code_snippet.trim() !== '' && (
+                      <pre style={{ background: '#030712', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '18px 20px', fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: '#a8ff78', overflowX: 'auto', marginBottom: 20, whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.6 }}>{q.code_snippet}</pre>
+                    )}
+
+                    {/* Question text */}
+                    <div style={{ fontSize: 17, fontWeight: 500, lineHeight: 1.7, color: 'white', marginBottom: 24 }}>{q.question}</div>
+
+                    {/* Options */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28 }}>
+                      {(q.options || []).map((opt, oi) => {
+                        const isSelected = selectedOpt === oi;
+                        return (
+                          <button key={oi} onClick={() => handleAnswer(q.id, oi)} style={{ display: 'flex', alignItems: 'flex-start', gap: 14, background: isSelected ? 'rgba(124,58,237,0.12)' : 'rgba(255,255,255,0.03)', border: isSelected ? '1px solid #7c3aed' : '1px solid rgba(255,255,255,0.08)', boxShadow: isSelected ? '0 0 0 1px rgba(124,58,237,0.3)' : 'none', borderRadius: 10, padding: '14px 18px', cursor: 'pointer', textAlign: 'left', transition: 'all 0.18s', color: 'white', fontFamily: 'inherit', fontSize: 14, width: '100%', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                            <span style={{ width: 32, height: 32, borderRadius: 8, marginTop: 1, background: isSelected ? '#7c3aed' : 'rgba(255,255,255,0.06)', color: isSelected ? 'white' : 'rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", flexShrink: 0, transition: 'all 0.18s' }}>{['A','B','C','D'][oi]}</span>
+                            <span style={{ flex: 1, lineHeight: 1.55 }}>{opt}</span>
+                            {isSelected && <span style={{ color: '#7c3aed', fontSize: 16, fontWeight: 700, flexShrink: 0, marginTop: 2 }}>✓</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Navigation */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                      <button onClick={() => setCurrentIdx(i => Math.max(0, i - 1))} disabled={currentIdx === 0} style={{ padding: '10px 22px', borderRadius: 9, fontSize: 14, fontWeight: 600, cursor: currentIdx === 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: currentIdx === 0 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.6)', opacity: currentIdx === 0 ? 0.4 : 1, transition: 'all 0.2s' }}>← Previous</button>
+
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {[...Array(Math.min(7, totalQ))].map((_, i) => {
+                          const idx = Math.max(0, Math.min(currentIdx - 3, totalQ - 7)) + i;
+                          if (idx >= totalQ) return null;
+                          const isActive = idx === currentIdx;
+                          const isDone = answers[String(questions[idx]?.id)] !== undefined;
+                          return (
+                            <button key={idx} onClick={() => setCurrentIdx(idx)} style={{ width: 32, height: 32, borderRadius: 7, fontSize: 12, fontWeight: 600, fontFamily: "'JetBrains Mono',monospace", cursor: 'pointer', border: isActive ? '1px solid #7c3aed' : isDone ? '1px solid rgba(5,150,105,0.3)' : '1px solid rgba(255,255,255,0.08)', background: isActive ? '#7c3aed' : isDone ? 'rgba(5,150,105,0.15)' : 'rgba(255,255,255,0.03)', color: isActive ? 'white' : isDone ? '#34d399' : 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}>{idx + 1}</button>
+                          );
+                        })}
+                      </div>
+
+                      {currentIdx < totalQ - 1 ? (
+                        <button onClick={() => setCurrentIdx(i => i + 1)} style={{ padding: '10px 22px', borderRadius: 9, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa', transition: 'all 0.2s' }}>Next →</button>
                       ) : hybridProblems.length > 0 ? (
-                        <button
-                          onClick={() => {
-                            setHybridSection('coding');
-                            setHybridActiveProblem(0);
-                            showHybridToast('MCQ section complete! Starting coding problems…', 'info');
-                          }}
-                          className="btn btn-primary"
-                          style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)', fontWeight: 700 }}
-                        >
-                          Start Coding Section →
-                        </button>
+                        <button onClick={() => { setHybridSection('coding'); setHybridActiveProblem(0); showHybridToast('MCQ section complete! Starting coding problems…', 'info'); }} style={{ padding: '10px 22px', borderRadius: 9, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', background: 'linear-gradient(135deg,#7c3aed,#2563eb)', border: 'none', color: 'white', transition: 'all 0.2s' }}>Start Coding →</button>
                       ) : (
-                        <button onClick={() => setShowConfirm(true)} className="btn btn-primary">Submit ✓</button>
+                        <button onClick={() => setShowConfirm(true)} style={{ padding: '10px 22px', borderRadius: 9, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', background: 'linear-gradient(135deg,#7c3aed,#5b21b6)', border: 'none', color: 'white' }}>Submit ✓</button>
                       )}
                     </div>
                   </div>
-                );
-              })()}
+                )}
+              </main>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Coding Section */}
         {hybridSection === 'coding' && hybridProblems.length > 0 && (
