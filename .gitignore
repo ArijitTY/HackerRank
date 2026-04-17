@@ -6,7 +6,10 @@ __pycache__/
 .env.local
 .DS_Store
 Thumbs.db
+# SQLite database — each deployment keeps its own local DB with student data
+# Never commit the DB. Use seed_questions.sql + sync_questions.py to share question data.
 skillforge.db
+**/skillforge.db
 *.db-shm
 *.db-wal
 node_modules/

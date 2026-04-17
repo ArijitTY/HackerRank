@@ -236,7 +236,7 @@ export default function CodingTestPage({ user, testId, sessionId, problems, tota
         const r = await api.get('/candidate/ping', { params: sessionId ? { tsid: sessionId } : {} });
         if (sessionId && r.data.testSessionStatus && r.data.testSessionStatus !== 'in_progress' && !submitted.current) {
           setAdminEnded(true);
-          if (document.fullscreenElement || document.webkitFullscreenElement) document.exitFullscreen().catch(() => {});
+          if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
         }
       } catch (e) { /* ignore */ }
     };
@@ -265,27 +265,19 @@ export default function CodingTestPage({ user, testId, sessionId, problems, tota
   // ===== FULLSCREEN MANAGEMENT =====
   useEffect(() => {
     if (result) return;
-    const enterFs = async () => {
-      const el = document.documentElement;
-      try {
-        if (el.requestFullscreen) await el.requestFullscreen();
-        else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
-        else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
-        else if (el.msRequestFullscreen) el.msRequestFullscreen();
-        fsActiveRef.current = true;
-      } catch (err) {
-        // macOS/Safari blocks programmatic fullscreen without a direct user gesture
-        setFsWarning(true);
-      }
-    };
-    enterFs();
+    const el = document.documentElement;
+    if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+    else if (el.msRequestFullscreen) el.msRequestFullscreen();
+    fsActiveRef.current = true;
     return () => {
-      if (document.fullscreenElement || document.webkitFullscreenElement) document.exitFullscreen().catch(() => {});
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     };
   }, []); // eslint-disable-line
 
   useEffect(() => {
-    if (result && (document.fullscreenElement || document.webkitFullscreenElement)) {
+    if (result && document.fullscreenElement) {
       document.exitFullscreen().catch(() => {});
       fsActiveRef.current = false;
     }
@@ -324,7 +316,7 @@ export default function CodingTestPage({ user, testId, sessionId, problems, tota
             This coding test doesn't have any problems attached yet. Please contact your administrator.
           </p>
           <button
-            onClick={() => { if (document.fullscreenElement || document.webkitFullscreenElement) document.exitFullscreen().catch(() => {}); navigate('/candidate'); }}
+            onClick={() => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); navigate('/candidate'); }}
             style={{ padding: '12px 32px', background: '#7c3aed', border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
           >
             Back to Dashboard
@@ -526,15 +518,13 @@ export default function CodingTestPage({ user, testId, sessionId, problems, tota
           You have exited fullscreen mode. This test must be taken in fullscreen. Please re-enter fullscreen to continue.
         </p>
         <button
-          onClick={async () => {
+          onClick={() => {
             const el = document.documentElement;
-            try {
-              if (el.requestFullscreen) await el.requestFullscreen();
-              else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
-              else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
-              else if (el.msRequestFullscreen) el.msRequestFullscreen();
-              setFsWarning(false);
-            } catch (err) { /* user declined — keep warning visible */ }
+            if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+            else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+            else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+            else if (el.msRequestFullscreen) el.msRequestFullscreen();
+            setFsWarning(false);
           }}
           style={{
             padding: '13px 36px', background: 'linear-gradient(135deg,#7c3aed,#2563eb)',
@@ -567,7 +557,7 @@ export default function CodingTestPage({ user, testId, sessionId, problems, tota
           The administrator has ended this test session. Your progress has been saved and the test has been submitted automatically.
         </p>
         <button
-          onClick={() => { if (document.fullscreenElement || document.webkitFullscreenElement) document.exitFullscreen().catch(() => {}); navigate('/candidate'); }}
+          onClick={() => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); navigate('/candidate'); }}
           style={{
             padding: '13px 36px', background: 'linear-gradient(135deg,#d97706,#b45309)',
             border: 'none', borderRadius: 10, color: '#fff', fontSize: 15, fontWeight: 700,
