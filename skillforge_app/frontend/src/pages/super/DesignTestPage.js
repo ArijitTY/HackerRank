@@ -5,13 +5,13 @@ import { useToast } from '../../context/ToastContext';
 
 const SUBJECT_COLORS = {
   Python: '#3b82f6', Python_Selenium: '#8b5cf6', Pytest: '#10b981',
-  Manual_Testing: '#ef4444', API_Testing: '#f59e0b', Postman: '#06b6d4',
+  Manual_Testing: '#ef4444', API_Manual_Testing: '#f59e0b',
   Python_Requests: '#84cc16', SQL: '#d97706'
 };
 
 const SUBJECT_LABELS = {
   Python: 'Python', Python_Selenium: 'Python Selenium', Pytest: 'Pytest',
-  Manual_Testing: 'Manual Testing', API_Testing: 'API Testing', Postman: 'Postman',
+  Manual_Testing: 'Manual Testing', API_Manual_Testing: 'API Manual Testing',
   Python_Requests: 'Python Requests', SQL: 'SQL'
 };
 

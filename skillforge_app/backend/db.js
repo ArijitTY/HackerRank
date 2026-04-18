@@ -396,8 +396,7 @@ if (questionCount < 500) {
     { file: 'python_selenium_questions.csv', subject: 'Python_Selenium' },
     { file: 'pytest_questions.csv', subject: 'Pytest' },
     { file: 'manual_testing_questions.csv', subject: 'Manual_Testing' },
-    { file: 'api_testing_questions.csv', subject: 'API_Testing' },
-    { file: 'postman_questions.csv', subject: 'Postman' },
+    { file: 'api_manual_testing_questions.csv', subject: 'API_Manual_Testing' },
     { file: 'python_requests_questions.csv', subject: 'Python_Requests' },
     { file: 'sql_questions.csv', subject: 'SQL' },
   ];
