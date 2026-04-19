@@ -73,6 +73,7 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
   const [success, setSuccess] = useState('');
 
   const [pythonCodingAvailable, setPythonCodingAvailable] = useState(0);
+  const [codingDiffAvailable, setCodingDiffAvailable] = useState({ Easy: 0, Medium: 0, Hard: 0 });
   const [diffLocked, setDiffLocked] = useState(new Set());
   const [typeLocked, setTypeLocked] = useState(new Set());
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -87,6 +88,7 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
     durationMinutes: 60,
     passingPercentage: 60,
     codingProblemCount: 0,
+    codingEasy: 0, codingMedium: 0, codingHard: 0,
   });
 
   const fetchData = async () => {
@@ -98,6 +100,7 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
       setTests(testsRes.data.tests || []);
       setStats(statsRes.data.subjects || []);
       setPythonCodingAvailable(statsRes.data.pythonCodingProblems || 0);
+      setCodingDiffAvailable(statsRes.data.codingDiffAvailable || { Easy: 0, Medium: 0, Hard: 0 });
     } catch (err) {
       setError('Failed to load data');
     } finally {
@@ -249,6 +252,13 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
     if (hasMcq && form.totalQuestions < 5) return setError('Minimum 5 MCQ questions');
     if (hasMcq && form.totalQuestions > selectedQuestionPool) return setError(`Only ${selectedQuestionPool} questions available for selected subjects`);
     if (hasCoding && form.codingProblemCount > pythonCodingAvailable) return setError(`Only ${pythonCodingAvailable} Python coding problems available`);
+    if (hasCoding) {
+      const cdTotal = (form.codingEasy || 0) + (form.codingMedium || 0) + (form.codingHard || 0);
+      if (cdTotal !== form.codingProblemCount) return setError(`Coding difficulty counts must add up to ${form.codingProblemCount} (currently ${cdTotal})`);
+      if ((form.codingEasy || 0) > (codingDiffAvailable.Easy || 0)) return setError(`Only ${codingDiffAvailable.Easy || 0} Easy coding problems available`);
+      if ((form.codingMedium || 0) > (codingDiffAvailable.Medium || 0)) return setError(`Only ${codingDiffAvailable.Medium || 0} Medium coding problems available`);
+      if ((form.codingHard || 0) > (codingDiffAvailable.Hard || 0)) return setError(`Only ${codingDiffAvailable.Hard || 0} Hard coding problems available`);
+    }
     if (hasMcq && !diffValid) return setError(`Difficulty percentages must sum to 100 (currently ${diffTotal})`);
     if (hasMcq && !typeValid) return setError(`Question type percentages must sum to 100 (currently ${typeTotal})`);
 
@@ -272,6 +282,7 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
         durationMinutes: Number(form.durationMinutes) || 60,
         passingPercentage: Number(form.passingPercentage) || 60,
         codingProblemCount: Number(form.codingProblemCount) || 0,
+        codingDifficultyDistribution: { Easy: form.codingEasy || 0, Medium: form.codingMedium || 0, Hard: form.codingHard || 0 },
       };
       if (editingTest) {
         await api.put(`${apiPrefix}/design-test/${editingTest.id}`, payload);
@@ -283,7 +294,7 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
       setSuccess(editingTest ? 'Test updated!' : 'Test created successfully!');
       setShowCreate(false);
       setEditingTest(null);
-      setForm({ name: '', description: '', subjects: [], totalQuestions: 50, easy: 30, medium: 50, hard: 20, mcq: 50, output: 25, scenario: 15, code_completion: 10, durationMinutes: 60, passingPercentage: 60, codingProblemCount: 0 });
+      setForm({ name: '', description: '', subjects: [], totalQuestions: 50, easy: 30, medium: 50, hard: 20, mcq: 50, output: 25, scenario: 15, code_completion: 10, durationMinutes: 60, passingPercentage: 60, codingProblemCount: 0, codingEasy: 0, codingMedium: 0, codingHard: 0 });
       fetchData();
     } catch (err) {
       const msg = err.response?.data?.message || err.response?.data?.error || 'Failed to save test';
@@ -341,6 +352,9 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
       durationMinutes: t.duration_minutes ?? 60,
       passingPercentage: t.passing_percentage ?? 60,
       codingProblemCount: t.coding_problem_count ?? 0,
+      codingEasy: (() => { try { return JSON.parse(t.coding_difficulty_json || '{}').Easy ?? 0; } catch { return 0; } })(),
+      codingMedium: (() => { try { return JSON.parse(t.coding_difficulty_json || '{}').Medium ?? 0; } catch { return 0; } })(),
+      codingHard: (() => { try { return JSON.parse(t.coding_difficulty_json || '{}').Hard ?? 0; } catch { return 0; } })(),
     });
     setEditingTest(t);
     setShowCreate(true);
@@ -623,13 +637,56 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
                 value={form.codingProblemCount}
                 min={0} max={Math.max(0, Math.min(pythonCodingAvailable, 20))} step={1}
                 accent="#10b981"
-                onChange={v => setForm(prev => ({ ...prev, codingProblemCount: v }))}
+                onChange={v => setForm(prev => ({ ...prev, codingProblemCount: v, codingEasy: v, codingMedium: 0, codingHard: 0 }))}
                 fallback={0}
                 disabled={pythonCodingAvailable === 0}
               />
+              {form.codingProblemCount > 0 && (() => {
+                const cdTotal = (form.codingEasy || 0) + (form.codingMedium || 0) + (form.codingHard || 0);
+                const cdValid = cdTotal === form.codingProblemCount;
+                return (
+                  <div style={{ marginTop: 14 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.55)', marginBottom: 8, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                      Difficulty Mix
+                      <span style={{ float: 'right', fontSize: 11, color: cdValid ? '#34d399' : '#f87171', fontWeight: 700 }}>
+                        {cdTotal} / {form.codingProblemCount} {cdValid ? '✓' : '— must equal total'}
+                      </span>
+                    </div>
+                    <SliderField
+                      label={`Easy  /  ${codingDiffAvailable.Easy || 0} available`}
+                      value={form.codingEasy || 0}
+                      min={0} max={Math.min(form.codingProblemCount, codingDiffAvailable.Easy || 0)} step={1}
+                      accent="#10b981"
+                      onChange={v => setForm(prev => ({ ...prev, codingEasy: v }))}
+                      fallback={0}
+                    />
+                    <SliderField
+                      label={`Medium  /  ${codingDiffAvailable.Medium || 0} available`}
+                      value={form.codingMedium || 0}
+                      min={0} max={Math.min(form.codingProblemCount, codingDiffAvailable.Medium || 0)} step={1}
+                      accent="#f59e0b"
+                      onChange={v => setForm(prev => ({ ...prev, codingMedium: v }))}
+                      fallback={0}
+                    />
+                    <SliderField
+                      label={`Hard  /  ${codingDiffAvailable.Hard || 0} available`}
+                      value={form.codingHard || 0}
+                      min={0} max={Math.min(form.codingProblemCount, codingDiffAvailable.Hard || 0)} step={1}
+                      accent="#ef4444"
+                      onChange={v => setForm(prev => ({ ...prev, codingHard: v }))}
+                      fallback={0}
+                    />
+                    {!cdValid && (
+                      <div style={{ fontSize: 11, color: '#f87171', marginTop: 6 }}>
+                        ⚠ Easy + Medium + Hard must equal {form.codingProblemCount}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               {form.codingProblemCount > 0 && (
                 <div style={{ marginTop: 10, fontSize: 12, color: '#34d399' }}>
-                  ✓ {form.codingProblemCount} coding {form.codingProblemCount === 1 ? 'problem' : 'problems'} will be randomly selected from the Python coding bank
+                  ✓ {form.codingProblemCount} coding {form.codingProblemCount === 1 ? 'problem' : 'problems'} will be selected ({form.codingEasy || 0} Easy, {form.codingMedium || 0} Medium, {form.codingHard || 0} Hard)
                   {form.totalQuestions > 0 ? ' — combined with MCQ questions for a hybrid test' : ' — coding-only test'}
                 </div>
               )}
@@ -652,7 +709,9 @@ export default function DesignTestPage({ apiPrefix = '/super' }) {
             {form.totalQuestions > 0 && !diffValid && <div style={{ ...S.error, marginBottom: 8 }}>⚠ Difficulty percentages must sum to 100 (currently {diffTotal}%)</div>}
             {form.totalQuestions > 0 && !typeValid && <div style={{ ...S.error, marginBottom: 8 }}>⚠ Question type percentages must sum to 100 (currently {typeTotal}%)</div>}
             {(() => {
-              const distributionValid = form.totalQuestions === 0 || (diffValid && typeValid);
+              const cdTotal = (form.codingEasy || 0) + (form.codingMedium || 0) + (form.codingHard || 0);
+              const codingDiffValid = form.codingProblemCount === 0 || cdTotal === form.codingProblemCount;
+              const distributionValid = (form.totalQuestions === 0 || (diffValid && typeValid)) && codingDiffValid;
               const disabled = creating || !distributionValid;
               return (
                 <button

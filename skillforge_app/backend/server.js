@@ -1295,7 +1295,10 @@ app.get('/api/super/question-stats', authMiddleware, requireRole('super_admin'),
     }
 
     const codingProblemsCount = db.prepare("SELECT COUNT(*) as cnt FROM coding_problems WHERE evaluation_type = 'python'").get().cnt;
-    res.json({ subjects: Object.values(subjectMap), pythonCodingProblems: codingProblemsCount });
+    const codingByDiff = db.prepare("SELECT difficulty, COUNT(*) as cnt FROM coding_problems WHERE evaluation_type = 'python' GROUP BY difficulty").all();
+    const codingDiffAvailable = {};
+    for (const row of codingByDiff) codingDiffAvailable[row.difficulty] = row.cnt;
+    res.json({ subjects: Object.values(subjectMap), pythonCodingProblems: codingProblemsCount, codingDiffAvailable });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
@@ -1318,7 +1321,10 @@ app.get('/api/admin/question-stats', authMiddleware, requireRole('admin'), (req,
     }
 
     const codingProblemsCount = db.prepare("SELECT COUNT(*) as cnt FROM coding_problems WHERE evaluation_type = 'python'").get().cnt;
-    res.json({ subjects: Object.values(subjectMap), pythonCodingProblems: codingProblemsCount });
+    const codingByDiff = db.prepare("SELECT difficulty, COUNT(*) as cnt FROM coding_problems WHERE evaluation_type = 'python' GROUP BY difficulty").all();
+    const codingDiffAvailable = {};
+    for (const row of codingByDiff) codingDiffAvailable[row.difficulty] = row.cnt;
+    res.json({ subjects: Object.values(subjectMap), pythonCodingProblems: codingProblemsCount, codingDiffAvailable });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
@@ -1358,7 +1364,7 @@ app.get('/api/admin/design-tests', authMiddleware, requireRole('admin'), (req, r
 // Create a custom test
 app.post('/api/super/design-test', authMiddleware, requireRole('super_admin'), (req, res) => {
   try {
-    const { name, description, subjects, totalQuestions, difficultyDistribution, typeQuotas, durationMinutes, passingPercentage, codingProblemCount, availableFrom, availableUntil } = req.body;
+    const { name, description, subjects, totalQuestions, difficultyDistribution, typeQuotas, durationMinutes, passingPercentage, codingProblemCount, codingDifficultyDistribution, availableFrom, availableUntil } = req.body;
     const codingCount = parseInt(codingProblemCount) || 0;
     const mcqCount = parseInt(totalQuestions) || 0;
 
@@ -1388,10 +1394,11 @@ app.post('/api/super/design-test', authMiddleware, requireRole('super_admin'), (
 
     const testType = codingCount > 0 && mcqCount > 0 ? 'hybrid' : codingCount > 0 ? 'coding' : 'mcq';
     const testId = 'test_custom_' + uuidv4().substring(0, 8);
+    const codingDiffJson = codingCount > 0 ? JSON.stringify(codingDifficultyDistribution || { Easy: codingCount, Medium: 0, Hard: 0 }) : null;
 
     db.prepare(`
-      INSERT INTO tests (id, name, description, port, duration_minutes, passing_percentage, total_questions, test_type, is_custom, created_by, subjects_json, difficulty_json, type_quotas_json, coding_problem_count, available_from, available_until)
-      VALUES (?, ?, ?, 3000, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO tests (id, name, description, port, duration_minutes, passing_percentage, total_questions, test_type, is_custom, created_by, subjects_json, difficulty_json, type_quotas_json, coding_problem_count, coding_difficulty_json, available_from, available_until)
+      VALUES (?, ?, ?, 3000, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       testId, name, description || '',
       durationMinutes || 90, passingPercentage || 60, mcqCount, testType,
@@ -1400,6 +1407,7 @@ app.post('/api/super/design-test', authMiddleware, requireRole('super_admin'), (
       JSON.stringify(difficultyDistribution || { Easy: 30, Medium: 50, Hard: 20 }),
       JSON.stringify(typeQuotas || {}),
       codingCount,
+      codingDiffJson,
       availableFrom || null, availableUntil || null
     );
 
@@ -1416,7 +1424,7 @@ app.post('/api/super/design-test', authMiddleware, requireRole('super_admin'), (
 
 app.post('/api/admin/design-test', authMiddleware, requireRole('admin'), (req, res) => {
   try {
-    const { name, description, subjects, totalQuestions, difficultyDistribution, typeQuotas, durationMinutes, passingPercentage, codingProblemCount, availableFrom, availableUntil } = req.body;
+    const { name, description, subjects, totalQuestions, difficultyDistribution, typeQuotas, durationMinutes, passingPercentage, codingProblemCount, codingDifficultyDistribution, availableFrom, availableUntil } = req.body;
     const codingCount = parseInt(codingProblemCount) || 0;
     const mcqCount = parseInt(totalQuestions) || 0;
 
@@ -1446,10 +1454,11 @@ app.post('/api/admin/design-test', authMiddleware, requireRole('admin'), (req, r
 
     const testType = codingCount > 0 && mcqCount > 0 ? 'hybrid' : codingCount > 0 ? 'coding' : 'mcq';
     const testId = 'test_custom_' + uuidv4().substring(0, 8);
+    const codingDiffJson = codingCount > 0 ? JSON.stringify(codingDifficultyDistribution || { Easy: codingCount, Medium: 0, Hard: 0 }) : null;
 
     db.prepare(`
-      INSERT INTO tests (id, name, description, port, duration_minutes, passing_percentage, total_questions, test_type, is_custom, created_by, subjects_json, difficulty_json, type_quotas_json, coding_problem_count, available_from, available_until)
-      VALUES (?, ?, ?, 3000, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO tests (id, name, description, port, duration_minutes, passing_percentage, total_questions, test_type, is_custom, created_by, subjects_json, difficulty_json, type_quotas_json, coding_problem_count, coding_difficulty_json, available_from, available_until)
+      VALUES (?, ?, ?, 3000, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       testId, name, description || '',
       durationMinutes || 90, passingPercentage || 60, mcqCount, testType,
@@ -1458,6 +1467,7 @@ app.post('/api/admin/design-test', authMiddleware, requireRole('admin'), (req, r
       JSON.stringify(difficultyDistribution || { Easy: 30, Medium: 50, Hard: 20 }),
       JSON.stringify(typeQuotas || {}),
       codingCount,
+      codingDiffJson,
       availableFrom || null, availableUntil || null
     );
 
@@ -2802,15 +2812,30 @@ app.post('/api/candidate/tests/:testId/start', authMiddleware, requireRole('cand
       // Fall back to all python problems if none are linked to this test specifically
       let rawProblems = db.prepare('SELECT * FROM coding_problems WHERE test_id = ?').all(testId);
       if (rawProblems.length === 0) {
-        // Coding test created via design-test: problems may not be stored with this test_id.
-        // Use the test's coding_problem_count to pick a seeded-random subset of all python problems.
-        const testRecord2 = db.prepare('SELECT coding_problem_count FROM tests WHERE id = ?').get(testId);
+        // Coding test created via design-test: pick problems using difficulty distribution if set.
+        const testRecord2 = db.prepare('SELECT coding_problem_count, coding_difficulty_json FROM tests WHERE id = ?').get(testId);
         const wantCount = testRecord2?.coding_problem_count || 1;
-        const allPython = db.prepare("SELECT * FROM coding_problems WHERE evaluation_type = 'python' OR section LIKE '%Python%' ORDER BY id").all();
-        if (allPython.length > 0) {
-          const shuffled = seededShuffle(allPython.map(p => p.id), hashCode(candidateId + testId + '_coding'));
-          const picked = shuffled.slice(0, wantCount);
-          rawProblems = picked.map(id => allPython.find(p => p.id === id)).filter(Boolean);
+        const diffDist = testRecord2?.coding_difficulty_json ? JSON.parse(testRecord2.coding_difficulty_json) : null;
+        const seed = hashCode(candidateId + testId + '_coding');
+        if (diffDist && (diffDist.Easy > 0 || diffDist.Medium > 0 || diffDist.Hard > 0)) {
+          // Pick per-difficulty using seeded shuffle
+          rawProblems = [];
+          for (const [diff, count] of Object.entries(diffDist)) {
+            if (!count) continue;
+            const pool = db.prepare("SELECT * FROM coding_problems WHERE (evaluation_type = 'python' OR section LIKE '%Python%') AND difficulty = ? ORDER BY id").all(diff);
+            const shuffled = seededShuffle(pool.map(p => p.id), hashCode(seed + diff));
+            const picked = shuffled.slice(0, count).map(id => pool.find(p => p.id === id)).filter(Boolean);
+            rawProblems.push(...picked);
+          }
+          // Shuffle the final combined list so difficulties are interleaved
+          rawProblems = seededShuffle(rawProblems.map(p => p.id), seed).map(id => rawProblems.find(p => p.id === id)).filter(Boolean);
+        } else {
+          const allPython = db.prepare("SELECT * FROM coding_problems WHERE evaluation_type = 'python' OR section LIKE '%Python%' ORDER BY id").all();
+          if (allPython.length > 0) {
+            const shuffled = seededShuffle(allPython.map(p => p.id), seed);
+            const picked = shuffled.slice(0, wantCount);
+            rawProblems = picked.map(id => allPython.find(p => p.id === id)).filter(Boolean);
+          }
         }
       }
       if (rawProblems.length === 0) {
@@ -2893,13 +2918,30 @@ app.post('/api/candidate/tests/:testId/start', authMiddleware, requireRole('cand
       if (existingHybrid) {
         selectedProblemIds = JSON.parse(existingHybrid.hybrid_problem_ids_json || '[]');
       } else {
-        // First try problems specific to this test, then fall back to general python problems
+        // First try problems specific to this test, then fall back to general python problems with difficulty distribution
         let candidateProblems = db.prepare("SELECT id FROM coding_problems WHERE test_id = ? ORDER BY id").all(testId);
         if (candidateProblems.length === 0) {
-          candidateProblems = db.prepare("SELECT id FROM coding_problems WHERE evaluation_type = 'python' ORDER BY id").all();
+          const testRecord3 = db.prepare('SELECT coding_difficulty_json FROM tests WHERE id = ?').get(testId);
+          const diffDist3 = testRecord3?.coding_difficulty_json ? JSON.parse(testRecord3.coding_difficulty_json) : null;
+          const seed3 = hashCode(candidateId + testId + '_coding');
+          if (diffDist3 && (diffDist3.Easy > 0 || diffDist3.Medium > 0 || diffDist3.Hard > 0)) {
+            const picked = [];
+            for (const [diff, count] of Object.entries(diffDist3)) {
+              if (!count) continue;
+              const pool = db.prepare("SELECT id FROM coding_problems WHERE evaluation_type = 'python' AND difficulty = ? ORDER BY id").all(diff);
+              const shuffled = seededShuffle(pool.map(p => p.id), hashCode(seed3 + diff));
+              picked.push(...shuffled.slice(0, count));
+            }
+            selectedProblemIds = seededShuffle(picked, seed3).slice(0, codingCount);
+          } else {
+            candidateProblems = db.prepare("SELECT id FROM coding_problems WHERE evaluation_type = 'python' ORDER BY id").all();
+            const shuffled = seededShuffle(candidateProblems.map(p => p.id), seed3);
+            selectedProblemIds = shuffled.slice(0, codingCount);
+          }
+        } else {
+          const shuffled = seededShuffle(candidateProblems.map(p => p.id), hashCode(candidateId + testId + '_coding'));
+          selectedProblemIds = shuffled.slice(0, codingCount);
         }
-        const shuffled = seededShuffle(candidateProblems.map(p => p.id), hashCode(candidateId + testId + '_coding'));
-        selectedProblemIds = shuffled.slice(0, codingCount);
       }
 
       const safeProblems = selectedProblemIds.map(loadSafeProblem).filter(Boolean);
@@ -4757,7 +4799,7 @@ function updateDesignTestHandler(req, res, role) {
   try {
     const { name, description, durationMinutes, passingPercentage,
       subjectsJson, subjects, difficultyJson, difficultyDistribution,
-      typeQuotasJson, typeQuotas, codingProblemCount, totalQuestions } = req.body || {};
+      typeQuotasJson, typeQuotas, codingProblemCount, codingDifficultyDistribution, totalQuestions } = req.body || {};
     if (!name || !String(name).trim()) return res.status(400).json({ error: 'NAME_REQUIRED', message: 'Test name is required' });
     if (durationMinutes != null && (Number(durationMinutes) <= 0 || Number(durationMinutes) > 480)) {
       return res.status(400).json({ error: 'INVALID_DURATION', message: 'Duration must be between 1 and 480 minutes' });
@@ -4799,18 +4841,21 @@ function updateDesignTestHandler(req, res, role) {
     }
 
     const newTestType = codingCount > 0 && mcqCount > 0 ? 'hybrid' : codingCount > 0 ? 'coding' : 'mcq';
+    const codingDiffJson = codingCount > 0
+      ? (codingDifficultyDistribution ? JSON.stringify(codingDifficultyDistribution) : (test.coding_difficulty_json || JSON.stringify({ Easy: codingCount, Medium: 0, Hard: 0 })))
+      : null;
 
     db.prepare(`
       UPDATE tests SET name = ?, description = ?, duration_minutes = ?, passing_percentage = ?,
         subjects_json = ?, difficulty_json = ?, type_quotas_json = ?, coding_problem_count = ?,
-        total_questions = ?, test_type = ?
+        coding_difficulty_json = ?, total_questions = ?, test_type = ?
       WHERE id = ?
     `).run(
       String(name).trim(),
       description != null ? description : test.description,
       durationMinutes != null ? Number(durationMinutes) : test.duration_minutes,
       passingPercentage != null ? Number(passingPercentage) : test.passing_percentage,
-      sJson, dJson, tJson, codingCount, mcqCount, newTestType,
+      sJson, dJson, tJson, codingCount, codingDiffJson, mcqCount, newTestType,
       req.params.testId
     );
     logAudit(db, { actorId: req.user.id, actorRole: role, action: 'edit_test',
