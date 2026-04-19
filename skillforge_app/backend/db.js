@@ -366,23 +366,36 @@ if (userCount === 0) {
 
 // ========== SEED TESTS ==========
 
-const testCount = db.prepare('SELECT COUNT(*) as c FROM tests').get().c;
-if (testCount === 0) {
-  const tests = [
-    { id: 'test_p1', name: 'Python Round 1', description: 'Python fundamentals assessment', port: 3000, duration: 90, passing: 60.0, total: 100, type: 'mcq' },
-    { id: 'test_pqa', name: 'Python QA Round 1', description: 'Python QA comprehensive assessment', port: 3000, duration: 100, passing: 60.0, total: 100, type: 'mcq' },
-    { id: 'test_pycode', name: 'Python Coding Challenge', description: 'Python algorithmic coding problems', port: 3000, duration: 120, passing: 60.0, total: 100, type: 'coding' },
-  ];
-
+// Always ensure all standard tests exist (INSERT OR IGNORE = safe to run every startup)
+{
   const insertTest = db.prepare(`
-    INSERT INTO tests (id, name, description, port, duration_minutes, passing_percentage, total_questions, test_type)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT OR IGNORE INTO tests (id, name, description, port, duration_minutes, passing_percentage, total_questions, test_type, is_interview_prep)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
+  const standardTests = [
+    { id: 'test_p1',        name: 'Python Round 1',         description: 'Python fundamentals assessment',       duration: 90,  passing: 60, total: 100, type: 'mcq',    prep: 0 },
+    { id: 'test_pqa',       name: 'Python QA Round 1',      description: 'Python QA comprehensive assessment',  duration: 100, passing: 60, total: 100, type: 'mcq',    prep: 0 },
+    { id: 'test_pycode',    name: 'Python Coding Challenge', description: 'Python algorithmic coding problems', duration: 120, passing: 60, total: 100, type: 'coding',  prep: 0 },
+    { id: 'test_sony',      name: 'Sony Interview Prep',     description: 'Sony company interview preparation', duration: 90,  passing: 60, total:  55, type: 'hybrid',  prep: 1 },
+    { id: 'test_ey',        name: 'EY Interview Prep',       description: 'EY company interview preparation',   duration: 90,  passing: 60, total:  40, type: 'hybrid',  prep: 1 },
+    { id: 'test_fluke',     name: 'Fluke Interview Prep',    description: 'Fluke company interview preparation',duration: 90,  passing: 60, total:  65, type: 'hybrid',  prep: 1 },
+    { id: 'test_wakefit',   name: 'Wakefit Interview Prep',  description: 'Wakefit company interview prep',     duration: 90,  passing: 60, total:  48, type: 'hybrid',  prep: 1 },
+    { id: 'test_nykaa',     name: 'Nykaa Interview Prep',    description: 'Nykaa company interview prep',       duration: 90,  passing: 60, total:  45, type: 'hybrid',  prep: 1 },
+    { id: 'test_greyorange',name: 'GreyOrange Interview Prep',description:'GreyOrange company interview prep', duration: 90,  passing: 60, total:  43, type: 'hybrid',  prep: 1 },
+    { id: 'test_arcessium', name: 'Arcessium Interview Prep',description: 'Arcessium company interview prep',  duration: 90,  passing: 60, total:  20, type: 'hybrid',  prep: 1 },
+  ];
+  const seedTests = db.transaction(() => {
+    for (const t of standardTests) {
+      insertTest.run(t.id, t.name, t.description, 3000, t.duration, t.passing, t.total, t.type, t.prep);
+    }
+  });
+  seedTests();
 
-  for (const t of tests) {
-    insertTest.run(t.id, t.name, t.description, t.port, t.duration, t.passing, t.total, t.type);
+  // Also set coding_problem_count for company prep tests (UPDATE only affects existing rows)
+  const companyCodingCounts = { test_sony: 5, test_ey: 3, test_fluke: 4, test_wakefit: 3, test_nykaa: 3, test_greyorange: 4, test_arcessium: 3 };
+  for (const [id, cnt] of Object.entries(companyCodingCounts)) {
+    db.prepare('UPDATE tests SET coding_problem_count=? WHERE id=? AND (coding_problem_count IS NULL OR coding_problem_count=0)').run(cnt, id);
   }
-  console.log('[DB] Seeded 5 tests');
 }
 
 // ========== LOAD QUESTIONS FROM CSV ==========
@@ -487,6 +500,59 @@ if (questionCount < 500) {
     console.log(`[DB] Total questions loaded: ${totalLoaded}`);
   } else {
     console.warn('[DB] Question bank directory not found. No questions loaded.');
+  }
+}
+
+// ========== SEED COMPANY QUESTIONS ==========
+
+const companyQCount = db.prepare('SELECT COUNT(*) as c FROM company_questions').get().c;
+if (companyQCount === 0) {
+  const companyFiles = [
+    { file: 'sony_questions.csv',       company: 'Sony' },
+    { file: 'ey_questions.csv',         company: 'EY' },
+    { file: 'fluke_questions.csv',      company: 'Fluke' },
+    { file: 'wakefit_questions.csv',    company: 'Wakefit' },
+    { file: 'nykaa_questions.csv',      company: 'Nykaa' },
+    { file: 'greyorange_questions.csv', company: 'GreyOrange' },
+    { file: 'arcessium_questions.csv',  company: 'Arcessium' },
+  ];
+
+  const possiblePaths = [
+    path.join(__dirname, '..', 'question_bank', 'company_questions'),
+    path.join(__dirname, '..', '..', 'question_bank', 'company_questions'),
+  ];
+  let companyQPath = null;
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) { companyQPath = p; break; }
+  }
+
+  if (companyQPath) {
+    const insertCQ = db.prepare(`
+      INSERT OR IGNORE INTO company_questions
+        (id, csv_id, company, subject, topic, difficulty, type, question, option_a, option_b, option_c, option_d, correct_answer, answer_index, explanation, code_snippet)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const ansMap = { A: 0, B: 1, C: 2, D: 3 };
+    let totalCQ = 0;
+    const seedCQ = db.transaction(() => {
+      for (const { file, company } of companyFiles) {
+        const fp = path.join(companyQPath, file);
+        if (!fs.existsSync(fp)) continue;
+        const parsed = Papa.parse(fs.readFileSync(fp, 'utf8'), { header: true, skipEmptyLines: true, transformHeader: h => h.trim() });
+        for (const row of parsed.data) {
+          if (!row.id || !row.question) continue;
+          const compositeId = `${company}_${row.id}`;
+          const ca = (row.correct_answer || 'A').trim().toUpperCase();
+          const ai = ansMap[ca.charAt(0)] ?? 0;
+          insertCQ.run(compositeId, row.id, company, row.subject || `${company} Interview`, row.topic || '', row.difficulty || 'Medium', row.type || 'mcq', row.question, row.option_a || '', row.option_b || '', row.option_c || '', row.option_d || '', ca, ai, row.explanation || '', row.code_snippet || '');
+          totalCQ++;
+        }
+      }
+    });
+    seedCQ();
+    if (totalCQ > 0) console.log(`[DB] Loaded ${totalCQ} company interview questions`);
+  } else {
+    console.warn('[DB] Company question_bank directory not found. Company prep tests will have no MCQ questions.');
   }
 }
 

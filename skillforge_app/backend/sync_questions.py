@@ -38,8 +38,12 @@ def main():
     cp_before = cur.fetchone()[0]
     cur.execute("SELECT COUNT(*) FROM coding_test_cases")
     ctc_before = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM company_questions")
+    cq_before = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM company_coding_problems")
+    ccp_before = cur.fetchone()[0]
 
-    print(f"Before: {q_before} MCQ questions, {cp_before} coding problems, {ctc_before} test cases")
+    print(f"Before: {q_before} MCQ questions, {cp_before} coding problems, {ctc_before} test cases, {cq_before} company questions, {ccp_before} company coding problems")
 
     # Apply seed
     with open(SEED_PATH, 'r') as f:
@@ -54,14 +58,20 @@ def main():
     cp_after = cur.fetchone()[0]
     cur.execute("SELECT COUNT(*) FROM coding_test_cases")
     ctc_after = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM company_questions")
+    cq_after = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM company_coding_problems")
+    ccp_after = cur.fetchone()[0]
 
     conn.close()
 
-    print(f"After:  {q_after} MCQ questions, {cp_after} coding problems, {ctc_after} test cases")
+    print(f"After:  {q_after} MCQ questions, {cp_after} coding problems, {ctc_after} test cases, {cq_after} company questions, {ccp_after} company coding problems")
     print()
-    print(f"  MCQ questions:   {q_after - q_before:+d}")
-    print(f"  Coding problems: {cp_after - cp_before:+d}")
-    print(f"  Test cases:      {ctc_after - ctc_before:+d}")
+    print(f"  MCQ questions:          {q_after - q_before:+d}")
+    print(f"  Coding problems:        {cp_after - cp_before:+d}")
+    print(f"  Test cases:             {ctc_after - ctc_before:+d}")
+    print(f"  Company questions:      {cq_after - cq_before:+d}")
+    print(f"  Company coding probs:   {ccp_after - ccp_before:+d}")
     print()
     print("Done. Student data (users, test_sessions, audit_log) was NOT touched.")
 
